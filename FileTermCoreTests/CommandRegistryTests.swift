@@ -3,6 +3,37 @@ import Testing
 @testable import FileTermCore
 
 @MainActor struct CommandRegistryTests {
+  @Test func dynamicCommandsAndCheckedStateUseTheCurrentContext() {
+    var paths = ["/first"]
+    var source = Location(providerID: "local", path: "/first")
+    var target: Location?
+    let registry = CommandRegistry(
+      commands: [],
+      dynamicCommands: {
+        paths.map { path in
+          AppCommand(
+            id: path, title: path, menuPath: ["Go", "Recent Folders"],
+            isEnabled: { $0.targetLocation != nil }, disabledReason: { _ in "Open two panes." },
+            isChecked: { $0.sourceLocation?.path == path }, handler: {})
+        }
+      },
+      context: {
+        CommandContext(
+          hasBrowserWindow: true, hasKeyWindow: true, isLoading: false,
+          sourceLocation: source, targetLocation: target)
+      })
+    #expect(registry.isChecked("/first"))
+    #expect(!registry.execute("/first"))
+    target = Location(providerID: "local", path: "/second")
+    #expect(registry.execute("/first"))
+    source = Location(providerID: "local", path: "/second")
+    #expect(!registry.isChecked("/first"))
+    paths = ["/second"]
+    #expect(registry.command("/first") == nil)
+    #expect(registry.isChecked("/second"))
+    #expect(registry.execute("/second"))
+  }
+
   @Test func reevaluatesAvailabilityBeforeExecuting() {
     var hasWindow = false
     var executions = 0

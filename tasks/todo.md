@@ -1,23 +1,22 @@
-# M00 implementation
+# M01 implementation
 
-- [x] 1. Project skeleton, pinned tooling and CI workflow
-- [x] 2. Provider contracts and local filesystem tests
-- [x] 3. Single-pane browsing and native presentation
-- [x] 4. Command registry, menus and placeholder panels
-- [x] 5. Persistent settings and seven categories
-- [x] 6. Formatting, build, tests and runtime verification
+- [x] 1. Pane coordination and successful-navigation history
+- [x] 2. Active-pane views, layouts and command routing
+- [x] 3. Destinations, interactive path bar, Go to Folder and nested menus
+- [x] 4. Persistent MRU, visibility and pane status
+- [x] 5. Devices, volume notifications and injectable ejection
+- [x] 6. Sync Browsing, regression tests, native verification and documentation
 
-The repository initially contains documentation only and has no Git metadata or remote.
-Hosted CI cannot be claimed as passing until the workflow runs on a connected repository.
+Verification on 24 October 2026:
 
-Verification: seven core tests, the settings unit test and the native UI smoke
-test pass. Swift formatting and shell syntax checks pass. Xcode builds the native
-app. Downloads browsing, panel visibility persistence and settings-category
-persistence were checked in the running app, including a full restart.
+- `swift test --disable-sandbox --scratch-path .build/core`: 16 passed.
+- `swift format lint --strict --recursive FileTerm FileTermCoreTests FileTermTests FileTermUITests Package.swift`: passed.
+- Generated project from `project.yml`; native Xcode build passed.
+- Full `xcodebuild test`: 7 native unit tests and 5 native UI tests passed; no skips.
+- Inspected the built app: ancestor breadcrumbs navigate correctly, internal
+  volumes appear, and both layouts fit a 680 by 420 content area.
+- Sync Browsing mutation check: inverting its guard causes the focused test to
+  fail. Restored the implementation and reran the complete core suite successfully.
+- All ejection tests use fake services. No real device was ejected.
 
-Review: removing the command dispatcher's availability guard makes its focused
-test fail. The guard was restored and all seven core tests passed again.
-
-Environment: restricted-shell Xcode package resolution fails, so native build
-and UI-test verification ran through Xcode. The Defaults dependency emits one
-upstream warning about inherited unchecked Sendable conformance; app code builds.
+M00 remains complete locally; hosted CI still requires a connected remote run.

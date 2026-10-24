@@ -1,4 +1,5 @@
 import Defaults
+import FileTermCore
 import Foundation
 import Observation
 
@@ -40,7 +41,29 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
   var commandID: String { "view.\(rawValue.lowercased())" }
 }
 
+enum BrowserChrome: String, CaseIterable {
+  case pathBar, titleBar, toolbar, devices, deviceInfo
+  var title: String {
+    switch self {
+    case .pathBar: "Path Bar"
+    case .titleBar: "Title Bar"
+    case .toolbar: "Toolbar"
+    case .devices: "Devices"
+    case .deviceInfo: "Device Info"
+    }
+  }
+  var commandID: String { "view.\(rawValue)" }
+}
+
 @MainActor @Observable final class AppSettings {
+  var hiddenChrome: Set<String> {
+    didSet { Defaults[chromeKey] = hiddenChrome }
+  }
+  private(set) var recentFolders: [String] {
+    didSet { Defaults[recentKey] = recentFolders }
+  }
+  @ObservationIgnored private let chromeKey: Defaults.Key<Set<String>>
+  @ObservationIgnored private let recentKey: Defaults.Key<[String]>
   var visiblePanels: Set<String> {
     didSet { Defaults[panelsKey] = visiblePanels }
   }
@@ -51,11 +74,31 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
   @ObservationIgnored private let categoryKey: Defaults.Key<String>
 
   init(suite: UserDefaults = .standard) {
+    chromeKey = Defaults.Key(
+      "hiddenChrome", default: [BrowserChrome.deviceInfo.rawValue], suite: suite)
+    recentKey = Defaults.Key("recentFolders", default: [], suite: suite)
+    hiddenChrome = Defaults[chromeKey]
+    recentFolders = Array(Defaults[recentKey].filter { $0.hasPrefix("/") }.prefix(20))
     panelsKey = Defaults.Key("visiblePanels", default: [], suite: suite)
     categoryKey = Defaults.Key(
       "settingsCategory", default: SettingsCategory.general.rawValue, suite: suite)
     visiblePanels = Defaults[panelsKey]
     selectedCategory = Defaults[categoryKey]
+  }
+
+  func isVisible(_ chrome: BrowserChrome) -> Bool { !hiddenChrome.contains(chrome.rawValue) }
+  func toggle(_ chrome: BrowserChrome) {
+    if isVisible(chrome) {
+      hiddenChrome.insert(chrome.rawValue)
+    } else {
+      hiddenChrome.remove(chrome.rawValue)
+    }
+  }
+
+  func recordVisit(_ location: Location) {
+    guard location.providerID == "local", location.path.hasPrefix("/") else { return }
+    recentFolders = Array(
+      ([location.path] + recentFolders.filter { $0 != location.path }).prefix(20))
   }
 
   func isVisible(_ panel: PlaceholderPanel) -> Bool { visiblePanels.contains(panel.rawValue) }

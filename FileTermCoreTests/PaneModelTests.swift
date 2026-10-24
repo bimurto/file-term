@@ -4,6 +4,18 @@ import Testing
 @testable import FileTermCore
 
 @MainActor struct PaneModelTests {
+  @Test func selectedSizeCountsKnownBytesAndReportsUnknowns() async {
+    let model = PaneModel(providers: [FakeProvider()])
+    await model.navigate(to: Location(providerID: "fake-connection", path: "root"))
+    model.selection = Set(model.entries.map(\.id))
+    #expect(model.selectedBytes == 10)
+    #expect(model.selectedEntries.count == 3)
+    #expect(model.hasUnknownSelectedSizes)
+    model.selection = Set(model.entries.filter { $0.kind == .file }.map(\.id))
+    #expect(model.selectedBytes == 10)
+    #expect(!model.hasUnknownSelectedSizes)
+  }
+
   @Test func browsesRemoteLocationsAndPreservesListingOnFailure() async {
     let provider = FakeProvider()
     let model = PaneModel(providers: [provider])
@@ -45,8 +57,8 @@ private actor FakeProvider: FileSystemProvider {
       return try await withCheckedThrowingContinuation { slowRequest = $0 }
     }
     return [
-      FileEntry(location: Location(providerID: id, path: "z"), name: "z.txt", kind: .file),
-      FileEntry(location: Location(providerID: id, path: "a"), name: "a.txt", kind: .file),
+      FileEntry(location: Location(providerID: id, path: "z"), name: "z.txt", kind: .file, size: 3),
+      FileEntry(location: Location(providerID: id, path: "a"), name: "a.txt", kind: .file, size: 7),
       FileEntry(
         location: Location(providerID: id, path: "folder"), name: "Folder", kind: .directory),
     ]

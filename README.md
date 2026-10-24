@@ -1,7 +1,8 @@
 # FileTerm
 
-Native macOS file browser. M00 provides one pane, a path bar, item count,
-registry-driven commands, persistent settings and placeholder panels.
+Native macOS file browser with single, side-by-side and stacked panes,
+independent navigation histories, interactive breadcrumbs, standard Go destinations,
+recent folders, mounted devices and Sync Browsing.
 
 ## Run
 
@@ -39,8 +40,9 @@ xcodebuild -project FileTerm.xcodeproj -scheme FileTerm \
   -destination 'platform=macOS' -derivedDataPath .build/xcode test
 ```
 
-The dependency-free Swift package tests filesystem operations, navigation races
-and command availability. Xcode runs the settings tests and UI smoke test. UI
+The dependency-free Swift package tests filesystem operations, independent pane
+histories, navigation races, Sync Browsing and command availability. Xcode runs
+settings/navigation/device tests and native UI tests, including minimum-size layouts. UI
 tests require an interactive desktop and Xcode's normal automation permission.
 CI runs core tests, the native build and settings tests; run the UI test locally.
 
@@ -63,16 +65,45 @@ existing destination. Delete is permanent at the provider layer. These mutation
 methods have no user-facing commands in M00; later commands must confirm
 destructive operations before calling them.
 
-Browsing starts at Home, hides hidden items and sorts folders first by name.
-Only directories open on double-click. Failed navigation preserves the current
-folder, listing and selection; obsolete requests cannot replace newer results.
+Browsing starts in single-pane mode at Home, hides hidden items and sorts folders
+first by name. Both pane models start at the same location. Click a pane to make
+it the command source; the other visible pane is the target. Single-pane mode
+keeps the active pane visible and retains the hidden pane's state. Session
+restoration is deferred to M02.
+
+Double-click directories to enter them. Enclosing Folder moves up; Back and
+Forward follow each pane's own history. Breadcrumb ancestors and Go destinations
+navigate the active pane. Go to Folder accepts absolute paths, resolves symlinks,
+and reports invalid paths without changing the current folder. Standard text
+editing shortcuts work in its path field. Failed navigation preserves the folder,
+listing, selection and history; obsolete requests cannot replace newer results.
 Permission errors do not request broad access automatically.
+
+Recent Folders stores the last 20 distinct successful local destinations, shared
+between the Go menu and sidebar. View controls path-bar, title-bar, toolbar,
+devices and device-info visibility; those choices persist. Pane status shows
+visible item count, selected known bytes (unknown sizes are marked), and free
+volume space without recursively scanning folders.
+
+Swap Panes exchanges pane states, including their histories and selections, while
+retaining the active visual position. Clone Pane navigates the opposite pane to
+the active folder. Both require two idle panes.
+
+Sync Browsing mirrors only directory entry and Enclosing Folder into the other
+pane. Back/Forward, breadcrumbs and direct destinations stay independent. A
+missing counterpart leaves the opposite pane unchanged and shows an explanation.
+Switching to single-pane mode turns Sync Browsing off. It never changes files.
+
+Devices refresh on mount, unmount and volume rename. File > Eject requires a
+selected ejectable sidebar volume. Failures are reported; unmounted locations
+return to Home. Ejection tests use a fake service and never eject a real drive.
+Go > Connections remains a disabled placeholder until M08.
 
 For isolated UI tests, `FILETERM_INITIAL_DIRECTORY` overrides the startup folder
 and `FILETERM_SETTINGS_SUITE` selects an independent preferences domain.
 
 ## Roadmap
 
-See [milestones](docs/README.md) and [M00 implementation status](tasks/todo.md).
+See [milestones](docs/README.md) and [M01 implementation status](tasks/todo.md).
 This workspace initially had no Git repository or remote. The CI workflow needs
 to be hosted before its passing status can be verified.
