@@ -269,55 +269,8 @@ private struct BrowserPaneView: View {
   }
 
   private var fileList: some View {
-    Table(pane.entries, selection: $pane.selection) {
-      TableColumn("Name") { entry in
-        HStack(spacing: 6) {
-          FileIcon(entry: entry, localProvider: localProvider)
-          Text(entry.name).lineLimit(1)
-        }
-      }.width(min: 100, ideal: 220)
-      TableColumn("Size") { entry in
-        Text(entry.size.map { $0.formatted(.byteCount(style: .file)) } ?? "—")
-          .monospacedDigit().foregroundStyle(.secondary)
-      }.width(70)
-      TableColumn("Kind") { entry in Text(kindDescription(entry)).foregroundStyle(.secondary) }
-        .width(min: 70, ideal: 100)
-      TableColumn("Modified") { entry in
-        Text(entry.modifiedAt?.formatted(date: .abbreviated, time: .shortened) ?? "—")
-          .foregroundStyle(.secondary)
-      }.width(min: 130, ideal: 160)
-    }
-    .contextMenu(forSelectionType: Location.self) { _ in
-      EmptyView()
-    } primaryAction: { locations in
-      guard locations.count == 1, let location = locations.first,
-        pane.entries.contains(where: { $0.id == location && $0.kind == .directory })
-      else { return }
-      browser.activePaneID = paneID
-      Task { await browser.enterFolder(location, in: paneID) }
-    }
-    .accessibilityIdentifier("fileList")
-    .overlay {
-      if pane.entries.isEmpty && !pane.isLoading {
-        ContentUnavailableView(
-          pane.location == nil ? "No folder open" : "This folder is empty", systemImage: "folder"
-        )
-        .allowsHitTesting(false)
-      }
-    }
-  }
-
-  private func kindDescription(_ entry: FileEntry) -> String {
-    switch entry.kind {
-    case .directory: return "Folder"
-    case .symbolicLink: return "Symbolic Link"
-    case .other: return "Other"
-    case .file:
-      let type =
-        entry.typeIdentifier.flatMap { UTType($0) }
-        ?? UTType(filenameExtension: (entry.name as NSString).pathExtension)
-      return type?.localizedDescription ?? "File"
-    }
+    FileContentView(pane: pane, paneID: paneID, browser: browser, provider: localProvider)
+      .id(pane.id)
   }
 }
 
@@ -357,25 +310,4 @@ extension GoToFolderModel: Identifiable {
 }
 extension Notification.Name {
   static let fileTermGoToFolder = Notification.Name("FileTerm.goToFolder")
-}
-
-private struct FileIcon: View {
-  let entry: FileEntry
-  let localProvider: LocalFileSystemProvider
-  @State private var icon: NSImage?
-
-  var body: some View {
-    Group {
-      if let icon {
-        Image(nsImage: icon).resizable()
-      } else {
-        Image(systemName: entry.kind == .directory ? "folder" : "doc").resizable()
-      }
-    }
-    .frame(width: 16, height: 16).accessibilityHidden(true)
-    .task(id: entry.location) {
-      guard let url = try? localProvider.url(for: entry.location) else { return }
-      icon = NSWorkspace.shared.icon(forFile: url.path)
-    }
-  }
 }
