@@ -47,6 +47,46 @@ import Observation
     self.providers = Dictionary(uniqueKeysWithValues: providers.map { ($0.id, $0) })
   }
 
+  public func duplicate() -> PaneModel {
+    let pane = PaneModel(providers: Array(providers.values), viewPreferences: viewPreferences)
+    pane.location = location
+    pane.entries = entries
+    pane.tabViewOptions = viewOptions
+    pane.viewScope = viewScope
+    if let location {
+      pane.history = [location]
+      pane.historyIndex = 0
+    }
+    return pane
+  }
+
+  public var backLocation: Location? { canGoBack ? history[historyIndex - 1] : nil }
+  public var forwardLocation: Location? { canGoForward ? history[historyIndex + 1] : nil }
+
+  public func snapshot() -> TabSnapshot? {
+    guard let location else { return nil }
+    return TabSnapshot(
+      location: location, history: history, historyIndex: historyIndex,
+      options: tabViewOptions, scope: viewScope, isPinned: isPinned)
+  }
+
+  public func restore(_ snapshot: TabSnapshot, fallback: Location) async {
+    tabViewOptions = snapshot.options
+    viewScope = snapshot.scope
+    if await navigate(to: snapshot.location) {
+      if snapshot.history.indices.contains(snapshot.historyIndex),
+        snapshot.history[snapshot.historyIndex] == snapshot.location
+      {
+        history = snapshot.history
+        historyIndex = snapshot.historyIndex
+      }
+      isPinned = snapshot.isPinned
+    } else {
+      await navigate(to: fallback)
+      isPinned = false
+    }
+  }
+
   public var canGoBack: Bool { historyIndex > 0 }
   public var canGoForward: Bool { historyIndex + 1 < history.count }
   public var canGoUp: Bool { location?.parent != nil }

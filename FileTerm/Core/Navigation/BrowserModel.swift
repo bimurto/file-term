@@ -1,18 +1,20 @@
 import Foundation
 import Observation
 
-public enum PaneID: String, CaseIterable, Sendable {
+public enum PaneID: String, CaseIterable, Codable, Sendable {
   case first, second
   public var opposite: PaneID { self == .first ? .second : .first }
 }
 
-public enum PaneLayout: String, CaseIterable, Sendable {
+public enum PaneLayout: String, CaseIterable, Codable, Sendable {
   case single, vertical, horizontal
 }
 
 @MainActor @Observable public final class BrowserModel {
-  public private(set) var firstPane: PaneModel
-  public private(set) var secondPane: PaneModel
+  public private(set) var firstTabs: PaneTabs
+  public private(set) var secondTabs: PaneTabs
+  public var firstPane: PaneModel { firstTabs.active }
+  public var secondPane: PaneModel { secondTabs.active }
   public var activePaneID: PaneID = .first
   public private(set) var layout: PaneLayout = .single
   public private(set) var lastDualLayout: PaneLayout = .vertical
@@ -27,9 +29,61 @@ public enum PaneLayout: String, CaseIterable, Sendable {
   @ObservationIgnored private var coordinationID = UUID()
   @ObservationIgnored private var pendingMirror: PaneModel?
 
-  public init(providers: [any FileSystemProvider]) {
-    firstPane = PaneModel(providers: providers)
-    secondPane = PaneModel(providers: providers)
+  public init(
+    providers: [any FileSystemProvider], viewPreferences: ViewPreferences = ViewPreferences()
+  ) {
+    firstTabs = PaneTabs(initial: PaneModel(providers: providers, viewPreferences: viewPreferences))
+    secondTabs = PaneTabs(
+      initial: PaneModel(providers: providers, viewPreferences: viewPreferences))
+  }
+
+  public func tabs(_ id: PaneID) -> PaneTabs { id == .first ? firstTabs : secondTabs }
+
+  public func newTab(in id: PaneID) {
+    invalidateMirror()
+    tabs(id).newTab()
+  }
+  public func selectTab(_ tabID: UUID, in id: PaneID) {
+    invalidateMirror()
+    tabs(id).select(tabID)
+  }
+  public func selectTab(at index: Int, in id: PaneID) {
+    invalidateMirror()
+    tabs(id).selectIndex(index)
+  }
+  public func cycleTab(_ step: Int, in id: PaneID) {
+    invalidateMirror()
+    tabs(id).cycle(step)
+  }
+  @discardableResult public func closeTab(_ tabID: UUID? = nil, in id: PaneID) -> Bool {
+    invalidateMirror()
+    return tabs(id).close(tabID)
+  }
+  public func closeOtherTabs(in id: PaneID) {
+    invalidateMirror()
+    tabs(id).closeOthers()
+  }
+
+  public func snapshot() -> BrowserSnapshot {
+    BrowserSnapshot(
+      first: firstTabs.tabs.compactMap { $0.snapshot() },
+      second: secondTabs.tabs.compactMap { $0.snapshot() }, firstSelected: firstTabs.selectedIndex,
+      secondSelected: secondTabs.selectedIndex, layout: layout, lastDualLayout: lastDualLayout,
+      activePane: activePaneID)
+  }
+
+  public func restore(_ snapshot: BrowserSnapshot, fallback: Location) async {
+    invalidateMirror()
+    await firstTabs.restore(snapshot.first, selected: snapshot.firstSelected, fallback: fallback)
+    await secondTabs.restore(snapshot.second, selected: snapshot.secondSelected, fallback: fallback)
+    lastDualLayout = snapshot.lastDualLayout == .single ? .vertical : snapshot.lastDualLayout
+    setLayout(snapshot.layout)
+    activePaneID = snapshot.activePane
+  }
+
+  private func navigationPane(to destination: Location, in id: PaneID) -> PaneModel {
+    let current = pane(id)
+    return current.isPinned && current.location != destination ? tabs(id).newTab() : current
   }
 
   public func pane(_ id: PaneID) -> PaneModel { id == .first ? firstPane : secondPane }
@@ -51,9 +105,9 @@ public enum PaneLayout: String, CaseIterable, Sendable {
   public func swapPanes() {
     guard canCoordinatePanes else { return }
     invalidateMirror()
-    let first = firstPane
-    firstPane = secondPane
-    secondPane = first
+    let first = firstTabs
+    firstTabs = secondTabs
+    secondTabs = first
   }
 
   public func clonePane() async {
@@ -63,7 +117,7 @@ public enum PaneLayout: String, CaseIterable, Sendable {
 
   @discardableResult public func navigate(to destination: Location, in id: PaneID) async -> Bool {
     invalidateMirror()
-    let source = pane(id)
+    let source = navigationPane(to: destination, in: id)
     let success = await source.navigate(to: destination)
     if success { onVisit?(destination) }
     return success
@@ -72,12 +126,20 @@ public enum PaneLayout: String, CaseIterable, Sendable {
   public func goBack(in id: PaneID) async {
     invalidateMirror()
     let source = pane(id)
+    if source.isPinned, let destination = source.backLocation {
+      await navigate(to: destination, in: id)
+      return
+    }
     if await source.goBack(), let location = source.location { onVisit?(location) }
   }
 
   public func goForward(in id: PaneID) async {
     invalidateMirror()
     let source = pane(id)
+    if source.isPinned, let destination = source.forwardLocation {
+      await navigate(to: destination, in: id)
+      return
+    }
     if await source.goForward(), let location = source.location { onVisit?(location) }
   }
 
@@ -99,14 +161,19 @@ public enum PaneLayout: String, CaseIterable, Sendable {
   public func handleUnmount(at url: URL, home: Location) async {
     let mount = url.standardizedFileURL.path
     for id in PaneID.allCases {
-      guard let location = pane(id).location, location.providerID == home.providerID,
-        location.path == mount || location.path.hasPrefix(mount + "/")
-      else { continue }
-      let openedHome = await navigate(to: home, in: id)
-      notice =
-        openedHome
-        ? "The volume at \(mount) was unmounted. Affected panes were moved to Home."
-        : "The volume at \(mount) was unmounted. Home could not be opened."
+      for tab in tabs(id).tabs {
+        guard let location = tab.location, location.providerID == home.providerID,
+          location.path == mount || location.path.hasPrefix(mount + "/")
+        else { continue }
+        invalidateMirror()
+        tab.isPinned = false
+        let openedHome = await tab.navigate(to: home)
+        if openedHome { onVisit?(home) }
+        notice =
+          openedHome
+          ? "The volume at \(mount) was unmounted. Affected tabs were moved to Home."
+          : "The volume at \(mount) was unmounted. Home could not be opened."
+      }
     }
   }
 
@@ -122,7 +189,7 @@ public enum PaneLayout: String, CaseIterable, Sendable {
     invalidateMirror()
     notice = nil
     let token = coordinationID
-    let source = pane(id)
+    let source = navigationPane(to: destination, in: id)
     let target = pane(id.opposite)
     let targetRevision = target.navigationRevision
     let targetLocation = target.location
@@ -144,15 +211,16 @@ public enum PaneLayout: String, CaseIterable, Sendable {
       notice = "Sync Browsing: the opposite pane is already at its filesystem root."
       return
     }
-    pendingMirror = target
-    let success = await target.navigate(to: counterpart)
+    let mirrorTarget = navigationPane(to: counterpart, in: id.opposite)
+    pendingMirror = mirrorTarget
+    let success = await mirrorTarget.navigate(to: counterpart)
     guard coordinationID == token else { return }
     pendingMirror = nil
     if success {
       onVisit?(counterpart)
     } else {
       notice =
-        "Sync Browsing could not open \(counterpart.path). \(target.errorMessage ?? "The folder is unavailable.")"
+        "Sync Browsing could not open \(counterpart.path). \(mirrorTarget.errorMessage ?? "The folder is unavailable.")"
     }
   }
 }
