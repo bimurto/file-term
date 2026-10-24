@@ -64,6 +64,10 @@ struct LocalProviderTests {
     #expect(file.size == 5)
     #expect(file.createdAt != nil)
     #expect(file.modifiedAt != nil)
+    #expect(file.owner != nil)
+    #expect(file.group != nil)
+    #expect(file.permissions != nil)
+    #expect(file.typeIdentifier != nil)
   }
 }
 

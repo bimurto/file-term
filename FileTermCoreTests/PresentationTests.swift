@@ -10,6 +10,25 @@ import Testing
       kind: .file, size: size, tags: tags)
   }
 
+  @Test(arguments: FileSortField.allCases)
+  func everySortFieldUsesItsMetadata(_ field: FileSortField) {
+    let early = Date(timeIntervalSince1970: 100)
+    let late = Date(timeIntervalSince1970: 200)
+    let first = FileEntry(
+      location: Location(providerID: "local", path: "/z.txt"), name: "z.txt", kind: .file,
+      size: 2, createdAt: early, modifiedAt: early, addedAt: early, openedAt: early, tags: ["A"],
+      owner: "alice", group: "alpha", permissions: 0o644)
+    let second = FileEntry(
+      location: Location(providerID: "local", path: "/a.zip"), name: "a.zip", kind: .file,
+      size: 10, createdAt: late, modifiedAt: late, addedAt: late, openedAt: late, tags: ["Z"],
+      owner: "zoe", group: "omega", permissions: 0o755)
+    let expected = field == .name ? [second.id, first.id] : [first.id, second.id]
+    #expect([second, first].sorted(using: EntryOrder(field: field)).map(\.id) == expected)
+    #expect(
+      [first, second].sorted(using: EntryOrder(field: field, order: .reverse)).map(\.id)
+        == expected.reversed())
+  }
+
   @Test func sortsNaturallyAndLeavesUnknownMetadataLastInEitherDirection() {
     let entries = [entry("file10", size: 10), entry("file2", size: 2), entry("unknown")]
     #expect(

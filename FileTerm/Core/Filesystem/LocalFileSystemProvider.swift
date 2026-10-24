@@ -1,3 +1,4 @@
+import CoreServices
 import Foundation
 
 public actor LocalFileSystemProvider: FileSystemProvider {
@@ -84,7 +85,7 @@ public actor LocalFileSystemProvider: FileSystemProvider {
   private static let keys: [URLResourceKey] = [
     .isDirectoryKey, .isSymbolicLinkKey, .isRegularFileKey, .fileSizeKey,
     .creationDateKey, .contentModificationDateKey, .addedToDirectoryDateKey,
-    .contentAccessDateKey, .tagNamesKey, .typeIdentifierKey,
+    .tagNamesKey, .typeIdentifierKey,
   ]
 
   private func entry(at url: URL) throws -> FileEntry {
@@ -94,12 +95,14 @@ public actor LocalFileSystemProvider: FileSystemProvider {
       ? .symbolicLink
       : values.isDirectory == true ? .directory : values.isRegularFile == true ? .file : .other
     let attributes = try? manager.attributesOfItem(atPath: url.path)
+    let metadata = MDItemCreateWithURL(kCFAllocatorDefault, url as CFURL)
+    let lastOpened = metadata.flatMap { MDItemCopyAttribute($0, kMDItemLastUsedDate) as? Date }
     return FileEntry(
       location: location(for: url), name: url.lastPathComponent, kind: kind,
       size: kind == .file ? values.fileSize.map(Int64.init) : nil,
       createdAt: values.creationDate, modifiedAt: values.contentModificationDate,
       typeIdentifier: values.typeIdentifier, addedAt: values.addedToDirectoryDate,
-      openedAt: values.contentAccessDate, tags: values.tagNames ?? [],
+      openedAt: lastOpened, tags: values.tagNames ?? [],
       owner: attributes?[.ownerAccountName] as? String,
       group: attributes?[.groupOwnerAccountName] as? String,
       permissions: attributes?[.posixPermissions] as? Int
