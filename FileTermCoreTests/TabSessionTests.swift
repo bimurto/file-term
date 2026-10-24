@@ -4,6 +4,24 @@ import Testing
 @testable import FileTermCore
 
 @MainActor struct TabSessionTests {
+  @Test func newTabsUseSavedDefaultsAndPinnedForksKeepTheirView() async {
+    let provider = LocalFileSystemProvider()
+    let preferences = ViewPreferences()
+    preferences.defaults.sortField = .size
+    let browser = BrowserModel(providers: [provider], viewPreferences: preferences)
+    await browser.navigate(
+      to: provider.location(for: FileManager.default.temporaryDirectory), in: .first)
+    browser.firstPane.viewOptions.mode = .icons
+    browser.firstPane.viewOptions.sortField = .name
+    browser.newTab(in: .first)
+    #expect(browser.firstPane.viewOptions.mode == .list)
+    #expect(browser.firstPane.viewOptions.sortField == .size)
+    browser.firstPane.viewOptions.mode = .columns
+    browser.firstPane.isPinned = true
+    await browser.navigate(to: Location(providerID: "local", path: "/"), in: .first)
+    #expect(browser.firstPane.viewOptions.mode == .columns)
+  }
+
   @Test func tabsKeepIndependentHistoriesAndPinnedNavigationOpensANewTab() async {
     let provider = LocalFileSystemProvider()
     let browser = BrowserModel(providers: [provider])

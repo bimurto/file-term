@@ -31,8 +31,12 @@ public struct BrowserSnapshot: Codable, Sendable {
     selectedID = initial.id
   }
 
-  @discardableResult public func newTab() -> PaneModel {
+  @discardableResult public func newTab(inheritingView: Bool = false) -> PaneModel {
     let pane = active.duplicate()
+    if !inheritingView {
+      pane.tabViewOptions = active.viewPreferences.defaults
+      pane.viewScope = .tab
+    }
     tabs.append(pane)
     selectedID = pane.id
     return pane

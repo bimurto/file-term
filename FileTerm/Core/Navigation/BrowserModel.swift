@@ -83,7 +83,8 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
 
   private func navigationPane(to destination: Location, in id: PaneID) -> PaneModel {
     let current = pane(id)
-    return current.isPinned && current.location != destination ? tabs(id).newTab() : current
+    return current.isPinned && current.location != destination
+      ? tabs(id).newTab(inheritingView: true) : current
   }
 
   public func pane(_ id: PaneID) -> PaneModel { id == .first ? firstPane : secondPane }
