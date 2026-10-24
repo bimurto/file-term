@@ -51,6 +51,8 @@ public struct ViewOptions: Codable, Equatable, Sendable {
 @MainActor @Observable public final class ViewPreferences {
   public var defaults = ViewOptions() { didSet { onChange?() } }
   public var folders: [Location: ViewOptions] = [:] { didSet { onChange?() } }
+  /// Shared by every pane/tab; separate from any sync "hidden items" option (M09).
+  public var showHidden = false
   @ObservationIgnored public var onChange: (() -> Void)?
   public init() {}
 }

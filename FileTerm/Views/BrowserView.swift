@@ -10,6 +10,12 @@ struct BrowserView: View {
   let devices: DeviceModel
   @State private var goToFolder: GoToFolderModel?
   @State private var optionsSheet: BrowserOptionsSheet?
+  @State private var quickSelectShown = false
+  @State private var quickOpenShown = false
+  @State private var pendingQuickOpen: QuickOpenItem?
+  @State private var searchQuery = SearchQuery()
+  @FocusState private var searchFocused: Bool
+  @State private var extensionPoints = QuickOpenExtensionPoints()
 
   var body: some View {
     VStack(spacing: 0) {
@@ -52,6 +58,36 @@ struct BrowserView: View {
         browser: browser, provider: localProvider, paneID: browser.activePaneID)
     }
     .sheet(item: $goToFolder) { model in GoToFolderSheet(model: model) }
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermQuickSelect)) { notification in
+      guard notification.object as? BrowserModel === browser else { return }
+      quickSelectShown = true
+    }
+    .sheet(isPresented: $quickSelectShown) { QuickSelectSheet(pane: browser.activePane) }
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermQuickOpen)) { notification in
+      guard notification.object as? BrowserModel === browser else { return }
+      browser.isQuickOpenOpen = true
+      quickOpenShown = true
+    }
+    .sheet(
+      isPresented: $quickOpenShown,
+      onDismiss: {
+        browser.isQuickOpenOpen = false
+      }
+    ) {
+      QuickOpenSheet(sources: quickOpenSources) { item in
+        quickOpenShown = false
+        browser.isQuickOpenOpen = false
+        if item.id == "command:edit.selectAll" {
+          browser.activePane.selectAll()
+        } else {
+          item.perform()
+        }
+      }
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermFind)) { notification in
+      guard notification.object as? BrowserModel === browser else { return }
+      searchFocused = true
+    }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermBrowserOptions)) { notification in
       guard notification.object as? BrowserModel === browser,
         let kind = notification.userInfo?["kind"] as? String
@@ -109,8 +145,66 @@ struct BrowserView: View {
           commandButton(id, symbol: ToolbarSymbols.symbol(for: id))
         }
         Spacer(minLength: 0)
+        Toggle(
+          "Show hidden",
+          isOn: Binding(
+            get: { settings.showHidden },
+            set: { value in
+              settings.showHidden = value
+              Task { await browser.setShowHidden(value) }
+            })
+        )
+        .toggleStyle(.checkbox).fixedSize().accessibilityIdentifier("showHiddenToggle")
+        FindToolbar(
+          browser: browser, settings: settings, localProvider: localProvider, query: $searchQuery,
+          focus: $searchFocused)
       }.padding(.horizontal, 10).frame(height: 44)
     }.scrollIndicators(.hidden).frame(height: 44)
+  }
+
+  private var quickOpenSources: [any QuickOpenSource] {
+    let registry = registry
+    let browser = browser
+    let settings = settings
+    let provider = localProvider
+    let commands = ClosureQuickOpenSource {
+      registry.commands.filter { !$0.id.hasPrefix("go.recent") && $0.id != "quickOpen" }
+        .map { command in
+          let shortcut = registry.effectiveShortcut(for: command.id)?.display
+          let reason = registry.disabledReason(for: command.id)
+          return QuickOpenItem(
+            id: "command:" + command.id, title: command.title,
+            subtitle: [command.menuPath.joined(separator: " › "), shortcut, reason]
+              .compactMap { $0 }.joined(separator: " · "),
+            kind: .command, isEnabled: reason == nil
+          ) { registry.execute(command.id) }
+        }
+    }
+    let recents = ClosureQuickOpenSource {
+      settings.recentFolders.map { path in
+        QuickOpenItem(
+          id: "recent:" + path,
+          title: URL(fileURLWithPath: path).lastPathComponent.isEmpty
+            ? "/" : URL(fileURLWithPath: path).lastPathComponent,
+          subtitle: path, kind: .recent
+        ) {
+          let id = browser.activePaneID
+          Task { await browser.navigate(to: Location(providerID: provider.id, path: path), in: id) }
+        }
+      }
+    }
+    let folders = ClosureQuickOpenSource {
+      browser.activePane.entries.filter { $0.kind == .directory }.map { entry in
+        QuickOpenItem(
+          id: "folder:" + entry.location.path, title: entry.name, subtitle: entry.location.path,
+          kind: .folder
+        ) {
+          let id = browser.activePaneID
+          Task { await browser.enterFolder(entry.location, in: id) }
+        }
+      }
+    }
+    return [commands, folders, recents] + extensionPoints.all
   }
 
   private func commandButton(_ id: String, symbol: String) -> some View {
@@ -236,6 +330,7 @@ private struct BrowserPaneView: View {
           .accessibilityIdentifier("navigationError")
         Divider()
       }
+      SearchResultsBanner(pane: pane)
       fileList
       Divider()
       statusBar
@@ -278,7 +373,7 @@ private struct BrowserPaneView: View {
   }
 
   private var itemCount: some View {
-    Text("\(pane.entries.count) items").accessibilityIdentifier("itemCount")
+    Text("\(pane.visibleEntries.count) items").accessibilityIdentifier("itemCount")
   }
   private var freeSpace: String {
     status.availableBytes.map { "\($0.formatted(.byteCount(style: .file))) free" }
@@ -333,4 +428,7 @@ extension GoToFolderModel: Identifiable {
 extension Notification.Name {
   static let fileTermGoToFolder = Notification.Name("FileTerm.goToFolder")
   static let fileTermBrowserOptions = Notification.Name("FileTerm.browserOptions")
+  static let fileTermQuickSelect = Notification.Name("FileTerm.quickSelect")
+  static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")
+  static let fileTermFind = Notification.Name("FileTerm.find")
 }

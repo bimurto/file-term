@@ -12,12 +12,16 @@ public struct CommandContext: Sendable {
   public let canCoordinatePanes: Bool
   public let canEject: Bool
   public let tabCount: Int
+  public let selectionCount: Int
+  public let canQuickOpen: Bool
+  public let isSearching: Bool
 
   public init(
     hasBrowserWindow: Bool, hasKeyWindow: Bool, isLoading: Bool,
     sourceLocation: Location? = nil, targetLocation: Location? = nil,
     canGoBack: Bool = false, canGoForward: Bool = false, canGoUp: Bool = false,
-    canCoordinatePanes: Bool = false, canEject: Bool = false, tabCount: Int = 1
+    canCoordinatePanes: Bool = false, canEject: Bool = false, tabCount: Int = 1,
+    selectionCount: Int = 0, canQuickOpen: Bool = true, isSearching: Bool = false
   ) {
     self.hasBrowserWindow = hasBrowserWindow
     self.hasKeyWindow = hasKeyWindow
@@ -30,6 +34,9 @@ public struct CommandContext: Sendable {
     self.canCoordinatePanes = canCoordinatePanes
     self.canEject = canEject
     self.tabCount = tabCount
+    self.selectionCount = selectionCount
+    self.canQuickOpen = canQuickOpen
+    self.isSearching = isSearching
   }
 }
 
@@ -71,15 +78,43 @@ public struct CommandContext: Sendable {
   private let dynamicCommands: () -> [AppCommand]
   public var commands: [AppCommand] { baseCommands + dynamicCommands() }
   private let context: () -> CommandContext
+  public private(set) var shortcutMap: ShortcutMap
+  public var onShortcutOverridesChanged: (([String: ShortcutOverride]) -> Void)?
 
   public init(
     commands: [AppCommand], dynamicCommands: @escaping () -> [AppCommand] = { [] },
+    shortcutOverrides: [String: ShortcutOverride] = [:],
     context: @escaping () -> CommandContext
   ) {
     precondition(Set(commands.map(\.id)).count == commands.count, "Command IDs must be unique")
     self.baseCommands = commands
     self.dynamicCommands = dynamicCommands
     self.context = context
+    var defaults: [String: Shortcut] = [:]
+    for command in commands {
+      if let key = command.shortcut {
+        defaults[command.id] = Shortcut(key: key, modifiers: command.shortcutModifiers)
+      }
+    }
+    shortcutMap = ShortcutMap(defaults: defaults, overrides: shortcutOverrides)
+  }
+
+  public func effectiveShortcut(for id: String) -> Shortcut? { shortcutMap.effective(for: id) }
+
+  public func shortcutConflicts(for shortcut: Shortcut, excluding id: String) -> [AppCommand] {
+    let ids = shortcutMap.conflicts(
+      for: shortcut, excluding: id, among: baseCommands.map(\.id))
+    return ids.compactMap { command($0) }
+  }
+
+  public func assignShortcut(_ shortcut: Shortcut?, to id: String) {
+    shortcutMap.assign(shortcut, to: id)
+    onShortcutOverridesChanged?(shortcutMap.overrides)
+  }
+
+  public func restoreDefaultShortcuts() {
+    shortcutMap.restoreDefaults()
+    onShortcutOverridesChanged?(shortcutMap.overrides)
   }
 
   public func command(_ id: String) -> AppCommand? { commands.first { $0.id == id } }

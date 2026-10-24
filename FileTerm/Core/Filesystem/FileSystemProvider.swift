@@ -29,12 +29,13 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
   public let owner: String?
   public let group: String?
   public let permissions: Int?
+  public let isHidden: Bool
 
   public init(
     location: Location, name: String, kind: Kind, size: Int64? = nil,
     createdAt: Date? = nil, modifiedAt: Date? = nil, typeIdentifier: String? = nil,
     addedAt: Date? = nil, openedAt: Date? = nil, tags: [String] = [],
-    owner: String? = nil, group: String? = nil, permissions: Int? = nil
+    owner: String? = nil, group: String? = nil, permissions: Int? = nil, isHidden: Bool = false
   ) {
     self.location = location
     self.name = name
@@ -49,6 +50,7 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
     self.owner = owner
     self.group = group
     self.permissions = permissions
+    self.isHidden = isHidden
   }
 }
 
@@ -76,6 +78,8 @@ public protocol FileByteReader: Sendable {
 public protocol FileSystemProvider: Sendable {
   var id: String { get }
   func list(_ location: Location) async throws -> [FileEntry]
+  /// Lists a folder, optionally including hidden items. Defaults to the visible-only listing.
+  func list(_ location: Location, includeHidden: Bool) async throws -> [FileEntry]
   func stat(_ location: Location) async throws -> FileEntry
   func read(_ location: Location) async throws -> any FileByteReader
   /// Writes a new file. An existing destination is never overwritten.
@@ -83,4 +87,10 @@ public protocol FileSystemProvider: Sendable {
   func move(_ source: Location, to destination: Location) async throws
   /// Removes the item permanently. User-facing callers must confirm first.
   func delete(_ location: Location) async throws
+}
+
+extension FileSystemProvider {
+  public func list(_ location: Location, includeHidden: Bool) async throws -> [FileEntry] {
+    try await list(location)
+  }
 }

@@ -22,9 +22,11 @@ import Observation
       }
     }
   }
-  public var displayEntries: [FileEntry] { entries.sorted(using: viewOptions.order) }
+  /// What the content views show: search results while a search scope is open, else the folder.
+  public var visibleEntries: [FileEntry] { searchScope?.results ?? entries }
+  public var displayEntries: [FileEntry] { visibleEntries.sorted(using: viewOptions.order) }
   public var entryGroups: [EntryGroup] {
-    EntryGrouping.groups(entries, by: viewOptions.groupField, order: viewOptions.order)
+    EntryGrouping.groups(visibleEntries, by: viewOptions.groupField, order: viewOptions.order)
   }
   public func saveViewSettingsAsDefaults() { viewPreferences.defaults = viewOptions }
   public func restoreDefaultViewSettings() { viewOptions = viewPreferences.defaults }
@@ -32,6 +34,12 @@ import Observation
   public private(set) var location: Location?
   public private(set) var entries: [FileEntry] = []
   public var selection: Set<Location> = []
+  public private(set) var searchScope: SearchScope?
+  @ObservationIgnored private var folderSelection: Set<Location> = []
+  @ObservationIgnored private var searchTask: Task<Void, Never>?
+  /// Runs Spotlight searches; installed by the app because it needs AppKit-era frameworks.
+  @ObservationIgnored public var spotlightRunner:
+    (@Sendable (SearchQuery, Location) async throws -> [FileEntry])?
   public private(set) var isLoading = false
   public private(set) var errorMessage: String?
   public private(set) var navigationRevision = UUID()
@@ -90,7 +98,7 @@ import Observation
   public var canGoBack: Bool { historyIndex > 0 }
   public var canGoForward: Bool { historyIndex + 1 < history.count }
   public var canGoUp: Bool { location?.parent != nil }
-  public var selectedEntries: [FileEntry] { entries.filter { selection.contains($0.id) } }
+  public var selectedEntries: [FileEntry] { visibleEntries.filter { selection.contains($0.id) } }
   public var selectedBytes: Int64 { selectedEntries.compactMap(\.size).reduce(0, +) }
   public var hasUnknownSelectedSizes: Bool { selectedEntries.contains { $0.size == nil } }
 
@@ -113,12 +121,95 @@ import Observation
     return await navigate(to: parent)
   }
 
+  // MARK: Selection (never changes the browsing location)
+
+  public func selectAll() { selection = Set(visibleEntries.map(\.id)) }
+  public func deselectAll() { selection = [] }
+  public func invertSelection() {
+    selection = SelectionOps.invert(all: visibleEntries, selected: selection)
+  }
+  public func quickSelectPreview(_ criteria: QuickSelectCriteria) -> Int {
+    criteria.preview(entries: visibleEntries, current: selection).resulting.count
+  }
+  public func applyQuickSelect(_ criteria: QuickSelectCriteria) {
+    selection = criteria.preview(entries: visibleEntries, current: selection).resulting
+  }
+
+  // MARK: Refresh
+
+  /// Re-lists the current folder (e.g. after changes made by another app), keeping the selection
+  /// for items that still exist.
+  @discardableResult public func refresh() async -> Bool {
+    guard let location else { return false }
+    return await load(location, historyIndex: nil, refreshing: true)
+  }
+
+  // MARK: Search (a separate result scope; the folder underneath is untouched)
+
+  public func search(_ query: SearchQuery) async {
+    guard let root = location else { return }
+    searchTask?.cancel()
+    if searchScope == nil { folderSelection = selection }
+    var scope = SearchScope(query: query, root: searchScope?.root ?? root)
+    scope.isRunning = !query.isEmpty
+    searchScope = scope
+    selection = []
+    guard !query.isEmpty else { return }
+    let scopeRoot = scope.root
+    let token = UUID()
+    searchToken = token
+    let task = Task { [providers, spotlightRunner] in
+      do {
+        let results: [FileEntry]
+        if query.engine == .spotlight, query.engine.isAvailable(for: scopeRoot) {
+          guard let spotlightRunner else { throw FileSystemError.unsupportedOperation }
+          results = try await spotlightRunner(query, scopeRoot)
+        } else {
+          guard let provider = providers[scopeRoot.providerID] else {
+            throw FileSystemError.unsupportedOperation
+          }
+          results = try await BuiltInSearch.run(query, in: scopeRoot, provider: provider)
+        }
+        try Task.checkCancellation()
+        await MainActor.run { [self] in finishSearch(token, results: results, error: nil) }
+      } catch is CancellationError {
+      } catch {
+        await MainActor.run { [self] in finishSearch(token, results: [], error: error) }
+      }
+    }
+    searchTask = task
+    await task.value
+  }
+
+  @ObservationIgnored private var searchToken = UUID()
+
+  private func finishSearch(_ token: UUID, results: [FileEntry], error: (any Error)?) {
+    guard token == searchToken, var scope = searchScope else { return }
+    scope.results = results
+    scope.isRunning = false
+    scope.errorMessage = error?.localizedDescription
+    searchScope = scope
+  }
+
+  /// Closes the result scope and returns to the folder listing.
+  public func closeSearch() {
+    guard searchScope != nil else { return }
+    searchTask?.cancel()
+    searchToken = UUID()
+    searchScope = nil
+    let existing = Set(entries.map(\.id))
+    selection = folderSelection.intersection(existing)
+    folderSelection = []
+  }
+
   public func cancelPendingNavigation() {
     navigationRevision = UUID()
     isLoading = false
   }
 
-  private func load(_ destination: Location, historyIndex newIndex: Int?) async -> Bool {
+  private func load(
+    _ destination: Location, historyIndex newIndex: Int?, refreshing: Bool = false
+  ) async -> Bool {
     let request = UUID()
     navigationRevision = request
     isLoading = true
@@ -127,7 +218,8 @@ import Observation
       guard let provider = providers[destination.providerID] else {
         throw FileSystemError.unsupportedOperation
       }
-      let listing = try await provider.list(destination)
+      let listing = try await provider.list(
+        destination, includeHidden: viewPreferences.showHidden)
       try Task.checkCancellation()
       guard navigationRevision == request else { return false }
       entries = listing.sorted {
@@ -144,7 +236,15 @@ import Observation
         historyIndex = history.count - 1
       }
       location = destination
-      selection = []
+      if refreshing {
+        let existing = Set(entries.map(\.id))
+        selection = selection.intersection(existing)
+        folderSelection = folderSelection.intersection(existing)
+      } else {
+        closeSearch()
+        selection = []
+        folderSelection = []
+      }
       isLoading = false
       return true
     } catch {

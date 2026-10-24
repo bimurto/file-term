@@ -32,9 +32,14 @@ public actor LocalFileSystemProvider: FileSystemProvider {
   }
 
   public func list(_ location: Location) throws -> [FileEntry] {
+    try list(location, includeHidden: false)
+  }
+
+  public func list(_ location: Location, includeHidden: Bool) throws -> [FileEntry] {
     do {
       return try manager.contentsOfDirectory(
-        at: url(for: location), includingPropertiesForKeys: Self.keys, options: [.skipsHiddenFiles]
+        at: url(for: location), includingPropertiesForKeys: Self.keys,
+        options: includeHidden ? [] : [.skipsHiddenFiles]
       ).compactMap { url in
         do { return try entry(at: url) } catch CocoaError.fileReadNoSuchFile { return nil }
       }
@@ -85,7 +90,7 @@ public actor LocalFileSystemProvider: FileSystemProvider {
   private static let keys: [URLResourceKey] = [
     .isDirectoryKey, .isSymbolicLinkKey, .isRegularFileKey, .fileSizeKey,
     .creationDateKey, .contentModificationDateKey, .addedToDirectoryDateKey,
-    .tagNamesKey, .typeIdentifierKey,
+    .tagNamesKey, .typeIdentifierKey, .isHiddenKey,
   ]
 
   private func entry(at url: URL) throws -> FileEntry {
@@ -105,7 +110,8 @@ public actor LocalFileSystemProvider: FileSystemProvider {
       openedAt: lastOpened, tags: values.tagNames ?? [],
       owner: attributes?[.ownerAccountName] as? String,
       group: attributes?[.groupOwnerAccountName] as? String,
-      permissions: attributes?[.posixPermissions] as? Int
+      permissions: attributes?[.posixPermissions] as? Int,
+      isHidden: values.isHidden == true || url.lastPathComponent.hasPrefix(".")
     )
   }
 

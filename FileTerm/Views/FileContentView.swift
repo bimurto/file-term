@@ -7,6 +7,7 @@ struct FileContentView: View {
   let paneID: PaneID
   let browser: BrowserModel
   let provider: LocalFileSystemProvider
+  @State private var anchor: Location?
 
   var body: some View {
     Group {
@@ -18,9 +19,11 @@ struct FileContentView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .overlay {
-      if pane.entries.isEmpty && !pane.isLoading {
+      if pane.visibleEntries.isEmpty && !pane.isLoading && !(pane.searchScope?.isRunning ?? false) {
         ContentUnavailableView(
-          pane.location == nil ? "No folder open" : "This folder is empty", systemImage: "folder"
+          pane.searchScope != nil
+            ? "No results" : pane.location == nil ? "No folder open" : "This folder is empty",
+          systemImage: pane.searchScope != nil ? "magnifyingglass" : "folder"
         )
         .allowsHitTesting(false)
       }
@@ -44,6 +47,8 @@ struct FileContentView: View {
           FileIcon(entry: entry, localProvider: provider)
           Text(entry.name).lineLimit(1)
         }
+        .opacity(entry.isHidden ? 0.5 : 1)
+        .accessibilityValue(entry.isHidden ? "Hidden" : "")
       }.width(min: 100, ideal: 220)
       metadataColumns
     } rows: {
@@ -108,6 +113,7 @@ struct FileContentView: View {
                 FileIcon(entry: entry, localProvider: provider, size: 48)
                 Text(entry.name).font(.callout).lineLimit(2).multilineTextAlignment(.center)
               }
+              .opacity(entry.isHidden ? 0.5 : 1)
               .padding(8).frame(maxWidth: .infinity, minHeight: 88)
               .background(
                 pane.selection.contains(entry.id) ? Color.accentColor.opacity(0.2) : .clear,
@@ -129,6 +135,15 @@ struct FileContentView: View {
 
   private func select(_ entry: FileEntry) {
     browser.activePaneID = paneID
+    if NSEvent.modifierFlags.contains(.shift), let anchor = anchor ?? pane.selection.first {
+      let ordered = pane.entryGroups.flatMap(\.entries).map(\.id)
+      if let start = ordered.firstIndex(of: anchor), let end = ordered.firstIndex(of: entry.id) {
+        let range = min(start, end)...max(start, end)
+        pane.selection = Set(ordered[range])
+        return
+      }
+    }
+    anchor = entry.id
     if NSEvent.modifierFlags.contains(.command) {
       if pane.selection.contains(entry.id) {
         pane.selection.remove(entry.id)
@@ -190,7 +205,7 @@ private struct HierarchyColumnsView: View {
                 List {
                   ForEach(
                     EntryGrouping.groups(
-                      column.location == pane.location ? pane.entries : column.entries,
+                      column.location == pane.location ? pane.visibleEntries : column.entries,
                       by: pane.viewOptions.groupField, order: pane.viewOptions.order)
                   ) { group in
                     Section {
@@ -207,6 +222,7 @@ private struct HierarchyColumnsView: View {
                             }
                           }
                           .padding(.vertical, 3).contentShape(Rectangle())
+                          .opacity(entry.isHidden ? 0.5 : 1)
                           .background(
                             column.selectedChild == entry.location
                               || pane.selection.contains(entry.id)

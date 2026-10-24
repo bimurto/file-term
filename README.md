@@ -142,8 +142,33 @@ Go > Connections remains a disabled placeholder until M08.
 For isolated UI tests, `FILETERM_INITIAL_DIRECTORY` overrides Starting Directory
 and `FILETERM_SETTINGS_SUITE` selects an independent preferences domain.
 
+Edit > Select All, Deselect All and Invert Selection update the active pane's
+selection without changing the current folder. Quick Select (Command-S) matches
+name (substring or `*`/`?` wildcards), extension or tag in Replace, Add or Remove
+mode and displays the resulting selection count before applying.
+
+Quick Open (Escape, when no sheet or text field is active) fuzzy-searches commands
+from the registry, folders in the current listing and recent folders, with
+extension points ready for devices, favorites, applications and rename presets.
+
+File > Find (Command-F) and the toolbar search field open a separate search
+result scope with criteria (name, extension, tag, file contents, subfolders,
+hidden items) and engine selection (Built-in scanning search for all providers,
+or Spotlight for local folders). Closing the search returns to the underlying
+folder and restores its prior selection.
+
+The toolbar "Show hidden" checkbox and View > Show Hidden Items toggle hidden
+entries (rendered dimmed), independent of future sync options. View > Refresh
+(Command-R) reloads open panes while preserving existing selections, and
+View > Auto-Refresh watches local folders via FSEvents.
+
+Settings > Shortcuts provides a searchable command list, shortcut recorder,
+conflict warnings with Reassign/Cancel, and Restore Defaults, seeded with the
+4.6 defaults (Quick Select ⌘S, Quick Open Esc, New Folder ⇧⌘N, New Folder With
+Selection ⌃⌘N, New File ⌥⇧⌘N, Open ⌘O, Quick Look ⌘Y).
+
 ## Roadmap
 
-See [milestones](docs/README.md) and [M02 implementation status](tasks/todo.md).
+See [milestones](docs/README.md) and [M03 implementation status](tasks/todo.md).
 This workspace initially had no Git repository or remote. The CI workflow needs
 to be hosted before its passing status can be verified.

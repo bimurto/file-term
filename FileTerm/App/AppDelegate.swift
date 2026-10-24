@@ -20,7 +20,30 @@ import SwiftUI
   private lazy var fallbackDevices = DeviceModel(service: volumeService)
   private var devices: DeviceModel { currentWindow?.devices ?? fallbackDevices }
   private lazy var settings = AppSettings(suite: settingsSuite)
-  private lazy var settingsCoordinator = SettingsCoordinator(settings: settings)
+  private lazy var settingsCoordinator = SettingsCoordinator(
+    settings: settings, registry: { [unowned self] in registry })
+  private let folderWatcher = FolderWatcher()
+
+  /// The browser window is in front with no dialog on top (Quick Open counts as part of the browser).
+  private var browserIsFront: Bool {
+    guard let window = browserWindow, window.isVisible else { return false }
+    if let key = NSApp.keyWindow {
+      if key === window { return window.attachedSheet == nil }
+      if browser.isQuickOpenOpen, key.sheetParent === window { return true }
+      return false
+    }
+    return window.attachedSheet == nil
+  }
+
+  /// Esc must keep working for sheets, popovers and text editing, so Quick Open only claims it
+  /// when the browser window is active and nothing is being edited.
+  private var canQuickOpen: Bool {
+    guard let window = browserWindow, window.isVisible, window.attachedSheet == nil else {
+      return false
+    }
+    if let key = NSApp.keyWindow, key !== window { return false }
+    return !(window.firstResponder is NSText)
+  }
   private var menuCoordinator: MenuCoordinator?
 
   private var settingsSuite: UserDefaults {
@@ -35,6 +58,7 @@ import SwiftUI
   private lazy var registry = CommandRegistry(
     commands: makeCommands(),
     dynamicCommands: { [unowned self] in recentCommands() },
+    shortcutOverrides: settings.shortcutOverrides,
     context: { [unowned self] in
       CommandContext(
         hasBrowserWindow: browserWindow?.isVisible == true,
@@ -43,7 +67,9 @@ import SwiftUI
         canGoBack: browser.activePane.canGoBack, canGoForward: browser.activePane.canGoForward,
         canGoUp: browser.activePane.canGoUp, canCoordinatePanes: browser.canCoordinatePanes,
         canEject: settings.isVisible(.sidebar) && settings.isVisible(.devices) && devices.canEject,
-        tabCount: browser.tabs(browser.activePaneID).tabs.count
+        tabCount: browser.tabs(browser.activePaneID).tabs.count,
+        selectionCount: browser.activePane.selection.count,
+        canQuickOpen: canQuickOpen, isSearching: browser.activePane.searchScope != nil
       )
     }
   )
@@ -59,6 +85,19 @@ import SwiftUI
     }
     menuCoordinator = MenuCoordinator(registry: registry)
     menuCoordinator?.install()
+    registry.onShortcutOverridesChanged = { [weak self] overrides in
+      self?.settings.shortcutOverrides = overrides
+      self?.menuCoordinator?.install()
+    }
+    folderWatcher.onChange = { [weak self] paths in self?.refreshWatched(paths) }
+    NotificationCenter.default.addObserver(
+      forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated {
+        guard let self, self.settings.autoRefresh else { return }
+        Task { for controller in self.windows { await controller.browser.refreshAll() } }
+      }
+    }
     let restore = settings.workspace.restoreWindows || settings.workspace.keepWindowsOnce
     let saved = restore ? settings.savedWindows : []
     settings.workspace.keepWindowsOnce = false
@@ -97,13 +136,22 @@ import SwiftUI
     let controller = BrowserWindowController(
       browser: model, devices: deviceModel, settings: settings,
       registry: registry, provider: provider, frame: snapshot?.frame)
-    model.onVisit = { [weak self] location in self?.settings.recordVisit(location) }
+    model.onVisit = { [weak self] location in
+      self?.settings.recordVisit(location)
+      self?.syncWatcher()
+      self?.menuCoordinator?.refreshEnabling()
+    }
     controller.onClose = { [weak self, weak controller] in
       guard let self, let controller else { return }
       windows.removeAll { $0 === controller }
+      syncWatcher()
       if lastBrowser === controller { lastBrowser = windows.last }
+      menuCoordinator?.refreshEnabling()
     }
-    controller.onActivate = { [weak self, weak controller] in self?.lastBrowser = controller }
+    controller.onActivate = { [weak self, weak controller] in
+      self?.lastBrowser = controller
+      self?.menuCoordinator?.refreshEnabling()
+    }
     windows.append(controller)
     lastBrowser = controller
     controller.window.makeKeyAndOrderFront(nil)
@@ -125,6 +173,7 @@ import SwiftUI
       await model.navigate(to: initial, in: .second)
     }
     await deviceModel.refresh()
+    menuCoordinator?.refreshEnabling()
   }
 
   private func open(_ destination: StandardDestination) {
@@ -382,7 +431,6 @@ import SwiftUI
       ("cut", "Cut", "x", #selector(NSText.cut(_:))),
       ("copy", "Copy", "c", #selector(NSText.copy(_:))),
       ("paste", "Paste", "v", #selector(NSText.paste(_:))),
-      ("selectAll", "Select All", "a", #selector(NSText.selectAll(_:))),
     ] {
       commands.append(
         AppCommand(
@@ -391,7 +439,160 @@ import SwiftUI
           disabledReason: { _ in "Focus a text field to edit text." },
           handler: { NSApp.sendAction(action, to: nil, from: nil) }))
     }
-    return commands + navigationCommands() + workspaceCommands()
+    return commands + navigationCommands() + workspaceCommands() + selectionSearchCommands()
+  }
+
+  // MARK: Selection, search and quick commands (M03)
+
+  private func syncWatcher() {
+    guard settings.autoRefresh else {
+      folderWatcher.watch([])
+      return
+    }
+    var paths: Set<String> = []
+    for controller in windows {
+      for id in PaneID.allCases {
+        for tab in controller.browser.tabs(id).tabs {
+          if let location = tab.location, location.providerID == provider.id {
+            paths.insert(location.path)
+          }
+        }
+      }
+    }
+    folderWatcher.watch(paths)
+  }
+
+  private func refreshWatched(_ changed: Set<String>) {
+    Task {
+      for controller in windows {
+        for id in PaneID.allCases {
+          for tab in controller.browser.tabs(id).tabs {
+            if let path = tab.location?.path, changed.contains(path) { await tab.refresh() }
+          }
+        }
+      }
+    }
+  }
+
+  private func setShowHidden(_ value: Bool) {
+    settings.showHidden = value
+    Task { for controller in windows { await controller.browser.setShowHidden(value) } }
+  }
+
+  private func selectionSearchCommands() -> [AppCommand] {
+    let noWindow: (CommandContext) -> String = { _ in "Open the browser window first." }
+    let available: (CommandContext) -> Bool = { $0.hasBrowserWindow }
+    let inBrowser: (CommandContext) -> Bool = { [weak self] context in
+      context.hasBrowserWindow && self?.browserIsFront == true
+    }
+    let nothingSelected: (CommandContext) -> String = { _ in "Nothing is selected." }
+    func placeholder(
+      _ id: String, _ title: String, _ shortcut: Shortcut, _ reason: String
+    ) -> AppCommand {
+      AppCommand(
+        id: id, title: title, menuPath: ["File"], shortcut: shortcut.key,
+        shortcutModifiers: shortcut.modifiers, isEnabled: { _ in false },
+        disabledReason: { _ in reason }, handler: {})
+    }
+    return [
+      AppCommand(
+        id: "edit.selectAll", title: "Select All", menuPath: ["Edit"], shortcut: "a",
+        isEnabled: { context in
+          NSApp.keyWindow?.firstResponder is NSText || inBrowser(context)
+        },
+        disabledReason: noWindow,
+        handler: { [weak self] in
+          guard let self else { return }
+          if !browser.isQuickOpenOpen,
+            let first = NSApp.keyWindow?.firstResponder, first is NSText
+          {
+            NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+          } else {
+            browser.activePane.selectAll()
+          }
+        }),
+      AppCommand(
+        id: "edit.deselectAll", title: "Deselect All", menuPath: ["Edit"], shortcut: "a",
+        shortcutModifiers: [.command, .shift],
+        isEnabled: { $0.hasBrowserWindow && $0.selectionCount > 0 },
+        disabledReason: { $0.hasBrowserWindow ? "Nothing is selected." : "Open the browser window first." },
+        handler: { [weak self] in self?.browser.activePane.deselectAll() }),
+      AppCommand(
+        id: "edit.invertSelection", title: "Invert Selection", menuPath: ["Edit"], shortcut: "i",
+        shortcutModifiers: [.command, .shift],
+        isEnabled: { $0.hasBrowserWindow && $0.sourceLocation != nil }, disabledReason: noWindow,
+        handler: { [weak self] in self?.browser.activePane.invertSelection() }),
+      AppCommand(
+        id: "select.quick", title: "Quick Select…", menuPath: ["Edit"], shortcut: "s",
+        isEnabled: { context in inBrowser(context) && context.sourceLocation != nil },
+        disabledReason: { _ in "Open a folder in the browser window first." },
+        handler: { [weak self] in
+          guard let self else { return }
+          NotificationCenter.default.post(name: .fileTermQuickSelect, object: browser)
+        }),
+      AppCommand(
+        id: "quickOpen", title: "Quick Open…", menuPath: ["Go"], shortcut: Shortcut.escape,
+        shortcutModifiers: [],
+        isEnabled: { $0.hasBrowserWindow && $0.canQuickOpen && !$0.isSearching },
+        disabledReason: { context in
+          context.isSearching
+            ? "Close the search first." : "Quick Open is unavailable while editing text or in a dialog."
+        },
+        handler: { [weak self] in
+          guard let self else { return }
+          NotificationCenter.default.post(name: .fileTermQuickOpen, object: browser)
+        }),
+      AppCommand(
+        id: "file.find", title: "Find…", menuPath: ["File"], shortcut: "f",
+        isEnabled: { context in inBrowser(context) && context.sourceLocation != nil },
+        disabledReason: { _ in "Open a folder in the browser window first." },
+        handler: { [weak self] in
+          guard let self else { return }
+          NotificationCenter.default.post(name: .fileTermFind, object: browser)
+        }),
+      AppCommand(
+        id: "file.closeSearch", title: "Close Search", menuPath: ["File"], shortcut: "f",
+        shortcutModifiers: [.command, .option],
+        isEnabled: { $0.hasBrowserWindow && $0.isSearching },
+        disabledReason: { _ in "No search is open." },
+        handler: { [weak self] in self?.browser.activePane.closeSearch() }),
+      AppCommand(
+        id: "view.showHidden", title: "Show Hidden Items", menuPath: ["View"], shortcut: ".",
+        shortcutModifiers: [.command, .shift], isEnabled: available, disabledReason: noWindow,
+        isChecked: { [weak self] _ in self?.settings.showHidden == true },
+        handler: { [weak self] in
+          guard let self else { return }
+          setShowHidden(!settings.showHidden)
+        }),
+      AppCommand(
+        id: "view.refresh", title: "Refresh", menuPath: ["View"], shortcut: "r",
+        isEnabled: { $0.hasBrowserWindow && $0.sourceLocation != nil }, disabledReason: noWindow,
+        handler: { [weak self] in
+          guard let model = self?.browser else { return }
+          Task { await model.refreshAll() }
+        }),
+      AppCommand(
+        id: "view.autoRefresh", title: "Auto-Refresh", menuPath: ["View"],
+        isEnabled: available, disabledReason: noWindow,
+        isChecked: { [weak self] _ in self?.settings.autoRefresh == true },
+        handler: { [weak self] in
+          guard let self else { return }
+          settings.autoRefresh.toggle()
+          syncWatcher()
+        }),
+      placeholder(
+        "file.newFolder", "New Folder", DefaultShortcuts.newFolder,
+        "Creating folders arrives in M04."),
+      placeholder(
+        "file.newFolderWithSelection", "New Folder With Selection",
+        DefaultShortcuts.newFolderWithSelection, "Creating folders arrives in M04."),
+      placeholder(
+        "file.newFile", "New File", DefaultShortcuts.newFile, "Creating files arrives in M04."),
+      placeholder("file.open", "Open", DefaultShortcuts.open, "Opening items arrives in M04."),
+      placeholder(
+        "file.quickLook", "Quick Look", DefaultShortcuts.quickLook,
+        "Quick Look arrives in M05."),
+    ]
   }
   private func workspaceCommands() -> [AppCommand] {
     let noWindow: (CommandContext) -> String = { _ in "Open the browser window first." }

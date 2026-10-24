@@ -25,6 +25,8 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
     }
   }
   public var notice: String?
+  /// True while the Quick Open sheet is up, so key-window gating can treat it as part of the browser.
+  @ObservationIgnored public var isQuickOpenOpen = false
   @ObservationIgnored public var onVisit: ((Location) -> Void)?
   @ObservationIgnored private var coordinationID = UUID()
   @ObservationIgnored private var pendingMirror: PaneModel?
@@ -179,6 +181,18 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
   }
 
   public func dismissNotice() { notice = nil }
+
+  /// Applies the global "Show hidden" toggle and re-lists every open pane.
+  public func setShowHidden(_ value: Bool) async {
+    firstPane.viewPreferences.showHidden = value
+    await refreshAll()
+  }
+
+  public func refreshAll() async {
+    for id in PaneID.allCases {
+      for tab in tabs(id).tabs { await tab.refresh() }
+    }
+  }
 
   private func invalidateMirror() {
     coordinationID = UUID()

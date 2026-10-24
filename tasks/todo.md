@@ -1,8 +1,8 @@
-# M02 implementation
+# M03 implementation
 
-- [x] 1. Metadata, sort/group rules and scoped view options
-- [x] 2. Per-pane tabs, pinning and session snapshots
-- [x] 3. Icon, sortable list and hierarchy column views
-- [x] 4. View options, toolbar customization and sidebar editor
-- [x] 5. Multiple windows, window actions and restore preferences
-- [ ] 6. Native/UI regressions, visual verification and milestone documentation
+- [x] 1. Selection model (Select All, Deselect All, Invert Selection) and status bar integration
+- [x] 2. Quick Select (⌘S) with name/wildcard, extension, tag matching and live count preview
+- [x] 3. Quick Open launcher (Esc) with fuzzy matching, folders/recents and extension points
+- [x] 4. Find UI, built-in scanning search, Spotlight search and closeable search scope
+- [x] 5. Show hidden toggle (dimmed items), View › Refresh and FSEvents auto-refresh
+- [x] 6. Settings › Shortcuts customization, conflict warnings, Restore Defaults and 4.6 seeds

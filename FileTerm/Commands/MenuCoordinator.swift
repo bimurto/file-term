@@ -28,6 +28,14 @@ import FileTermCore
     return menu
   }
 
+  func menuHasKeyEquivalent(
+    _ menu: NSMenu, for event: NSEvent, target: AutoreleasingUnsafeMutablePointer<AnyObject?>,
+    action: UnsafeMutablePointer<Selector?>
+  ) -> Bool {
+    updateEnabling(in: menu)
+    return false
+  }
+
   func menuNeedsUpdate(_ menu: NSMenu) {
     guard let path = paths[ObjectIdentifier(menu)] else { return }
     if path == ["Window"] {
@@ -66,12 +74,13 @@ import FileTermCore
         }
         continue
       }
+      let shortcut = registry.effectiveShortcut(for: command.id)
       let item = NSMenuItem(
-        title: command.title, action: #selector(execute(_:)), keyEquivalent: command.shortcut ?? "")
+        title: command.title, action: #selector(execute(_:)), keyEquivalent: shortcut?.key ?? "")
       item.target = self
       item.representedObject = command.id
       item.identifier = NSUserInterfaceItemIdentifier(command.id)
-      item.keyEquivalentModifierMask = command.shortcutModifiers.reduce(
+      item.keyEquivalentModifierMask = (shortcut?.modifiers ?? []).reduce(
         into: NSEvent.ModifierFlags()
       ) {
         switch $1 {
@@ -87,6 +96,26 @@ import FileTermCore
       item.setAccessibilityHelp(reason)
       item.state = registry.isChecked(command.id) ? .on : .off
       menu.addItem(item)
+    }
+  }
+
+  func refreshEnabling() {
+    for menu in NSApp.mainMenu?.items.compactMap(\.submenu) ?? [] {
+      updateEnabling(in: menu)
+    }
+  }
+
+  private func updateEnabling(in menu: NSMenu) {
+    for item in menu.items {
+      if let child = item.submenu { updateEnabling(in: child) }
+      guard let id = item.representedObject as? String, registry.command(id) != nil else {
+        continue
+      }
+      let reason = registry.disabledReason(for: id)
+      item.isEnabled = reason == nil
+      item.toolTip = reason
+      item.setAccessibilityHelp(reason)
+      item.state = registry.isChecked(id) ? .on : .off
     }
   }
 

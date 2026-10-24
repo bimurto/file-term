@@ -84,6 +84,29 @@ enum BrowserChrome: String, CaseIterable {
   var selectedCategory: String {
     didSet { Defaults[categoryKey] = selectedCategory }
   }
+  var showHidden: Bool {
+    didSet {
+      Defaults[showHiddenKey] = showHidden
+      viewPreferences.showHidden = showHidden
+    }
+  }
+  var autoRefresh: Bool {
+    didSet { Defaults[autoRefreshKey] = autoRefresh }
+  }
+  var searchEngine: SearchEngine {
+    didSet { Defaults[searchEngineKey] = searchEngine.rawValue }
+  }
+  var searchIncludeSubfolders: Bool {
+    didSet { Defaults[subfoldersKey] = searchIncludeSubfolders }
+  }
+  var shortcutOverrides: [String: ShortcutOverride] {
+    didSet { Defaults[shortcutsKey] = (try? JSONEncoder().encode(shortcutOverrides)) ?? Data() }
+  }
+  @ObservationIgnored private let showHiddenKey: Defaults.Key<Bool>
+  @ObservationIgnored private let autoRefreshKey: Defaults.Key<Bool>
+  @ObservationIgnored private let searchEngineKey: Defaults.Key<String>
+  @ObservationIgnored private let subfoldersKey: Defaults.Key<Bool>
+  @ObservationIgnored private let shortcutsKey: Defaults.Key<Data>
   @ObservationIgnored private let panelsKey: Defaults.Key<Set<String>>
   @ObservationIgnored private let categoryKey: Defaults.Key<String>
 
@@ -110,7 +133,20 @@ enum BrowserChrome: String, CaseIterable {
     categoryKey = Defaults.Key(
       "settingsCategory", default: SettingsCategory.general.rawValue, suite: suite)
     visiblePanels = Defaults[panelsKey]
+    showHiddenKey = Defaults.Key("showHidden", default: false, suite: suite)
+    autoRefreshKey = Defaults.Key("autoRefresh", default: false, suite: suite)
+    searchEngineKey = Defaults.Key("searchEngine", default: SearchEngine.builtIn.rawValue, suite: suite)
+    subfoldersKey = Defaults.Key("searchSubfolders", default: true, suite: suite)
+    shortcutsKey = Defaults.Key("shortcutOverrides", default: Data(), suite: suite)
+    showHidden = Defaults[showHiddenKey]
+    autoRefresh = Defaults[autoRefreshKey]
+    searchEngine = SearchEngine(rawValue: Defaults[searchEngineKey]) ?? .builtIn
+    searchIncludeSubfolders = Defaults[subfoldersKey]
+    shortcutOverrides =
+      (try? JSONDecoder().decode([String: ShortcutOverride].self, from: Defaults[shortcutsKey]))
+      ?? [:]
     selectedCategory = Defaults[categoryKey]
+    viewPreferences.showHidden = showHidden
     viewPreferences.onChange = { [weak self] in
       guard let self else { return }
       let snapshot = ViewPreferenceSnapshot(

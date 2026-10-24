@@ -17,7 +17,8 @@ import SwiftUI
   ) {
     self.browser = browser
     self.devices = devices
-    window = NSWindow(
+    window = BrowserWindow(
+      registry: registry,
       contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
       styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false
     )
@@ -74,5 +75,29 @@ import SwiftUI
   func windowDidBecomeKey(_ notification: Notification) { onActivate?() }
   func snapshot() -> WindowSnapshot {
     WindowSnapshot(browser: browser.snapshot(), frame: NSStringFromRect(window.frame))
+  }
+}
+
+private final class BrowserWindow: NSWindow {
+  private let registry: CommandRegistry
+
+  init(
+    registry: CommandRegistry, contentRect: NSRect, styleMask: NSWindow.StyleMask,
+    backing: NSWindow.BackingStoreType, defer flag: Bool
+  ) {
+    self.registry = registry
+    super.init(contentRect: contentRect, styleMask: styleMask, backing: backing, defer: flag)
+  }
+
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    if event.keyCode == 53,
+      event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
+      attachedSheet == nil, !(firstResponder is NSText),
+      registry.effectiveShortcut(for: "quickOpen") == DefaultShortcuts.quickOpen,
+      registry.execute("quickOpen")
+    {
+      return true
+    }
+    return super.performKeyEquivalent(with: event)
   }
 }
