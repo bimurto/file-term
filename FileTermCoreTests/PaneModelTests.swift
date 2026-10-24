@@ -28,7 +28,7 @@ import Testing
     let fast = Location(providerID: provider.id, path: "fast")
     await model.navigate(to: fast)
     await provider.finishSlowRequest()
-    await slow.value
+    _ = await slow.value
     #expect(model.location == fast)
     #expect(!model.isLoading)
     #expect(model.errorMessage == nil)

@@ -4,11 +4,30 @@ public struct CommandContext: Sendable {
   public let hasBrowserWindow: Bool
   public let hasKeyWindow: Bool
   public let isLoading: Bool
+  public let sourceLocation: Location?
+  public let targetLocation: Location?
+  public let canGoBack: Bool
+  public let canGoForward: Bool
+  public let canGoUp: Bool
+  public let canCoordinatePanes: Bool
+  public let canEject: Bool
 
-  public init(hasBrowserWindow: Bool, hasKeyWindow: Bool, isLoading: Bool) {
+  public init(
+    hasBrowserWindow: Bool, hasKeyWindow: Bool, isLoading: Bool,
+    sourceLocation: Location? = nil, targetLocation: Location? = nil,
+    canGoBack: Bool = false, canGoForward: Bool = false, canGoUp: Bool = false,
+    canCoordinatePanes: Bool = false, canEject: Bool = false
+  ) {
     self.hasBrowserWindow = hasBrowserWindow
     self.hasKeyWindow = hasKeyWindow
     self.isLoading = isLoading
+    self.sourceLocation = sourceLocation
+    self.targetLocation = targetLocation
+    self.canGoBack = canGoBack
+    self.canGoForward = canGoForward
+    self.canGoUp = canGoUp
+    self.canCoordinatePanes = canCoordinatePanes
+    self.canEject = canEject
   }
 }
 
@@ -20,6 +39,7 @@ public struct CommandContext: Sendable {
   public let shortcutModifiers: Set<ShortcutModifier>
   public let isEnabled: (CommandContext) -> Bool
   public let disabledReason: (CommandContext) -> String
+  public let isChecked: (CommandContext) -> Bool
   public let handler: () -> Void
 
   public enum ShortcutModifier: Hashable { case command, shift, option, control }
@@ -29,6 +49,7 @@ public struct CommandContext: Sendable {
     shortcutModifiers: Set<ShortcutModifier> = [.command],
     isEnabled: @escaping (CommandContext) -> Bool,
     disabledReason: @escaping (CommandContext) -> String,
+    isChecked: @escaping (CommandContext) -> Bool = { _ in false },
     handler: @escaping () -> Void
   ) {
     self.id = id
@@ -38,21 +59,30 @@ public struct CommandContext: Sendable {
     self.shortcutModifiers = shortcutModifiers
     self.isEnabled = isEnabled
     self.disabledReason = disabledReason
+    self.isChecked = isChecked
     self.handler = handler
   }
 }
 
 @MainActor public final class CommandRegistry {
-  public let commands: [AppCommand]
+  private let baseCommands: [AppCommand]
+  private let dynamicCommands: () -> [AppCommand]
+  public var commands: [AppCommand] { baseCommands + dynamicCommands() }
   private let context: () -> CommandContext
 
-  public init(commands: [AppCommand], context: @escaping () -> CommandContext) {
+  public init(
+    commands: [AppCommand], dynamicCommands: @escaping () -> [AppCommand] = { [] },
+    context: @escaping () -> CommandContext
+  ) {
     precondition(Set(commands.map(\.id)).count == commands.count, "Command IDs must be unique")
-    self.commands = commands
+    self.baseCommands = commands
+    self.dynamicCommands = dynamicCommands
     self.context = context
   }
 
   public func command(_ id: String) -> AppCommand? { commands.first { $0.id == id } }
+
+  public func isChecked(_ id: String) -> Bool { command(id)?.isChecked(context()) ?? false }
 
   public func disabledReason(for id: String) -> String? {
     guard let command = command(id) else { return "Unknown command." }

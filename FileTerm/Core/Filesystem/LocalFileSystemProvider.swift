@@ -17,6 +17,19 @@ public actor LocalFileSystemProvider: FileSystemProvider {
     return URL(fileURLWithPath: location.path)
   }
 
+  public func resolveFolderPath(_ path: String) throws -> Location {
+    guard path.hasPrefix("/") else {
+      throw FileSystemError.io("Enter an absolute folder path beginning with /.")
+    }
+    do {
+      let url = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
+      guard try url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else {
+        throw FileSystemError.io("The path does not point to a folder.")
+      }
+      return location(for: url)
+    } catch { throw Self.normalized(error) }
+  }
+
   public func list(_ location: Location) throws -> [FileEntry] {
     do {
       return try manager.contentsOfDirectory(
