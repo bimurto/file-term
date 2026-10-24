@@ -3,6 +3,32 @@ import Observation
 
 @MainActor
 @Observable public final class PaneModel {
+  public let id = UUID()
+  public var isPinned = false
+  public var viewScope: ViewSettingsScope = .tab
+  public var tabViewOptions: ViewOptions
+  public let viewPreferences: ViewPreferences
+  public var viewOptions: ViewOptions {
+    get {
+      viewScope == .folder
+        ? location.flatMap { viewPreferences.folders[$0] } ?? viewPreferences.defaults
+        : tabViewOptions
+    }
+    set {
+      if viewScope == .folder, let location {
+        viewPreferences.folders[location] = newValue
+      } else {
+        tabViewOptions = newValue
+      }
+    }
+  }
+  public var displayEntries: [FileEntry] { entries.sorted(using: viewOptions.order) }
+  public var entryGroups: [EntryGroup] {
+    EntryGrouping.groups(entries, by: viewOptions.groupField, order: viewOptions.order)
+  }
+  public func saveViewSettingsAsDefaults() { viewPreferences.defaults = viewOptions }
+  public func restoreDefaultViewSettings() { viewOptions = viewPreferences.defaults }
+
   public private(set) var location: Location?
   public private(set) var entries: [FileEntry] = []
   public var selection: Set<Location> = []
@@ -13,7 +39,11 @@ import Observation
   private var historyIndex = -1
   @ObservationIgnored private let providers: [String: any FileSystemProvider]
 
-  public init(providers: [any FileSystemProvider]) {
+  public init(
+    providers: [any FileSystemProvider], viewPreferences: ViewPreferences = ViewPreferences()
+  ) {
+    self.viewPreferences = viewPreferences
+    tabViewOptions = viewPreferences.defaults
     self.providers = Dictionary(uniqueKeysWithValues: providers.map { ($0.id, $0) })
   }
 

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Location: Hashable, Sendable {
+public struct Location: Hashable, Codable, Sendable {
   public let providerID: String
   public let path: String
 
@@ -23,10 +23,18 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
   public let createdAt: Date?
   public let modifiedAt: Date?
   public let typeIdentifier: String?
+  public let addedAt: Date?
+  public let openedAt: Date?
+  public let tags: [String]
+  public let owner: String?
+  public let group: String?
+  public let permissions: Int?
 
   public init(
     location: Location, name: String, kind: Kind, size: Int64? = nil,
-    createdAt: Date? = nil, modifiedAt: Date? = nil, typeIdentifier: String? = nil
+    createdAt: Date? = nil, modifiedAt: Date? = nil, typeIdentifier: String? = nil,
+    addedAt: Date? = nil, openedAt: Date? = nil, tags: [String] = [],
+    owner: String? = nil, group: String? = nil, permissions: Int? = nil
   ) {
     self.location = location
     self.name = name
@@ -35,6 +43,12 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
     self.createdAt = createdAt
     self.modifiedAt = modifiedAt
     self.typeIdentifier = typeIdentifier
+    self.addedAt = addedAt
+    self.openedAt = openedAt
+    self.tags = tags
+    self.owner = owner
+    self.group = group
+    self.permissions = permissions
   }
 }
 
