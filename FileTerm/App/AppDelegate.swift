@@ -4,12 +4,23 @@ import SwiftUI
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
   private let provider = LocalFileSystemProvider()
-  private lazy var browser = BrowserModel(providers: [provider])
+  private lazy var fallbackBrowser = BrowserModel(
+    providers: [provider], viewPreferences: settings.viewPreferences)
+  private var windows: [BrowserWindowController] = []
+  private weak var lastBrowser: BrowserWindowController?
+  private var currentWindow: BrowserWindowController? {
+    windows.first { $0.window === NSApp.keyWindow } ?? windows.first {
+      $0.window === NSApp.mainWindow
+    }
+      ?? lastBrowser ?? windows.last
+  }
+  private var browser: BrowserModel { currentWindow?.browser ?? fallbackBrowser }
+  private var browserWindow: NSWindow? { currentWindow?.window }
   private let volumeService = NativeVolumeService()
-  private lazy var devices = DeviceModel(service: volumeService)
+  private lazy var fallbackDevices = DeviceModel(service: volumeService)
+  private var devices: DeviceModel { currentWindow?.devices ?? fallbackDevices }
   private lazy var settings = AppSettings(suite: settingsSuite)
   private lazy var settingsCoordinator = SettingsCoordinator(settings: settings)
-  private var browserWindow: NSWindow?
   private var menuCoordinator: MenuCoordinator?
 
   private var settingsSuite: UserDefaults {
@@ -31,13 +42,14 @@ import SwiftUI
         sourceLocation: browser.activePane.location, targetLocation: browser.targetPane?.location,
         canGoBack: browser.activePane.canGoBack, canGoForward: browser.activePane.canGoForward,
         canGoUp: browser.activePane.canGoUp, canCoordinatePanes: browser.canCoordinatePanes,
-        canEject: settings.isVisible(.devices) && devices.canEject
+        canEject: settings.isVisible(.sidebar) && settings.isVisible(.devices) && devices.canEject,
+        tabCount: browser.tabs(browser.activePaneID).tabs.count
       )
     }
   )
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    browser.onVisit = { [weak self] location in self?.settings.recordVisit(location) }
+    NSWindow.allowsAutomaticWindowTabbing = false
     let center = NSWorkspace.shared.notificationCenter
     for name in [
       NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification,
@@ -47,16 +59,21 @@ import SwiftUI
     }
     menuCoordinator = MenuCoordinator(registry: registry)
     menuCoordinator?.install()
-    showBrowser()
-    let initialURL =
-      ProcessInfo.processInfo.environment["FILETERM_INITIAL_DIRECTORY"]
-      .map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser
+    let restore = settings.workspace.restoreWindows || settings.workspace.keepWindowsOnce
+    let saved = restore ? settings.savedWindows : []
+    settings.workspace.keepWindowsOnce = false
     Task {
-      let location = provider.location(for: initialURL)
-      await browser.navigate(to: location, in: .first)
-      await browser.navigate(to: location, in: .second)
-      await devices.refresh()
+      if saved.isEmpty {
+        await newWindow()
+      } else {
+        for snapshot in saved { await newWindow(restoring: snapshot) }
+      }
     }
+  }
+
+  func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    settings.savedWindows = windows.map { $0.snapshot() }
+    return .terminateNow
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool
@@ -66,26 +83,48 @@ import SwiftUI
   }
 
   private func showBrowser() {
-    if browserWindow == nil {
-      let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
-        styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered,
-        defer: false
-      )
-      window.title = "FileTerm"
-      window.identifier = NSUserInterfaceItemIdentifier("browserWindow")
-      window.isReleasedWhenClosed = false
-      window.contentView = NSHostingView(
-        rootView: BrowserView(
-          browser: browser, settings: settings, registry: registry, localProvider: provider,
-          devices: devices)
-      )
-      window.center()
-      browserWindow = window
-      applyWindowChrome()
+    if let controller = currentWindow {
+      controller.window.makeKeyAndOrderFront(nil)
+      NSApp.activate()
+    } else {
+      Task { await newWindow() }
     }
-    browserWindow?.makeKeyAndOrderFront(nil)
+  }
+
+  private func newWindow(restoring snapshot: WindowSnapshot? = nil) async {
+    let model = BrowserModel(providers: [provider], viewPreferences: settings.viewPreferences)
+    let deviceModel = DeviceModel(service: volumeService)
+    let controller = BrowserWindowController(
+      browser: model, devices: deviceModel, settings: settings,
+      registry: registry, provider: provider, frame: snapshot?.frame)
+    model.onVisit = { [weak self] location in self?.settings.recordVisit(location) }
+    controller.onClose = { [weak self, weak controller] in
+      guard let self, let controller else { return }
+      windows.removeAll { $0 === controller }
+      if lastBrowser === controller { lastBrowser = windows.last }
+    }
+    controller.onActivate = { [weak self, weak controller] in self?.lastBrowser = controller }
+    windows.append(controller)
+    lastBrowser = controller
+    controller.window.makeKeyAndOrderFront(nil)
     NSApp.activate()
+    let path =
+      ProcessInfo.processInfo.environment["FILETERM_INITIAL_DIRECTORY"]
+      ?? settings.workspace.startingDirectory
+    let home = provider.location(for: FileManager.default.homeDirectoryForCurrentUser)
+    let initial: Location
+    do { initial = try await provider.resolveFolderPath(path) } catch {
+      initial = home
+      model.notice =
+        "Starting Directory could not be opened. Opened Home instead. " + error.localizedDescription
+    }
+    if let snapshot {
+      await model.restore(snapshot.browser, fallback: initial)
+    } else {
+      await model.navigate(to: initial, in: .first)
+      await model.navigate(to: initial, in: .second)
+    }
+    await deviceModel.refresh()
   }
 
   private func open(_ destination: StandardDestination) {
@@ -98,25 +137,20 @@ import SwiftUI
   }
 
   private func applyWindowChrome() {
-    guard let window = browserWindow else { return }
-    let visible = settings.isVisible(.titleBar)
-    window.titleVisibility = visible ? .visible : .hidden
-    window.titlebarAppearsTransparent = !visible
-    if visible {
-      window.styleMask.remove(.fullSizeContentView)
-    } else {
-      window.styleMask.insert(.fullSizeContentView)
-    }
+    for controller in windows { controller.applyChrome(settings) }
   }
 
   @objc private func volumeChanged(_ notification: Notification) {
     let unmounted = notification.name == NSWorkspace.didUnmountNotification
     let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL
     Task {
-      await devices.refresh()
-      guard unmounted, let url else { return }
-      await browser.handleUnmount(
-        at: url, home: provider.location(for: FileManager.default.homeDirectoryForCurrentUser))
+      for controller in windows {
+        await controller.devices.refresh()
+        if unmounted, let url {
+          await controller.browser.handleUnmount(
+            at: url, home: provider.location(for: FileManager.default.homeDirectoryForCurrentUser))
+        }
+      }
     }
   }
 
@@ -136,9 +170,10 @@ import SwiftUI
         handler: { [weak self] in
           guard let self else { return }
           devices.selectedVolumeID = nil
-          let id = browser.activePaneID
+          let model = browser
+          let id = model.activePaneID
           Task {
-            await self.browser.navigate(
+            await model.navigate(
               to: Location(providerID: self.provider.id, path: path), in: id)
           }
         })
@@ -156,8 +191,9 @@ import SwiftUI
         },
         handler: { [weak self] in
           guard let self else { return }
-          let id = browser.activePaneID
-          Task { await self.browser.goBack(in: id) }
+          let model = browser
+          let id = model.activePaneID
+          Task { await model.goBack(in: id) }
         }),
       AppCommand(
         id: "go.forward", title: "Forward", menuPath: ["Go"],
@@ -167,8 +203,9 @@ import SwiftUI
         },
         handler: { [weak self] in
           guard let self else { return }
-          let id = browser.activePaneID
-          Task { await self.browser.goForward(in: id) }
+          let model = browser
+          let id = model.activePaneID
+          Task { await model.goForward(in: id) }
         }),
       AppCommand(
         id: "go.enclosingFolder", title: "Enclosing Folder", menuPath: ["Go"],
@@ -180,14 +217,18 @@ import SwiftUI
         },
         handler: { [weak self] in
           guard let self else { return }
-          let id = browser.activePaneID
-          Task { await self.browser.goUp(in: id) }
+          let model = browser
+          let id = model.activePaneID
+          Task { await model.goUp(in: id) }
         }),
       AppCommand(
         id: "go.toFolder", title: "Go to Folder…", menuPath: ["Go"],
         isEnabled: { $0.hasBrowserWindow },
         disabledReason: { _ in "Open the browser window first." },
-        handler: { NotificationCenter.default.post(name: .fileTermGoToFolder, object: nil) }),
+        handler: { [weak self] in
+          guard let self else { return }
+          NotificationCenter.default.post(name: .fileTermGoToFolder, object: browser)
+        }),
       AppCommand(
         id: "go.syncBrowsing", title: "Sync Browsing", menuPath: ["Go"],
         isEnabled: { $0.hasBrowserWindow && $0.canCoordinatePanes },
@@ -213,12 +254,18 @@ import SwiftUI
         id: "view.clonePane", title: "Clone Pane", menuPath: ["View"],
         isEnabled: { $0.hasBrowserWindow && $0.canCoordinatePanes },
         disabledReason: { _ in "Open two panes and wait for navigation to finish." },
-        handler: { [weak self] in Task { await self?.browser.clonePane() } }),
+        handler: { [weak self] in
+          guard let model = self?.browser else { return }
+          Task { await model.clonePane() }
+        }),
       AppCommand(
         id: "file.eject", title: "Eject", menuPath: ["File"],
         isEnabled: { $0.hasBrowserWindow && $0.canEject },
         disabledReason: { _ in "Select an ejectable volume in the Devices sidebar." },
-        handler: { [weak self] in Task { await self?.devices.ejectSelected() } }),
+        handler: { [weak self] in
+          guard let model = self?.devices else { return }
+          Task { await model.ejectSelected() }
+        }),
     ]
     for layout in PaneLayout.allCases {
       let title =
@@ -298,6 +345,7 @@ import SwiftUI
       ),
       AppCommand(
         id: "file.close", title: "Close Window", menuPath: ["File"], shortcut: "w",
+        shortcutModifiers: [.command, .shift],
         isEnabled: { $0.hasKeyWindow }, disabledReason: { _ in "No window is open." },
         handler: {
           NSApp.keyWindow?.performClose(nil)
@@ -343,6 +391,141 @@ import SwiftUI
           disabledReason: { _ in "Focus a text field to edit text." },
           handler: { NSApp.sendAction(action, to: nil, from: nil) }))
     }
-    return commands + navigationCommands()
+    return commands + navigationCommands() + workspaceCommands()
   }
+  private func workspaceCommands() -> [AppCommand] {
+    let noWindow: (CommandContext) -> String = { _ in "Open the browser window first." }
+    let available: (CommandContext) -> Bool = { $0.hasBrowserWindow }
+    var commands: [AppCommand] = [
+      AppCommand(
+        id: "file.newWindow", title: "New FileTerm Window", menuPath: ["File"], shortcut: "n",
+        isEnabled: { _ in true }, disabledReason: noWindow,
+        handler: { [weak self] in Task { await self?.newWindow() } }),
+      AppCommand(
+        id: "file.newTab", title: "New Tab", menuPath: ["File"], shortcut: "t",
+        isEnabled: available, disabledReason: noWindow,
+        handler: { [weak self] in
+          guard let self else { return }
+          browser.newTab(in: browser.activePaneID)
+        }),
+      AppCommand(
+        id: "file.closeTab", title: "Close Tab", menuPath: ["File"], shortcut: "w",
+        isEnabled: { $0.hasKeyWindow }, disabledReason: noWindow,
+        handler: { [weak self] in
+          guard let self else { return }
+          if NSApp.keyWindow !== browserWindow {
+            NSApp.keyWindow?.performClose(nil)
+            return
+          }
+          if !browser.closeTab(in: browser.activePaneID) { browserWindow?.performClose(nil) }
+        }),
+      AppCommand(
+        id: "file.closeOtherTabs", title: "Close Other Tabs", menuPath: ["File"],
+        isEnabled: { $0.hasBrowserWindow && $0.tabCount > 1 },
+        disabledReason: { _ in "This pane has only one tab." },
+        handler: { [weak self] in
+          guard let self else { return }
+          browser.closeOtherTabs(in: browser.activePaneID)
+        }),
+      AppCommand(
+        id: "window.pinView", title: "Pin View", menuPath: ["Window"],
+        isEnabled: { $0.hasBrowserWindow && !$0.isLoading && $0.sourceLocation != nil },
+        disabledReason: { _ in "Open a folder and wait for navigation to finish." },
+        isChecked: { [weak self] _ in self?.browser.activePane.isPinned == true },
+        handler: { [weak self] in self?.browser.activePane.isPinned.toggle() }),
+      AppCommand(
+        id: "window.bringAll", title: "Bring All to Front", menuPath: ["Window"],
+        isEnabled: { [weak self] _ in self?.windows.isEmpty == false }, disabledReason: noWindow,
+        handler: { NSApp.arrangeInFront(nil) }),
+      AppCommand(
+        id: "app.quitKeepWindows", title: "Quit and Keep Windows", menuPath: ["FileTerm"],
+        shortcut: "q", shortcutModifiers: [.command, .option],
+        isEnabled: { _ in true }, disabledReason: noWindow,
+        handler: { [weak self] in
+          self?.settings.workspace.keepWindowsOnce = true
+          NSApp.terminate(nil)
+        }),
+    ]
+    for mode in FileViewMode.allCases {
+      commands.append(
+        AppCommand(
+          id: "view.as" + mode.rawValue, title: "as " + mode.rawValue, menuPath: ["View"],
+          isEnabled: available, disabledReason: noWindow,
+          isChecked: { [weak self] _ in self?.browser.activePane.viewOptions.mode == mode },
+          handler: { [weak self] in self?.browser.activePane.viewOptions.mode = mode }))
+    }
+    for field in FileSortField.allCases {
+      commands.append(
+        AppCommand(
+          id: "view.sort." + field.rawValue, title: field.rawValue, menuPath: ["View", "Sort by"],
+          isEnabled: available, disabledReason: noWindow,
+          isChecked: { [weak self] _ in self?.browser.activePane.viewOptions.sortField == field },
+          handler: { [weak self] in self?.browser.activePane.viewOptions.sortField = field }))
+    }
+    commands.append(
+      AppCommand(
+        id: "view.descending", title: "Descending Order", menuPath: ["View", "Sort by"],
+        isEnabled: available, disabledReason: noWindow,
+        isChecked: { [weak self] _ in self?.browser.activePane.viewOptions.descending == true },
+        handler: { [weak self] in self?.browser.activePane.viewOptions.descending.toggle() }))
+    for field in FileGroupField.allCases {
+      commands.append(
+        AppCommand(
+          id: "view.group." + field.rawValue, title: field.rawValue,
+          menuPath: ["View", "Group by"],
+          isEnabled: available, disabledReason: noWindow,
+          isChecked: { [weak self] _ in self?.browser.activePane.viewOptions.groupField == field },
+          handler: { [weak self] in self?.browser.activePane.viewOptions.groupField = field }))
+    }
+    for (id, title, sheet) in [
+      ("view.options", "Show View Options", BrowserOptionsSheet.viewOptions),
+      ("view.customizeToolbar", "Customize Toolbar…", .toolbar),
+      ("view.sidebarEditor", "Show Sidebar Editor", .sidebar),
+    ] {
+      commands.append(
+        AppCommand(
+          id: id, title: title, menuPath: ["View"], isEnabled: available, disabledReason: noWindow,
+          handler: { [weak self] in
+            guard let self else { return }
+            NotificationCenter.default.post(
+              name: .fileTermBrowserOptions, object: browser, userInfo: ["kind": sheet.rawValue])
+          }))
+    }
+    commands.append(
+      AppCommand(
+        id: "view.saveDefaults", title: "Save View Settings as Defaults", menuPath: ["View"],
+        isEnabled: available, disabledReason: noWindow,
+        handler: { [weak self] in self?.browser.activePane.saveViewSettingsAsDefaults() }))
+    commands.append(
+      AppCommand(
+        id: "view.restoreDefaults", title: "Restore Default View Settings", menuPath: ["View"],
+        isEnabled: available, disabledReason: noWindow,
+        handler: { [weak self] in self?.browser.activePane.restoreDefaultViewSettings() }))
+    for (step, title, key) in [(-1, "Previous Tab", "["), (1, "Next Tab", "]")] {
+      commands.append(
+        AppCommand(
+          id: step < 0 ? "window.previousTab" : "window.nextTab", title: title,
+          menuPath: ["Window"], shortcut: key, shortcutModifiers: [.command, .shift],
+          isEnabled: { $0.hasBrowserWindow && $0.tabCount > 1 },
+          disabledReason: { _ in "This pane has only one tab." },
+          handler: { [weak self] in
+            guard let self else { return }
+            browser.cycleTab(step, in: browser.activePaneID)
+          }))
+    }
+    for index in 0..<5 {
+      commands.append(
+        AppCommand(
+          id: "window.tab\(index + 1)", title: "Select Tab \(index + 1)", menuPath: ["Window"],
+          shortcut: String(index + 1),
+          isEnabled: { $0.hasBrowserWindow && $0.tabCount > index },
+          disabledReason: { _ in "This pane does not have tab \(index + 1)." },
+          handler: { [weak self] in
+            guard let self else { return }
+            browser.selectTab(at: index, in: browser.activePaneID)
+          }))
+    }
+    return commands
+  }
+
 }

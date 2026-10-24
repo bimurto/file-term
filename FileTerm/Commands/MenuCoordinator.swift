@@ -30,6 +30,20 @@ import FileTermCore
 
   func menuNeedsUpdate(_ menu: NSMenu) {
     guard let path = paths[ObjectIdentifier(menu)] else { return }
+    if path == ["Window"] {
+      // AppKit owns OS-specific tiling controls and the live window list in this menu.
+      for item in menu.items {
+        guard let id = item.representedObject as? String, registry.command(id) != nil else {
+          continue
+        }
+        let reason = registry.disabledReason(for: id)
+        item.isEnabled = reason == nil
+        item.toolTip = reason
+        item.setAccessibilityHelp(reason)
+        item.state = registry.isChecked(id) ? .on : .off
+      }
+      return
+    }
     for item in menu.items { if let child = item.submenu { forget(child) } }
     menu.removeAllItems()
     populate(menu, path: path)

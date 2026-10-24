@@ -2,7 +2,9 @@
 
 Native macOS file browser with single, side-by-side and stacked panes,
 independent navigation histories, interactive breadcrumbs, standard Go destinations,
-recent folders, mounted devices and Sync Browsing.
+recent folders, mounted devices and Sync Browsing. Each pane supports icon, list
+and hierarchy-column views, independent tabs, and saved view settings. Multiple
+windows and optional session restoration are available.
 
 ## Run
 
@@ -41,9 +43,10 @@ xcodebuild -project FileTerm.xcodeproj -scheme FileTerm \
 ```
 
 The dependency-free Swift package tests filesystem operations, independent pane
-histories, navigation races, Sync Browsing and command availability. Xcode runs
-settings/navigation/device tests and native UI tests, including minimum-size layouts. UI
-tests require an interactive desktop and Xcode's normal automation permission.
+histories, tabs, session snapshots, metadata sorting/grouping, navigation races,
+Sync Browsing and command availability. Xcode runs
+settings/navigation/device tests and native UI tests, including view modes,
+multiple windows, restoration and minimum-size layouts. UI tests require an interactive desktop and Xcode's normal automation permission.
 CI runs core tests, the native build and settings tests; run the UI test locally.
 
 If an agent environment prevents SwiftPM's nested sandbox from starting, use
@@ -65,11 +68,10 @@ existing destination. Delete is permanent at the provider layer. These mutation
 methods have no user-facing commands in M00; later commands must confirm
 destructive operations before calling them.
 
-Browsing starts in single-pane mode at Home, hides hidden items and sorts folders
-first by name. Both pane models start at the same location. Click a pane to make
+With restoration off, browsing starts in single-pane mode at Starting Directory
+(default Home), hides hidden items and sorts folders first by name. Both pane models start at the same location. Click a pane to make
 it the command source; the other visible pane is the target. Single-pane mode
-keeps the active pane visible and retains the hidden pane's state. Session
-restoration is deferred to M02.
+keeps the active pane visible and retains the hidden pane's tabs and state.
 
 Double-click directories to enter them. Enclosing Folder moves up; Back and
 Forward follow each pane's own history. Breadcrumb ancestors and Go destinations
@@ -78,6 +80,44 @@ and reports invalid paths without changing the current folder. Standard text
 editing shortcuts work in its path field. Failed navigation preserves the folder,
 listing, selection and history; obsolete requests cannot replace newer results.
 Permission errors do not request broad access automatically.
+
+View > as Icons, as List and as Columns select a view for the active tab in
+its pane. List headings sort by their metadata; Sort by and Group by offer all
+M02 fields. Folders stay first, and unknown metadata sorts last in both directions.
+Date Last Opened uses Spotlight's last-used metadata and is unknown when the
+volume is not indexed. Column view starts at the current folder and keeps
+visited ancestors visible as you enter child folders. Clicking a file in an
+ancestor column makes that containing folder current before selecting the file.
+
+Show View Options explicitly selects This Tab or This Folder. Tab settings follow
+the tab across navigation; folder settings are shared by tabs using folder scope.
+Save View Settings as Defaults supplies new tabs/windows and folders without
+saved overrides. Restore Default View Settings applies those defaults to the
+current scope.
+
+File > New Tab (Command-T) duplicates the current location with an independent
+history and saved default view options. Command-1 through Command-5 select a tab
+in the active pane. Previous/Next Tab cycle within that pane. Close Tab closes
+the window when its last active-pane tab is closed. Window > Pin View preserves
+the pinned tab's location: navigating away opens a new unpinned tab with the
+same view options. Tabs can still be explicitly closed or unpinned.
+
+Customize Toolbar chooses commands from the registry and changes their order.
+Show Sidebar Editor controls the Devices and Recent Folders sections and their
+order. Toolbar, sidebar and tab-bar visibility and customization persist.
+
+File > New FileTerm Window opens independent panes and tabs at Starting Directory.
+Window commands and the live window list use AppKit's native Window menu, which
+adds the layout and tiling actions supported by the running macOS version.
+Menus and toolbar actions route to the active browser window; dialogs open only
+in that window.
+
+Settings > General sets Starting Directory and Restore windows and tabs on
+startup (default off). Normal quit saves open windows, tabs, histories, pane
+layouts, selected tabs, view settings and window frames. They restore when that
+setting is on. Quit and Keep Windows requests restoration for the next launch
+even when the setting is off. Missing saved folders fall back to Starting
+Directory; an invalid Starting Directory falls back to Home.
 
 Recent Folders stores the last 20 distinct successful local destinations, shared
 between the Go menu and sidebar. View controls path-bar, title-bar, toolbar,
@@ -99,11 +139,11 @@ selected ejectable sidebar volume. Failures are reported; unmounted locations
 return to Home. Ejection tests use a fake service and never eject a real drive.
 Go > Connections remains a disabled placeholder until M08.
 
-For isolated UI tests, `FILETERM_INITIAL_DIRECTORY` overrides the startup folder
+For isolated UI tests, `FILETERM_INITIAL_DIRECTORY` overrides Starting Directory
 and `FILETERM_SETTINGS_SUITE` selects an independent preferences domain.
 
 ## Roadmap
 
-See [milestones](docs/README.md) and [M01 implementation status](tasks/todo.md).
+See [milestones](docs/README.md) and [M02 implementation status](tasks/todo.md).
 This workspace initially had no Git repository or remote. The CI workflow needs
 to be hosted before its passing status can be verified.

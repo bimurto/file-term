@@ -22,6 +22,6 @@ final class BrowserSmokeTests: XCTestCase {
     }
     app.typeKey(",", modifierFlags: .command)
     XCTAssertTrue(
-      app.staticTexts["Settings for general will appear here."].waitForExistence(timeout: 5))
+      app.checkBoxes["Restore windows and tabs on startup"].waitForExistence(timeout: 5))
   }
 }

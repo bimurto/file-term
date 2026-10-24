@@ -16,6 +16,7 @@ struct FileContentView: View {
       case .columns: HierarchyColumnsView(pane: pane, provider: provider, open: open)
       }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .overlay {
       if pane.entries.isEmpty && !pane.isLoading {
         ContentUnavailableView(
@@ -50,7 +51,11 @@ struct FileContentView: View {
         ForEach(pane.displayEntries) { TableRow($0) }
       } else {
         ForEach(pane.entryGroups) { group in
-          Section(group.title ?? "") { ForEach(group.entries) { TableRow($0) } }
+          Section {
+            ForEach(group.entries) { TableRow($0) }
+          } header: {
+            Text(group.title ?? "").accessibilityIdentifier("groupHeader." + (group.title ?? "all"))
+          }
         }
       }
     }
@@ -136,10 +141,20 @@ struct FileContentView: View {
   }
 
   private func open(_ entry: FileEntry) {
-    select(entry)
-    guard entry.kind == .directory else { return }
-    Task { await browser.enterFolder(entry.location, in: paneID) }
+    browser.activePaneID = paneID
+    if entry.kind == .directory {
+      Task { await browser.enterFolder(entry.location, in: paneID) }
+    } else if let parent = entry.location.parent, parent != pane.location {
+      Task {
+        if await browser.navigate(to: parent, in: paneID) {
+          browser.pane(paneID).selection = [entry.id]
+        }
+      }
+    } else {
+      select(entry)
+    }
   }
+
 }
 
 private struct HierarchyColumn: Identifiable {
@@ -155,86 +170,106 @@ private struct HierarchyColumnsView: View {
   let provider: LocalFileSystemProvider
   let open: (FileEntry) -> Void
   @State private var columns: [HierarchyColumn] = []
+  @State private var root: Location?
 
   var body: some View {
-    ScrollViewReader { proxy in
-      ScrollView(.horizontal) {
-        HStack(spacing: 0) {
-          ForEach(columns) { column in
-            VStack(alignment: .leading, spacing: 0) {
-              Text(
-                URL(fileURLWithPath: column.location.path).lastPathComponent.isEmpty
-                  ? "/" : URL(fileURLWithPath: column.location.path).lastPathComponent
-              )
-              .font(.caption).foregroundStyle(.secondary).padding(8)
-              Divider()
-              if let error = column.error { Text(error).font(.caption).padding(8) }
-              List {
-                ForEach(
-                  EntryGrouping.groups(
-                    column.location == pane.location ? pane.entries : column.entries,
-                    by: pane.viewOptions.groupField, order: pane.viewOptions.order)
-                ) { group in
-                  Section {
-                    ForEach(group.entries) { entry in
-                      Button {
-                        open(entry)
-                      } label: {
-                        HStack(spacing: 6) {
-                          FileIcon(entry: entry, localProvider: provider)
-                          Text(entry.name).lineLimit(1)
-                          Spacer(minLength: 0)
-                          if entry.kind == .directory {
-                            Image(systemName: "chevron.right").font(.caption2)
+    GeometryReader { geometry in
+      ScrollViewReader { proxy in
+        ScrollView(.horizontal) {
+          HStack(spacing: 0) {
+            ForEach(columns) { column in
+              VStack(alignment: .leading, spacing: 0) {
+                Text(
+                  URL(fileURLWithPath: column.location.path).lastPathComponent.isEmpty
+                    ? "/" : URL(fileURLWithPath: column.location.path).lastPathComponent
+                )
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .frame(height: 28, alignment: .leading).padding(.horizontal, 8)
+                Divider()
+                if let error = column.error { Text(error).font(.caption).padding(8) }
+                List {
+                  ForEach(
+                    EntryGrouping.groups(
+                      column.location == pane.location ? pane.entries : column.entries,
+                      by: pane.viewOptions.groupField, order: pane.viewOptions.order)
+                  ) { group in
+                    Section {
+                      ForEach(group.entries) { entry in
+                        Button {
+                          open(entry)
+                        } label: {
+                          HStack(spacing: 6) {
+                            FileIcon(entry: entry, localProvider: provider)
+                            Text(entry.name).lineLimit(1)
+                            Spacer(minLength: 0)
+                            if entry.kind == .directory {
+                              Image(systemName: "chevron.right").font(.caption2)
+                            }
                           }
-                        }
-                        .padding(.vertical, 3).contentShape(Rectangle())
-                        .background(
-                          column.selectedChild == entry.location
-                            || pane.selection.contains(entry.id)
-                            ? Color.accentColor.opacity(0.2) : .clear)
-                      }.buttonStyle(.plain)
+                          .padding(.vertical, 3).contentShape(Rectangle())
+                          .background(
+                            column.selectedChild == entry.location
+                              || pane.selection.contains(entry.id)
+                              ? Color.accentColor.opacity(0.2) : .clear)
+                        }.buttonStyle(.plain)
+                      }
+                    } header: {
+                      if let title = group.title { Text(title) }
                     }
-                  } header: {
-                    if let title = group.title { Text(title) }
                   }
-                }
-              }.listStyle(.plain)
-            }.frame(width: 220).id(column.location)
-            Divider()
+                }.listStyle(.plain)
+              }.frame(width: 220).id(column.location)
+              Divider()
+            }
+          }.frame(height: geometry.size.height)
+        }
+        .task(id: pane.location) {
+          guard let location = pane.location else {
+            columns = []
+            return
           }
-        }
-      }
-      .task(id: pane.location) {
-        guard let location = pane.location else {
-          columns = []
-          return
-        }
-        var ancestors = [location]
-        let home = provider.location(for: FileManager.default.homeDirectoryForCurrentUser)
-        while let parent = ancestors.first?.parent, ancestors.first != home {
-          ancestors.insert(parent, at: 0)
-        }
-        var result: [HierarchyColumn] = []
-        for (index, ancestor) in ancestors.enumerated() {
-          do {
-            let entries = ancestor == location ? pane.entries : try await provider.list(ancestor)
-            result.append(
-              HierarchyColumn(
-                location: ancestor, entries: entries,
-                selectedChild: index + 1 < ancestors.count ? ancestors[index + 1] : nil, error: nil)
-            )
-          } catch {
-            result.append(
-              HierarchyColumn(
-                location: ancestor, entries: [], selectedChild: nil,
-                error: error.localizedDescription))
+          var ancestors = [location]
+          let root = self.root ?? location
+          while ancestors.first != root, let parent = ancestors.first?.parent {
+            ancestors.insert(parent, at: 0)
           }
-          guard !Task.isCancelled else { return }
+          if ancestors.first != root {
+            ancestors = [location]
+            self.root = location
+          } else {
+            self.root = root
+          }
+          var result: [HierarchyColumn] = []
+          for (index, ancestor) in ancestors.enumerated() {
+            do {
+              let entries: [FileEntry]
+              if ancestor == location {
+                entries = pane.entries
+              } else if let cached = columns.first(where: { $0.location == ancestor }) {
+                entries = cached.entries
+              } else {
+                entries = try await provider.list(ancestor)
+              }
+              result.append(
+                HierarchyColumn(
+                  location: ancestor, entries: entries,
+                  selectedChild: index + 1 < ancestors.count ? ancestors[index + 1] : nil,
+                  error: nil)
+              )
+            } catch {
+              result.append(
+                HierarchyColumn(
+                  location: ancestor, entries: [], selectedChild: nil,
+                  error: error.localizedDescription))
+            }
+            guard !Task.isCancelled else { return }
+          }
+          guard pane.location == location else { return }
+          columns = result
         }
-        guard pane.location == location else { return }
-        columns = result
-        proxy.scrollTo(location, anchor: .trailing)
+        .onChange(of: columns.map(\.location)) { _, _ in
+          if let location = pane.location { proxy.scrollTo(location, anchor: .trailing) }
+        }
       }
     }.accessibilityIdentifier("columnBrowser")
   }

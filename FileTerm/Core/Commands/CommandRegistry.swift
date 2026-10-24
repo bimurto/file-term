@@ -11,12 +11,13 @@ public struct CommandContext: Sendable {
   public let canGoUp: Bool
   public let canCoordinatePanes: Bool
   public let canEject: Bool
+  public let tabCount: Int
 
   public init(
     hasBrowserWindow: Bool, hasKeyWindow: Bool, isLoading: Bool,
     sourceLocation: Location? = nil, targetLocation: Location? = nil,
     canGoBack: Bool = false, canGoForward: Bool = false, canGoUp: Bool = false,
-    canCoordinatePanes: Bool = false, canEject: Bool = false
+    canCoordinatePanes: Bool = false, canEject: Bool = false, tabCount: Int = 1
   ) {
     self.hasBrowserWindow = hasBrowserWindow
     self.hasKeyWindow = hasKeyWindow
@@ -28,6 +29,7 @@ public struct CommandContext: Sendable {
     self.canGoUp = canGoUp
     self.canCoordinatePanes = canCoordinatePanes
     self.canEject = canEject
+    self.tabCount = tabCount
   }
 }
 

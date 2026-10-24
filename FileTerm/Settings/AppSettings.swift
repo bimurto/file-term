@@ -42,7 +42,7 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
 }
 
 enum BrowserChrome: String, CaseIterable {
-  case pathBar, titleBar, toolbar, devices, deviceInfo
+  case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders
   var title: String {
     switch self {
     case .pathBar: "Path Bar"
@@ -50,12 +50,26 @@ enum BrowserChrome: String, CaseIterable {
     case .toolbar: "Toolbar"
     case .devices: "Devices"
     case .deviceInfo: "Device Info"
+    case .sidebar: "Sidebar"
+    case .tabBar: "Tab Bar"
+    case .recentFolders: "Recent Folders"
     }
   }
   var commandID: String { "view.\(rawValue)" }
 }
 
 @MainActor @Observable final class AppSettings {
+  let viewPreferences: ViewPreferences
+  var workspace: WorkspacePreferences {
+    didSet { Defaults[workspaceKey] = (try? JSONEncoder().encode(workspace)) ?? Data() }
+  }
+  var savedWindows: [WindowSnapshot] {
+    get { (try? JSONDecoder().decode([WindowSnapshot].self, from: Defaults[sessionKey])) ?? [] }
+    set { Defaults[sessionKey] = (try? JSONEncoder().encode(newValue)) ?? Data() }
+  }
+  @ObservationIgnored private let workspaceKey: Defaults.Key<Data>
+  @ObservationIgnored private let viewsKey: Defaults.Key<Data>
+  @ObservationIgnored private let sessionKey: Defaults.Key<Data>
   var hiddenChrome: Set<String> {
     didSet { Defaults[chromeKey] = hiddenChrome }
   }
@@ -74,6 +88,19 @@ enum BrowserChrome: String, CaseIterable {
   @ObservationIgnored private let categoryKey: Defaults.Key<String>
 
   init(suite: UserDefaults = .standard) {
+    workspaceKey = Defaults.Key("workspace", default: Data(), suite: suite)
+    viewsKey = Defaults.Key("viewPreferences", default: Data(), suite: suite)
+    sessionKey = Defaults.Key("windowSession", default: Data(), suite: suite)
+    workspace =
+      (try? JSONDecoder().decode(WorkspacePreferences.self, from: Defaults[workspaceKey]))
+      ?? WorkspacePreferences()
+    viewPreferences = ViewPreferences()
+    if let snapshot = try? JSONDecoder().decode(
+      ViewPreferenceSnapshot.self, from: Defaults[viewsKey])
+    {
+      viewPreferences.defaults = snapshot.defaults
+      viewPreferences.folders = snapshot.folders
+    }
     chromeKey = Defaults.Key(
       "hiddenChrome", default: [BrowserChrome.deviceInfo.rawValue], suite: suite)
     recentKey = Defaults.Key("recentFolders", default: [], suite: suite)
@@ -84,6 +111,12 @@ enum BrowserChrome: String, CaseIterable {
       "settingsCategory", default: SettingsCategory.general.rawValue, suite: suite)
     visiblePanels = Defaults[panelsKey]
     selectedCategory = Defaults[categoryKey]
+    viewPreferences.onChange = { [weak self] in
+      guard let self else { return }
+      let snapshot = ViewPreferenceSnapshot(
+        defaults: viewPreferences.defaults, folders: viewPreferences.folders)
+      Defaults[viewsKey] = (try? JSONEncoder().encode(snapshot)) ?? Data()
+    }
   }
 
   func isVisible(_ chrome: BrowserChrome) -> Bool { !hiddenChrome.contains(chrome.rawValue) }

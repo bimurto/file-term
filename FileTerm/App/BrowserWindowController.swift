@@ -1,0 +1,78 @@
+import AppKit
+import FileTermCore
+import Observation
+import SwiftUI
+
+@MainActor final class BrowserWindowController: NSObject, NSWindowDelegate {
+  let id = UUID()
+  let browser: BrowserModel
+  let devices: DeviceModel
+  let window: NSWindow
+  var onClose: (() -> Void)?
+  var onActivate: (() -> Void)?
+
+  init(
+    browser: BrowserModel, devices: DeviceModel, settings: AppSettings,
+    registry: CommandRegistry, provider: LocalFileSystemProvider, frame: String? = nil
+  ) {
+    self.browser = browser
+    self.devices = devices
+    window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false
+    )
+    super.init()
+    window.identifier = NSUserInterfaceItemIdentifier("browserWindow")
+    window.isReleasedWhenClosed = false
+    window.contentMinSize = NSSize(width: 680, height: 420)
+    window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
+    window.tabbingMode = .disallowed
+    window.delegate = self
+    window.contentView = NSHostingView(
+      rootView: BrowserView(
+        browser: browser, settings: settings,
+        registry: registry, localProvider: provider, devices: devices))
+    if let frame {
+      let rect = NSRectFromString(frame)
+      if rect.width >= 680, rect.height >= 420,
+        NSScreen.screens.contains(where: { $0.visibleFrame.intersects(rect) })
+      {
+        window.setFrame(rect, display: false)
+      } else {
+        window.center()
+      }
+    } else {
+      window.center()
+    }
+    applyChrome(settings)
+    observeTitle()
+  }
+
+  func applyChrome(_ settings: AppSettings) {
+    let visible = settings.isVisible(.titleBar)
+    window.titleVisibility = visible ? .visible : .hidden
+    window.titlebarAppearsTransparent = !visible
+    if visible {
+      window.styleMask.remove(.fullSizeContentView)
+    } else {
+      window.styleMask.insert(.fullSizeContentView)
+    }
+  }
+
+  private func observeTitle() {
+    withObservationTracking {
+      let path = browser.activePane.location?.path
+      let title =
+        path.map { $0 == "/" ? "/" : URL(fileURLWithPath: $0).lastPathComponent } ?? "Browser"
+      window.title = "FileTerm — " + title
+    } onChange: { [weak self] in
+      Task { @MainActor in self?.observeTitle() }
+    }
+  }
+
+  func windowWillClose(_ notification: Notification) { onClose?() }
+  func windowDidBecomeKey(_ notification: Notification) { onActivate?() }
+  func snapshot() -> WindowSnapshot {
+    WindowSnapshot(browser: browser.snapshot(), frame: NSStringFromRect(window.frame))
+  }
+}

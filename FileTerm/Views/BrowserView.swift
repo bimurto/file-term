@@ -1,7 +1,6 @@
 import AppKit
 import FileTermCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct BrowserView: View {
   @Bindable var browser: BrowserModel
@@ -10,6 +9,7 @@ struct BrowserView: View {
   let localProvider: LocalFileSystemProvider
   let devices: DeviceModel
   @State private var goToFolder: GoToFolderModel?
+  @State private var optionsSheet: BrowserOptionsSheet?
 
   var body: some View {
     VStack(spacing: 0) {
@@ -27,7 +27,9 @@ struct BrowserView: View {
         Divider()
       }
       HSplitView {
-        sidebar.frame(minWidth: 120, idealWidth: 170, maxWidth: 220)
+        if settings.isVisible(.sidebar) {
+          sidebar.frame(minWidth: 120, idealWidth: 170, maxWidth: 220)
+        }
         paneLayout
         if settings.isVisible(.preview) {
           placeholder(.preview).frame(minWidth: 140, idealWidth: 220)
@@ -41,14 +43,27 @@ struct BrowserView: View {
         }.frame(height: 140)
       }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.background)
     .frame(minWidth: 680, minHeight: 420)
-    .onReceive(NotificationCenter.default.publisher(for: .fileTermGoToFolder)) { _ in
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermGoToFolder)) { notification in
+      guard notification.object as? BrowserModel === browser else { return }
       goToFolder = GoToFolderModel(
         browser: browser, provider: localProvider, paneID: browser.activePaneID)
     }
-    .sheet(item: $goToFolder) { model in
-      GoToFolderSheet(model: model)
+    .sheet(item: $goToFolder) { model in GoToFolderSheet(model: model) }
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermBrowserOptions)) { notification in
+      guard notification.object as? BrowserModel === browser,
+        let kind = notification.userInfo?["kind"] as? String
+      else { return }
+      optionsSheet = BrowserOptionsSheet(rawValue: kind)
+    }
+    .sheet(item: $optionsSheet) { sheet in
+      switch sheet {
+      case .viewOptions: ViewOptionsSheet(pane: browser.activePane)
+      case .toolbar: ToolbarCustomizationSheet(settings: settings, registry: registry)
+      case .sidebar: SidebarEditorSheet(settings: settings)
+      }
     }
     .alert(
       "Device",
@@ -80,27 +95,22 @@ struct BrowserView: View {
   private func pane(_ id: PaneID) -> some View {
     BrowserPaneView(
       pane: browser.pane(id), paneID: id, browser: browser,
-      settings: settings, localProvider: localProvider, volumeService: devices.service
+      settings: settings, registry: registry, localProvider: localProvider,
+      volumeService: devices.service
     )
     .frame(minWidth: 220, minHeight: 130)
   }
 
   private var toolbar: some View {
-    HStack(spacing: 6) {
-      commandButton("go.back", symbol: "chevron.left")
-      commandButton("go.forward", symbol: "chevron.right")
-      commandButton("go.enclosingFolder", symbol: "arrow.up")
-      Divider().frame(height: 20)
-      commandButton("view.single", symbol: "rectangle")
-      commandButton("view.vertical", symbol: "rectangle.split.2x1")
-      commandButton("view.horizontal", symbol: "rectangle.split.1x2")
-      commandButton("go.syncBrowsing", symbol: "link")
-      commandButton("go.toFolder", symbol: "folder.badge.gearshape")
-      Spacer(minLength: 6)
-      ForEach(PlaceholderPanel.allCases) { panel in
-        commandButton(panel.commandID, symbol: panel.symbol)
-      }
-    }.padding(.horizontal, 10).frame(height: 44)
+    ScrollView(.horizontal) {
+      HStack(spacing: 6) {
+        ForEach(settings.workspace.toolbarItems.filter { registry.command($0) != nil }, id: \.self)
+        { id in
+          commandButton(id, symbol: ToolbarSymbols.symbol(for: id))
+        }
+        Spacer(minLength: 0)
+      }.padding(.horizontal, 10).frame(height: 44)
+    }.scrollIndicators(.hidden).frame(height: 44)
   }
 
   private func commandButton(_ id: String, symbol: String) -> some View {
@@ -110,7 +120,12 @@ struct BrowserView: View {
     } label: {
       Image(systemName: symbol).frame(width: 20, height: 20)
     }
-    .tint(registry.isChecked(id) ? .accentColor : nil)
+    .buttonStyle(.borderless).padding(3)
+    .foregroundStyle(registry.isChecked(id) ? Color.accentColor : Color.primary)
+    .background(
+      registry.isChecked(id) ? Color.accentColor.opacity(0.12) : .clear,
+      in: RoundedRectangle(cornerRadius: 4)
+    )
     .disabled(registry.disabledReason(for: id) != nil)
     .help(registry.disabledReason(for: id) ?? title)
     .accessibilityLabel(title).accessibilityIdentifier(id)
@@ -119,44 +134,46 @@ struct BrowserView: View {
 
   private var sidebar: some View {
     List {
-      if settings.isVisible(.devices) {
-        Section("Devices") {
-          ForEach(devices.volumes) { volume in
-            Button {
-              devices.selectedVolumeID = volume.id
-              open(localProvider.location(for: volume.url))
-            } label: {
-              HStack(spacing: 6) {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: volume.url.path))
-                  .resizable().frame(width: 18, height: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                  Text(volume.name).lineLimit(1)
-                  if settings.isVisible(.deviceInfo) {
-                    Text(volumeInfo(volume)).font(.caption2).foregroundStyle(.secondary)
+      ForEach(settings.workspace.sidebarOrder, id: \.self) { section in
+        if section == "devices" && settings.isVisible(.devices) {
+          Section("Devices") {
+            ForEach(devices.volumes) { volume in
+              Button {
+                devices.selectedVolumeID = volume.id
+                open(localProvider.location(for: volume.url))
+              } label: {
+                HStack(spacing: 6) {
+                  Image(nsImage: NSWorkspace.shared.icon(forFile: volume.url.path)).resizable()
+                    .frame(width: 18, height: 18)
+                  VStack(alignment: .leading, spacing: 2) {
+                    Text(volume.name).lineLimit(1)
+                    if settings.isVisible(.deviceInfo) {
+                      Text(volumeInfo(volume)).font(.caption2).foregroundStyle(.secondary)
+                    }
                   }
-                }
-                Spacer(minLength: 0)
-              }
-              .padding(.vertical, 3)
-              .contentShape(Rectangle())
-              .background(
-                devices.selectedVolumeID == volume.id ? Color.accentColor.opacity(0.15) : .clear)
-            }.buttonStyle(.plain).help(volume.url.path)
+                  Spacer(minLength: 0)
+                }.padding(.vertical, 3).contentShape(Rectangle())
+                  .background(
+                    devices.selectedVolumeID == volume.id ? Color.accentColor.opacity(0.15) : .clear
+                  )
+              }.buttonStyle(.plain).help(volume.url.path)
+            }
           }
         }
-      }
-      Section("Recent Folders") {
-        ForEach(settings.recentFolders, id: \.self) { path in
-          Button {
-            devices.selectedVolumeID = nil
-            open(Location(providerID: localProvider.id, path: path))
-          } label: {
-            Label(
-              URL(fileURLWithPath: path).lastPathComponent.isEmpty
-                ? "/" : URL(fileURLWithPath: path).lastPathComponent,
-              systemImage: "folder"
-            ).lineLimit(1)
-          }.buttonStyle(.plain).help(path)
+        if section == "recents" && settings.isVisible(.recentFolders) {
+          Section("Recent Folders") {
+            ForEach(settings.recentFolders, id: \.self) { path in
+              Button {
+                devices.selectedVolumeID = nil
+                open(Location(providerID: localProvider.id, path: path))
+              } label: {
+                Label(
+                  URL(fileURLWithPath: path).lastPathComponent.isEmpty
+                    ? "/" : URL(fileURLWithPath: path).lastPathComponent, systemImage: "folder"
+                ).lineLimit(1)
+              }.buttonStyle(.plain).help(path)
+            }
+          }
         }
       }
     }.listStyle(.sidebar).accessibilityIdentifier("navigationSidebar")
@@ -190,12 +207,17 @@ private struct BrowserPaneView: View {
   let paneID: PaneID
   let browser: BrowserModel
   let settings: AppSettings
+  let registry: CommandRegistry
   let localProvider: LocalFileSystemProvider
   let volumeService: any VolumeService
   @State private var status = PaneStatusModel()
 
   var body: some View {
     VStack(spacing: 0) {
+      if settings.isVisible(.tabBar) {
+        PaneTabBar(browser: browser, paneID: paneID, registry: registry)
+        Divider()
+      }
       if settings.isVisible(.pathBar) {
         PathBar(
           url: pane.location.flatMap { try? localProvider.url(for: $0) },
@@ -310,4 +332,5 @@ extension GoToFolderModel: Identifiable {
 }
 extension Notification.Name {
   static let fileTermGoToFolder = Notification.Name("FileTerm.goToFolder")
+  static let fileTermBrowserOptions = Notification.Name("FileTerm.browserOptions")
 }
