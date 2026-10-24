@@ -1,0 +1,22 @@
+name: macOS checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Swift formatting
+        run: swift format lint --strict --recursive FileTerm FileTermCoreTests FileTermTests FileTermUITests Package.swift
+      - name: Test provider, navigation and commands
+        run: swift test
+      - name: Fetch pinned dependencies
+        run: bash scripts/fetch-dependencies.sh
+      - name: Generate Xcode project
+        run: bash scripts/generate-project.sh
+      - name: Build native app and test settings
+        run: >-
+          xcodebuild -project FileTerm.xcodeproj -scheme FileTerm
+          -destination 'platform=macOS' -derivedDataPath .build/xcode
+          -only-testing:FileTermTests test

@@ -1,0 +1,77 @@
+name: FileTerm
+options:
+  minimumXcodeGenVersion: 2.44.1
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_APP_SANDBOX: NO
+    ENABLE_HARDENED_RUNTIME: NO
+packages:
+  FileTermCore:
+    path: .
+  Defaults:
+    path: .build/vendor/Defaults
+  Settings:
+    path: .build/vendor/Settings
+targets:
+  FileTerm:
+    type: application
+    platform: macOS
+    sources:
+      - path: FileTerm
+        excludes: [Core, Resources]
+      - path: FileTerm/Resources
+        buildPhase: resources
+    dependencies:
+      - package: FileTermCore
+      - package: Defaults
+      - package: Settings
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fileterm.app
+        PRODUCT_NAME: FileTerm
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: FileTerm
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+      configs:
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
+  FileTermTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [FileTermTests]
+    dependencies:
+      - target: FileTerm
+      - package: Defaults
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fileterm.tests
+        GENERATE_INFOPLIST_FILE: YES
+  FileTermUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [FileTermUITests]
+    dependencies:
+      - target: FileTerm
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fileterm.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  FileTerm:
+    build:
+      targets:
+        FileTerm: all
+    test:
+      targets:
+        - FileTermTests
+        - FileTermUITests
+      gatherCoverageData: true
