@@ -1,6 +1,7 @@
 import AppKit
 import FileTermCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
   private let provider = LocalFileSystemProvider()
@@ -24,6 +25,8 @@ import SwiftUI
     settings: settings, registry: { [unowned self] in registry })
   private let folderWatcher = FolderWatcher()
   private let fileOperations = FileOperationCoordinator()
+  private let filePreviews = FilePreviewCoordinator()
+  private let fileUtilities = FileUtilityCoordinator()
 
   /// The browser window is in front with no dialog on top (Quick Open counts as part of the browser).
   private var browserIsFront: Bool {
@@ -116,6 +119,12 @@ import SwiftUI
         }
       }
     }
+    filePreviews.onMetadataChange = { [weak self] in
+      Task { [weak self] in
+        guard let self else { return }
+        for controller in windows { await controller.browser.refreshAll() }
+      }
+    }
     folderWatcher.onChange = { [weak self] paths in self?.refreshWatched(paths) }
     NotificationCenter.default.addObserver(
       forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
@@ -138,6 +147,7 @@ import SwiftUI
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    guard FilePreviewContentView.confirmTermination() else { return .terminateCancel }
     settings.savedWindows = windows.map { $0.snapshot() }
     return .terminateNow
   }
@@ -495,7 +505,184 @@ import SwiftUI
           }))
     }
     return commands + navigationCommands() + workspaceCommands() + selectionSearchCommands()
-      + fileOperationCommands()
+      + fileOperationCommands() + metadataUtilityCommands()
+  }
+
+  // MARK: Metadata, preview and utilities (M05)
+
+  private var selectedLocalURLs: [URL] {
+    browser.activePane.selectedEntries.filter { $0.location.providerID == provider.id }
+      .map { URL(fileURLWithPath: $0.location.path) }
+  }
+
+  private func linkDisabledReason(_ kind: LocalLinkKind, otherPane: Bool) -> String? {
+    let destination = otherPane ? browser.targetPane?.location : browser.activePane.location
+    guard let destination, destination.providerID == provider.id else {
+      return "Open a local destination pane."
+    }
+    let url = URL(fileURLWithPath: destination.path)
+    guard FileManager.default.isWritableFile(atPath: url.path),
+      let values = try? url.resourceValues(forKeys: [
+        .volumeSupportsSymbolicLinksKey, .volumeSupportsPersistentIDsKey,
+        .volumeSupportsExclusiveRenamingKey, .volumeIsReadOnlyKey,
+      ]),
+      values.volumeIsReadOnly == false
+    else { return "The destination is not writable." }
+    if kind == .symlink && values.volumeSupportsSymbolicLinks != true {
+      return "This volume does not support symbolic links."
+    }
+    if kind == .alias
+      && (values.volumeSupportsPersistentIDs != true
+        || values.volumeSupportsExclusiveRenaming != true)
+    {
+      return "This volume does not support safe Finder alias creation."
+    }
+    if kind == .alias
+      && browser.activePane.selectedEntries.contains(where: { $0.kind == .symbolicLink })
+    {
+      return "Use Make Symlink for symbolic link leaves."
+    }
+    return nil
+  }
+
+  private func makeLinks(_ kind: LocalLinkKind, otherPane: Bool) {
+    let urls = selectedLocalURLs
+    let sourcePane = browser.activePane
+    let destination = otherPane ? browser.targetPane?.location : nil
+    let model = browser
+    Task {
+      do {
+        let service = LocalLinkService()
+        for url in urls {
+          let directory = destination.map { URL(fileURLWithPath: $0.path) }
+          if kind == .alias {
+            _ = try await service.createAlias(source: url, in: directory)
+          } else {
+            _ = try await service.createSymlink(source: url, in: directory)
+          }
+        }
+      } catch { model.notice = error.localizedDescription }
+      await sourcePane.refresh()
+      for controller in windows { await controller.browser.refreshAll() }
+    }
+  }
+
+  private func metadataUtilityCommands() -> [AppCommand] {
+    func command(
+      _ id: String, _ title: String, menu: [String] = ["File"], key: String? = nil,
+      needsSelection: Bool = true, condition: @escaping () -> Bool = { true },
+      reason: String = "Select local items in the browser first.", action: @escaping () -> Void
+    ) -> AppCommand {
+      AppCommand(
+        id: id, title: title, menuPath: menu, shortcut: key,
+        isEnabled: { [weak self] context in
+          guard let self else { return false }
+          return browserIsFront && !(NSApp.keyWindow?.firstResponder is NSText)
+            && !context.isLoading && !fileOperations.isBusy
+            && context.sourceLocation?.providerID == provider.id
+            && (!needsSelection
+              || (!selectedLocalURLs.isEmpty
+                && selectedLocalURLs.count == context.selectionCount))
+            && condition()
+        }, disabledReason: { _ in reason }, handler: action)
+    }
+    var result = [
+      command("file.getInfo", "Get Info", key: "i") { [weak self] in
+        guard let self else { return }
+        filePreviews.showInfo(selectedLocalURLs)
+      },
+      command("file.tags", "Tags…") { [weak self] in
+        guard let self else { return }
+        filePreviews.showInfo(selectedLocalURLs)
+      },
+      command("file.quickLook", "Quick Look", key: DefaultShortcuts.quickLook.key) { [weak self] in
+        guard let self else { return }
+        filePreviews.showQuickLook(selectedLocalURLs)
+      },
+      command(
+        "file.slideshow", "Slideshow",
+        condition: { [weak self] in
+          self?.selectedLocalURLs.contains { url in
+            (try? url.resourceValues(forKeys: [.contentTypeKey]).contentType?.conforms(to: .image))
+              == true
+          } == true
+        }, reason: "Select at least one supported image.",
+        action: { [weak self] in
+          guard let self else { return }
+          filePreviews.showSlideshow(selectedLocalURLs)
+        }),
+      command(
+        "file.print", "Print…", key: "p",
+        condition: { [weak self] in
+          guard let urls = self?.selectedLocalURLs, urls.count == 1 else { return false }
+          return FilePreviewCoordinator.canPrint(urls[0])
+        }, reason: "Select one printable image, PDF or text file.",
+        action: { [weak self] in
+          guard let self, let url = selectedLocalURLs.first else { return }
+          filePreviews.printFile(url)
+        }),
+      command(
+        "commands.checksum", "Calculate Checksum…", menu: ["Commands"],
+        condition: { [weak self] in
+          guard let entries = self?.browser.activePane.selectedEntries else { return false }
+          return entries.count == 1 && entries[0].kind == .file
+        }, reason: "Select one regular local file to calculate its checksum.",
+        action: { [weak self] in
+          guard let self, let url = selectedLocalURLs.first else { return }
+          fileUtilities.showChecksum(url)
+        }),
+      command(
+        "commands.folderSizes", "Calculate All Folder Sizes", menu: ["Commands"],
+        needsSelection: false
+      ) { [weak self] in
+        guard let self else { return }
+        fileUtilities.calculateFolderSizes(browser.activePane)
+      },
+    ]
+    for (format, title) in [
+      (CopyPathFormat.unix, "UNIX"), (.fileURL, "URL"), (.decodedURL, "Percent-Decoded URL"),
+      (.name, "Name"), (.terminal, "Terminal"), (.windows, "Windows"),
+    ] {
+      result.append(
+        command("file.copyPath.\(format.rawValue)", title, menu: ["File", "Copy Path"]) {
+          [weak self] in
+          guard let self else { return }
+          do {
+            let text = try selectedLocalURLs.map {
+              try CopyPathFormatter.string(for: $0, format: format)
+            }.joined(separator: "\n")
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+          } catch { browser.notice = error.localizedDescription }
+        })
+    }
+    for (kind, title) in [(LocalLinkKind.alias, "Alias"), (.symlink, "Symlink")] {
+      for otherPane in [false, true] {
+        result.append(
+          command(
+            "file.make\(title)\(otherPane ? "To" : "")", "Make \(title)\(otherPane ? " to" : "")",
+            condition: { [weak self] in
+              guard let self else { return false }
+              let destination =
+                otherPane ? browser.targetPane?.location : browser.activePane.location
+              return destination?.providerID == provider.id
+                && linkDisabledReason(kind, otherPane: otherPane) == nil
+            },
+            reason:
+              "The destination must be a writable local volume supporting this link type; aliases cannot target symlink leaves."
+          ) { [weak self] in self?.makeLinks(kind, otherPane: otherPane) })
+      }
+    }
+    for (id, title) in [("file.copyURL", "Copy URL"), ("file.openURL", "Open URL")] {
+      result.append(
+        AppCommand(
+          id: id, title: title, menuPath: ["File"], isEnabled: { _ in false },
+          disabledReason: { _ in
+            "This location does not provide a public URL. Remote Base URLs arrive with M08."
+          },
+          handler: {}))
+    }
+    return result
   }
 
   // MARK: Local file operations (M04)
@@ -704,14 +891,6 @@ import SwiftUI
     let inBrowser: (CommandContext) -> Bool = { [weak self] context in
       context.hasBrowserWindow && self?.browserIsFront == true
     }
-    func placeholder(
-      _ id: String, _ title: String, _ shortcut: Shortcut, _ reason: String
-    ) -> AppCommand {
-      AppCommand(
-        id: id, title: title, menuPath: ["File"], shortcut: shortcut.key,
-        shortcutModifiers: shortcut.modifiers, isEnabled: { _ in false },
-        disabledReason: { _ in reason }, handler: {})
-    }
     return [
       AppCommand(
         id: "edit.selectAll", title: "Select All", menuPath: ["Edit"], shortcut: "a",
@@ -801,9 +980,6 @@ import SwiftUI
           settings.autoRefresh.toggle()
           syncWatcher()
         }),
-      placeholder(
-        "file.quickLook", "Quick Look", DefaultShortcuts.quickLook,
-        "Quick Look arrives in M05."),
     ]
   }
   private func workspaceCommands() -> [AppCommand] {

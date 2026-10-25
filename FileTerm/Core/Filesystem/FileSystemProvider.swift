@@ -19,7 +19,7 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
   public let location: Location
   public let name: String
   public let kind: Kind
-  public let size: Int64?
+  public var size: Int64?
   public let createdAt: Date?
   public let modifiedAt: Date?
   public let typeIdentifier: String?
@@ -80,6 +80,8 @@ public protocol FileSystemProvider: Sendable {
   func list(_ location: Location) async throws -> [FileEntry]
   /// Lists a folder, optionally including hidden items. Defaults to the visible-only listing.
   func list(_ location: Location, includeHidden: Bool) async throws -> [FileEntry]
+  /// A provider-supplied public/Base URL, distinct from a local file URL.
+  func publicURL(for location: Location) async throws -> URL?
   func stat(_ location: Location) async throws -> FileEntry
   func read(_ location: Location) async throws -> any FileByteReader
   /// Writes a new file. An existing destination is never overwritten.
@@ -90,6 +92,8 @@ public protocol FileSystemProvider: Sendable {
 }
 
 extension FileSystemProvider {
+  public func publicURL(for location: Location) async throws -> URL? { nil }
+
   public func list(_ location: Location, includeHidden: Bool) async throws -> [FileEntry] {
     try await list(location)
   }

@@ -6,6 +6,12 @@ recent folders, mounted devices and Sync Browsing. Each pane supports icon, list
 and hierarchy-column views, independent tabs, and saved view settings. Multiple
 windows and optional session restoration are available.
 
+M05 adds a metadata Preview panel and Get Info windows, native media/text previews,
+Quick Look, slideshow and printing, editable Finder metadata and permissions,
+application associations, cancellable folder sizes and checksums, Copy Path formats,
+and safe aliases/symlinks. See [M05 status and limitations](docs/milestones/M05-metadata-preview-utilities.md).
+Remote preview caching and public Base URLs remain deferred to M08.
+
 ## Run
 
 Requires macOS 14+ and Xcode 16+ with Swift 6.

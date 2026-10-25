@@ -23,7 +23,17 @@ import Observation
     }
   }
   /// What the content views show: search results while a search scope is open, else the folder.
-  public var visibleEntries: [FileEntry] { searchScope?.results ?? entries }
+  public var calculatedSizes: [Location: Int64] = [:]
+  public func setCalculatedSize(_ bytes: Int64, for location: Location) {
+    calculatedSizes[location] = bytes
+  }
+  public var visibleEntries: [FileEntry] {
+    (searchScope?.results ?? entries).map { entry in
+      var entry = entry
+      if entry.kind == .directory, let size = calculatedSizes[entry.id] { entry.size = size }
+      return entry
+    }
+  }
   public var displayEntries: [FileEntry] { visibleEntries.sorted(using: viewOptions.order) }
   public var entryGroups: [EntryGroup] {
     EntryGrouping.groups(visibleEntries, by: viewOptions.groupField, order: viewOptions.order)
@@ -143,7 +153,21 @@ import Observation
   /// for items that still exist.
   @discardableResult public func refresh() async -> Bool {
     guard let location else { return false }
-    return await load(location, historyIndex: nil, refreshing: true)
+    let loaded = await load(location, historyIndex: nil, refreshing: true)
+    // Search results may refer to nested folders, not the folder just re-listed.
+    if loaded, let scope = searchScope {
+      let token = searchToken
+      var updated: [FileEntry] = []
+      for entry in scope.results {
+        let fresh = try? await providers[entry.location.providerID]?.stat(entry.location)
+        updated.append(fresh ?? entry)
+      }
+      if token == searchToken, var current = searchScope {
+        current.results = updated
+        searchScope = current
+      }
+    }
+    return loaded
   }
 
   // MARK: Search (a separate result scope; the folder underneath is untouched)
@@ -224,6 +248,7 @@ import Observation
         destination, includeHidden: viewPreferences.showHidden)
       try Task.checkCancellation()
       guard navigationRevision == request else { return false }
+      calculatedSizes = [:]
       entries = listing.sorted {
         if ($0.kind == .directory) != ($1.kind == .directory) {
           return $0.kind == .directory
@@ -240,7 +265,11 @@ import Observation
       location = destination
       if refreshing {
         let existing = Set(entries.map(\.id))
-        selection = selection.intersection(existing)
+        if let scope = searchScope {
+          selection = selection.intersection(Set(scope.results.map(\.id)))
+        } else {
+          selection = selection.intersection(existing)
+        }
         folderSelection = folderSelection.intersection(existing)
       } else {
         closeSearch()

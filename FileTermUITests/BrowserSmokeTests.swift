@@ -17,8 +17,14 @@ final class BrowserSmokeTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["This folder is empty"].waitForExistence(timeout: 5))
     for panel in ["Preview", "Activities", "Logs"] {
       app.buttons["view.\(panel.lowercased())"].click()
-      XCTAssertTrue(
-        app.staticTexts["\(panel) is not implemented yet."].waitForExistence(timeout: 5))
+      if panel == "Preview" {
+        XCTAssertTrue(
+          app.staticTexts["Select a local item to inspect its metadata and preview its contents."]
+            .waitForExistence(timeout: 5))
+      } else {
+        XCTAssertTrue(
+          app.staticTexts["\(panel) is not implemented yet."].waitForExistence(timeout: 5))
+      }
     }
     app.typeKey(",", modifierFlags: .command)
     XCTAssertTrue(

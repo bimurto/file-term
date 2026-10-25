@@ -38,7 +38,7 @@ struct BrowserView: View {
         }
         paneLayout
         if settings.isVisible(.preview) {
-          placeholder(.preview).frame(minWidth: 140, idealWidth: 220)
+          previewPanel.frame(minWidth: 300, idealWidth: 320, maxWidth: 440)
         }
       }
       if settings.isVisible(.activities) || settings.isVisible(.logs) {
@@ -283,6 +283,23 @@ struct BrowserView: View {
     guard let available = volume.available, let capacity = volume.capacity else { return kind }
     return
       "\(available.formatted(.byteCount(style: .file))) free of \(capacity.formatted(.byteCount(style: .file)))"
+  }
+
+  @ViewBuilder private var previewPanel: some View {
+    Group {
+      if let entry = browser.activePane.selectedEntries.first,
+        entry.location.providerID == localProvider.id
+      {
+        MetadataInspectorView(url: URL(fileURLWithPath: entry.location.path)) {
+          Task { await browser.refreshAll() }
+        }
+      } else {
+        ContentUnavailableView(
+          "Preview", systemImage: "sidebar.right",
+          description: Text("Select a local item to inspect its metadata and preview its contents.")
+        )
+      }
+    }.accessibilityIdentifier("panel.Preview")
   }
 
   private func placeholder(_ panel: PlaceholderPanel) -> some View {
