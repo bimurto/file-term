@@ -34,6 +34,8 @@ import Observation
   public private(set) var location: Location?
   public private(set) var entries: [FileEntry] = []
   public var selection: Set<Location> = []
+  public var renamingLocation: Location?
+  @ObservationIgnored public var onRename: ((Location, String) -> Void)?
   public private(set) var searchScope: SearchScope?
   @ObservationIgnored private var folderSelection: Set<Location> = []
   @ObservationIgnored private var searchTask: Task<Void, Never>?

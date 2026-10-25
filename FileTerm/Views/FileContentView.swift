@@ -14,7 +14,10 @@ struct FileContentView: View {
       switch pane.viewOptions.mode {
       case .list: fileList
       case .icons: iconGrid
-      case .columns: HierarchyColumnsView(pane: pane, provider: provider, open: open)
+      case .columns:
+        HierarchyColumnsView(
+          pane: pane, provider: provider, open: open, select: select,
+          showPackageContents: showPackageContents)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -45,7 +48,7 @@ struct FileContentView: View {
       TableColumn("Name", sortUsing: EntryOrder(field: .name)) { entry in
         HStack(spacing: 6) {
           FileIcon(entry: entry, localProvider: provider)
-          Text(entry.name).lineLimit(1)
+          InlineFileName(pane: pane, entry: entry).lineLimit(1)
         }
         .opacity(entry.isHidden ? 0.5 : 1)
         .accessibilityValue(entry.isHidden ? "Hidden" : "")
@@ -64,11 +67,17 @@ struct FileContentView: View {
         }
       }
     }
-    .contextMenu(forSelectionType: Location.self) { _ in
-      EmptyView()
+    .contextMenu(forSelectionType: Location.self) { locations in
+      if locations.count == 1, let location = locations.first,
+        let entry = pane.visibleEntries.first(where: { $0.location == location })
+      {
+        FileEntryContextMenu(
+          pane: pane, entry: entry, provider: provider, open: open,
+          showPackageContents: showPackageContents)
+      }
     } primaryAction: { locations in
       guard locations.count == 1, let location = locations.first,
-        let entry = pane.entries.first(where: { $0.location == location })
+        let entry = pane.visibleEntries.first(where: { $0.location == location })
       else { return }
       open(entry)
     }
@@ -111,7 +120,8 @@ struct FileContentView: View {
             ForEach(group.entries) { entry in
               VStack(spacing: 6) {
                 FileIcon(entry: entry, localProvider: provider, size: 48)
-                Text(entry.name).font(.callout).lineLimit(2).multilineTextAlignment(.center)
+                InlineFileName(pane: pane, entry: entry)
+                  .font(.callout).lineLimit(2).multilineTextAlignment(.center)
               }
               .opacity(entry.isHidden ? 0.5 : 1)
               .padding(8).frame(maxWidth: .infinity, minHeight: 88)
@@ -120,8 +130,19 @@ struct FileContentView: View {
                 in: RoundedRectangle(cornerRadius: 6)
               )
               .contentShape(Rectangle())
-              .onTapGesture(count: 2) { open(entry) }
-              .onTapGesture { select(entry) }
+              .onTapGesture(count: 2) {
+                guard pane.renamingLocation != entry.location else { return }
+                open(entry)
+              }
+              .onTapGesture {
+                guard pane.renamingLocation != entry.location else { return }
+                select(entry)
+              }
+              .contextMenu {
+                FileEntryContextMenu(
+                  pane: pane, entry: entry, provider: provider, open: open,
+                  showPackageContents: showPackageContents)
+              }
               .accessibilityElement(children: .contain)
               .accessibilityIdentifier("icon.\(entry.name)")
               .accessibilityAction(named: "Open") { open(entry) }
@@ -157,19 +178,43 @@ struct FileContentView: View {
 
   private func open(_ entry: FileEntry) {
     browser.activePaneID = paneID
-    if entry.kind == .directory {
+    guard pane.renamingLocation != entry.location else { return }
+    if entry.kind == .directory && !isPackage(entry, provider: provider) {
       Task { await browser.enterFolder(entry.location, in: paneID) }
-    } else if let parent = entry.location.parent, parent != pane.location {
-      Task {
-        if await browser.navigate(to: parent, in: paneID) {
-          browser.pane(paneID).selection = [entry.id]
-        }
-      }
-    } else {
-      select(entry)
+    } else if let url = try? provider.url(for: entry.location) {
+      NSWorkspace.shared.open(url)
     }
   }
 
+  private func showPackageContents(_ entry: FileEntry) {
+    browser.activePaneID = paneID
+    Task { await browser.enterFolder(entry.location, in: paneID) }
+  }
+}
+
+private func isPackage(_ entry: FileEntry, provider: LocalFileSystemProvider) -> Bool {
+  guard let url = try? provider.url(for: entry.location) else { return false }
+  return url.pathExtension.lowercased() == "app"
+    || NSWorkspace.shared.isFilePackage(atPath: url.path)
+}
+
+private struct FileEntryContextMenu: View {
+  let pane: PaneModel
+  let entry: FileEntry
+  let provider: LocalFileSystemProvider
+  let open: (FileEntry) -> Void
+  let showPackageContents: (FileEntry) -> Void
+
+  var body: some View {
+    Button("Open") { open(entry) }
+    Button("Rename") {
+      pane.selection = [entry.id]
+      NotificationCenter.default.post(name: .init("FileTerm.BeginRename"), object: pane)
+    }
+    if isPackage(entry, provider: provider) {
+      Button("Show Package Contents") { showPackageContents(entry) }
+    }
+  }
 }
 
 private struct HierarchyColumn: Identifiable {
@@ -184,6 +229,8 @@ private struct HierarchyColumnsView: View {
   @Bindable var pane: PaneModel
   let provider: LocalFileSystemProvider
   let open: (FileEntry) -> Void
+  let select: (FileEntry) -> Void
+  let showPackageContents: (FileEntry) -> Void
   @State private var columns: [HierarchyColumn] = []
   @State private var root: Location?
 
@@ -210,24 +257,48 @@ private struct HierarchyColumnsView: View {
                   ) { group in
                     Section {
                       ForEach(group.entries) { entry in
-                        Button {
-                          open(entry)
-                        } label: {
-                          HStack(spacing: 6) {
-                            FileIcon(entry: entry, localProvider: provider)
-                            Text(entry.name).lineLimit(1)
-                            Spacer(minLength: 0)
-                            if entry.kind == .directory {
-                              Image(systemName: "chevron.right").font(.caption2)
-                            }
+                        HStack(spacing: 6) {
+                          FileIcon(entry: entry, localProvider: provider)
+                          InlineFileName(pane: pane, entry: entry).lineLimit(1)
+                          Spacer(minLength: 0)
+                          if entry.kind == .directory && !isPackage(entry, provider: provider) {
+                            Image(systemName: "chevron.right").font(.caption2)
                           }
-                          .padding(.vertical, 3).contentShape(Rectangle())
-                          .opacity(entry.isHidden ? 0.5 : 1)
-                          .background(
-                            column.selectedChild == entry.location
-                              || pane.selection.contains(entry.id)
-                              ? Color.accentColor.opacity(0.2) : .clear)
-                        }.buttonStyle(.plain)
+                        }
+                        .padding(.vertical, 3).contentShape(Rectangle())
+                        .opacity(entry.isHidden ? 0.5 : 1)
+                        .background(
+                          column.selectedChild == entry.location
+                            || pane.selection.contains(entry.id)
+                            ? Color.accentColor.opacity(0.2) : .clear
+                        )
+                        .onTapGesture(count: 2) {
+                          guard pane.renamingLocation != entry.location else { return }
+                          open(entry)
+                        }
+                        .onTapGesture {
+                          guard pane.renamingLocation != entry.location else { return }
+                          if entry.kind == .directory && !isPackage(entry, provider: provider) {
+                            open(entry)
+                          } else {
+                            select(entry)
+                          }
+                        }
+                        .contextMenu {
+                          FileEntryContextMenu(
+                            pane: pane, entry: entry, provider: provider, open: open,
+                            showPackageContents: showPackageContents)
+                        }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel(entry.name)
+                        .accessibilityAction {
+                          if entry.kind == .directory && !isPackage(entry, provider: provider) {
+                            open(entry)
+                          } else {
+                            select(entry)
+                          }
+                        }
+                        .accessibilityAction(named: "Open") { open(entry) }
                       }
                     } header: {
                       if let title = group.title { Text(title) }

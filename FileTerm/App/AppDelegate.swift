@@ -23,6 +23,7 @@ import SwiftUI
   private lazy var settingsCoordinator = SettingsCoordinator(
     settings: settings, registry: { [unowned self] in registry })
   private let folderWatcher = FolderWatcher()
+  private let fileOperations = FileOperationCoordinator()
 
   /// The browser window is in front with no dialog on top (Quick Open counts as part of the browser).
   private var browserIsFront: Bool {
@@ -57,7 +58,7 @@ import SwiftUI
 
   private lazy var registry = CommandRegistry(
     commands: makeCommands(),
-    dynamicCommands: { [unowned self] in recentCommands() },
+    dynamicCommands: { [unowned self] in recentCommands() + openWithCommands() },
     shortcutOverrides: settings.shortcutOverrides,
     context: { [unowned self] in
       CommandContext(
@@ -88,6 +89,32 @@ import SwiftUI
     registry.onShortcutOverridesChanged = { [weak self] overrides in
       self?.settings.shortcutOverrides = overrides
       self?.menuCoordinator?.install()
+    }
+    NotificationCenter.default.addObserver(
+      forName: .init("FileTerm.BeginRename"), object: nil, queue: .main
+    ) { [weak self] notification in
+      guard let pane = notification.object as? PaneModel else { return }
+      MainActor.assumeIsolated {
+        guard let self,
+          let controller = self.windows.first(where: { controller in
+            PaneID.allCases.contains { id in
+              controller.browser.tabs(id).tabs.contains { $0 === pane }
+            }
+          }), !self.fileOperations.isBusy
+        else { return }
+        self.fileOperations.startRename(pane, window: controller.window)
+      }
+    }
+    fileOperations.refresh = { [weak self] in
+      guard let self else { return }
+      for controller in windows {
+        await controller.browser.refreshAll()
+        for id in PaneID.allCases {
+          for pane in controller.browser.tabs(id).tabs {
+            fileOperations.bindRename(pane, window: controller.window)
+          }
+        }
+      }
     }
     folderWatcher.onChange = { [weak self] paths in self?.refreshWatched(paths) }
     NotificationCenter.default.addObserver(
@@ -136,10 +163,17 @@ import SwiftUI
     let controller = BrowserWindowController(
       browser: model, devices: deviceModel, settings: settings,
       registry: registry, provider: provider, frame: snapshot?.frame)
-    model.onVisit = { [weak self] location in
+    model.onVisit = { [weak self, weak controller, weak model] location in
       self?.settings.recordVisit(location)
       self?.syncWatcher()
       self?.menuCoordinator?.refreshEnabling()
+      if let model {
+        for id in PaneID.allCases {
+          for pane in model.tabs(id).tabs {
+            self?.fileOperations.bindRename(pane, window: controller?.window)
+          }
+        }
+      }
     }
     controller.onClose = { [weak self, weak controller] in
       guard let self, let controller else { return }
@@ -171,6 +205,9 @@ import SwiftUI
     } else {
       await model.navigate(to: initial, in: .first)
       await model.navigate(to: initial, in: .second)
+    }
+    for id in PaneID.allCases {
+      for pane in model.tabs(id).tabs { fileOperations.bindRename(pane, window: controller.window) }
     }
     await deviceModel.refresh()
     menuCoordinator?.refreshEnabling()
@@ -435,11 +472,193 @@ import SwiftUI
       commands.append(
         AppCommand(
           id: "edit.text.\(id)", title: title, menuPath: ["Edit"], shortcut: key,
-          isEnabled: { _ in NSApp.keyWindow?.firstResponder is NSTextView },
-          disabledReason: { _ in "Focus a text field to edit text." },
-          handler: { NSApp.sendAction(action, to: nil, from: nil) }))
+          isEnabled: { [weak self] _ in
+            if NSApp.keyWindow?.firstResponder is NSTextView { return true }
+            guard let self, browserIsFront, !fileOperations.isBusy else { return false }
+            if id == "copy" { return !browser.activePane.selection.isEmpty }
+            if id == "paste" {
+              return browser.activePane.location != nil && !fileOperations.clipboardURLs.isEmpty
+            }
+            return false
+          },
+          disabledReason: { _ in "Select files, copy file URLs, or focus a text field." },
+          handler: { [weak self] in
+            if NSApp.keyWindow?.firstResponder is NSTextView {
+              NSApp.sendAction(action, to: nil, from: nil)
+            } else if let self {
+              if id == "copy" { fileOperations.copy(browser.activePane) }
+              if id == "paste" {
+                fileOperations.transfer(
+                  browser, move: false, clipboard: true, window: browserWindow)
+              }
+            }
+          }))
     }
     return commands + navigationCommands() + workspaceCommands() + selectionSearchCommands()
+      + fileOperationCommands()
+  }
+
+  // MARK: Local file operations (M04)
+
+  private func fileOperationCommands() -> [AppCommand] {
+    func command(
+      _ id: String, _ title: String, menu: [String] = ["Commands"],
+      shortcut: Shortcut? = nil, selection: Bool = false, target: Bool = false,
+      condition: @escaping () -> Bool = { true },
+      reason: @escaping () -> String = {
+        "Open a local folder and select the required items. Pane transfers need two panes."
+      },
+      action: @escaping () -> Void
+    ) -> AppCommand {
+      AppCommand(
+        id: id, title: title, menuPath: menu, shortcut: shortcut?.key,
+        shortcutModifiers: shortcut?.modifiers ?? [.command],
+        isEnabled: { [weak self] context in
+          guard let self else { return false }
+          return browserIsFront && !(NSApp.keyWindow?.firstResponder is NSText)
+            && !fileOperations.isBusy && !context.isLoading
+            && context.sourceLocation?.providerID == "local"
+            && (!selection || context.selectionCount > 0)
+            && (!target || context.targetLocation?.providerID == "local") && condition()
+        }, disabledReason: { _ in reason() }, handler: action)
+    }
+    var result: [AppCommand] = []
+    for (id, title, shortcut, directory, selected) in [
+      ("file.newFolder", "New Folder", DefaultShortcuts.newFolder, true, false),
+      (
+        "file.newFolderWithSelection", "New Folder With Selection",
+        DefaultShortcuts.newFolderWithSelection, true, true
+      ),
+      ("file.newFile", "New File", DefaultShortcuts.newFile, false, false),
+    ] {
+      result.append(
+        command(id, title, menu: ["File"], shortcut: shortcut, selection: selected) { [weak self] in
+          guard let self else { return }
+          fileOperations.create(
+            browser.activePane, directory: directory, withSelection: selected, window: browserWindow
+          )
+        })
+    }
+    result.append(
+      command("file.open", "Open", menu: ["File"], shortcut: DefaultShortcuts.open, selection: true)
+      { [weak self] in
+        guard let self else { return }
+        fileOperations.open(browser)
+      })
+    result.append(
+      command("file.openWith.other", "Other…", menu: ["File", "Open With"], selection: true) {
+        [weak self] in
+        guard let self else { return }
+        fileOperations.chooseApplication(browser, window: browserWindow)
+      })
+    result.append(
+      command(
+        "file.packageContents", "Show Package Contents", menu: ["File"], selection: true,
+        condition: { [weak self] in
+          self?.browser.activePane.selectedEntries.contains {
+            (try? URL(fileURLWithPath: $0.location.path).resourceValues(forKeys: [.isPackageKey])
+              .isPackage) == true
+          } == true
+        }
+      ) { [weak self] in
+        guard let self else { return }
+        fileOperations.open(browser, packageContents: true)
+      })
+    for (id, title, move, renamed) in [
+      ("commands.copyTo", "Copy to…", false, false),
+      ("commands.copyToAs", "Copy to as…", false, true),
+      ("commands.moveTo", "Move to…", true, false),
+    ] {
+      result.append(
+        command(
+          id, title, selection: true, target: true,
+          condition: { [weak self] in !renamed || self?.browser.activePane.selection.count == 1 }
+        ) { [weak self] in
+          guard let self else { return }
+          fileOperations.transfer(browser, move: move, asNewName: renamed, window: browserWindow)
+        })
+    }
+    result.append(
+      command(
+        "edit.moveItemsHere", "Move Items Here", menu: ["Edit"],
+        shortcut: Shortcut(key: "v", modifiers: [.command, .option]),
+        condition: { [weak self] in self?.fileOperations.clipboardURLs.isEmpty == false }
+      ) { [weak self] in
+        guard let self else { return }
+        fileOperations.transfer(browser, move: true, clipboard: true, window: browserWindow)
+      })
+    result.append(
+      command(
+        "commands.duplicate", "Duplicate", shortcut: Shortcut(key: "d", command: true),
+        selection: true
+      ) { [weak self] in
+        guard let self else { return }
+        fileOperations.duplicate(browser.activePane, window: browserWindow)
+      })
+    result.append(
+      command("commands.rename", "Rename", selection: true) { [weak self] in
+        guard let self else { return }
+        fileOperations.startRename(browser.activePane, window: browserWindow)
+      })
+    result.append(
+      command(
+        "file.trash", "Move to Trash", menu: ["File"],
+        shortcut: Shortcut(key: "\u{7F}", command: true), selection: true
+      ) { [weak self] in
+        guard let self else { return }
+        fileOperations.trash(browser.activePane, window: browserWindow)
+      })
+    for redo in [false, true] {
+      result.append(
+        AppCommand(
+          id: redo ? "edit.redo" : "edit.undo", title: redo ? "Redo" : "Undo", menuPath: ["Edit"],
+          shortcut: "z",
+          shortcutModifiers: redo ? [.command, .shift] : [.command],
+          isEnabled: { [weak self] _ in
+            if let text = NSApp.keyWindow?.firstResponder as? NSTextView {
+              return redo ? text.undoManager?.canRedo == true : text.undoManager?.canUndo == true
+            }
+            guard let self else { return false }
+            return browserIsFront && !fileOperations.isBusy
+              && (redo ? fileOperations.canRedo : fileOperations.canUndo)
+          },
+          disabledReason: { [weak self] _ in
+            guard let self else { return "No history available." }
+            if fileOperations.isBusy { return "Another file operation is in progress." }
+            return redo ? fileOperations.redoReason : fileOperations.undoReason
+          },
+          handler: { [weak self] in
+            if let text = NSApp.keyWindow?.firstResponder as? NSTextView {
+              if redo { text.undoManager?.redo() } else { text.undoManager?.undo() }
+            } else if let self {
+              fileOperations.history(redo: redo, pane: browser.activePane, window: browserWindow)
+            }
+          }))
+    }
+    return result
+  }
+
+  private func openWithCommands() -> [AppCommand] {
+    let entries = browser.activePane.selectedEntries
+    guard let first = entries.first else { return [] }
+    var applications = Set(
+      NSWorkspace.shared.urlsForApplications(toOpen: URL(fileURLWithPath: first.location.path)))
+    for entry in entries.dropFirst() {
+      applications.formIntersection(
+        NSWorkspace.shared.urlsForApplications(toOpen: URL(fileURLWithPath: entry.location.path)))
+    }
+    return applications.sorted { $0.lastPathComponent < $1.lastPathComponent }.map { application in
+      AppCommand(
+        id: "file.openWith." + application.path,
+        title: application.deletingPathExtension().lastPathComponent,
+        menuPath: ["File", "Open With"],
+        isEnabled: { [weak self] _ in self?.browserIsFront == true },
+        disabledReason: { _ in "Select an item in the browser." },
+        handler: { [weak self] in
+          guard let self else { return }
+          fileOperations.open(browser, application: application)
+        })
+    }
   }
 
   // MARK: Selection, search and quick commands (M03)
@@ -485,7 +704,6 @@ import SwiftUI
     let inBrowser: (CommandContext) -> Bool = { [weak self] context in
       context.hasBrowserWindow && self?.browserIsFront == true
     }
-    let nothingSelected: (CommandContext) -> String = { _ in "Nothing is selected." }
     func placeholder(
       _ id: String, _ title: String, _ shortcut: Shortcut, _ reason: String
     ) -> AppCommand {
@@ -515,7 +733,9 @@ import SwiftUI
         id: "edit.deselectAll", title: "Deselect All", menuPath: ["Edit"], shortcut: "a",
         shortcutModifiers: [.command, .shift],
         isEnabled: { $0.hasBrowserWindow && $0.selectionCount > 0 },
-        disabledReason: { $0.hasBrowserWindow ? "Nothing is selected." : "Open the browser window first." },
+        disabledReason: {
+          $0.hasBrowserWindow ? "Nothing is selected." : "Open the browser window first."
+        },
         handler: { [weak self] in self?.browser.activePane.deselectAll() }),
       AppCommand(
         id: "edit.invertSelection", title: "Invert Selection", menuPath: ["Edit"], shortcut: "i",
@@ -536,7 +756,8 @@ import SwiftUI
         isEnabled: { $0.hasBrowserWindow && $0.canQuickOpen && !$0.isSearching },
         disabledReason: { context in
           context.isSearching
-            ? "Close the search first." : "Quick Open is unavailable while editing text or in a dialog."
+            ? "Close the search first."
+            : "Quick Open is unavailable while editing text or in a dialog."
         },
         handler: { [weak self] in
           guard let self else { return }
@@ -580,15 +801,6 @@ import SwiftUI
           settings.autoRefresh.toggle()
           syncWatcher()
         }),
-      placeholder(
-        "file.newFolder", "New Folder", DefaultShortcuts.newFolder,
-        "Creating folders arrives in M04."),
-      placeholder(
-        "file.newFolderWithSelection", "New Folder With Selection",
-        DefaultShortcuts.newFolderWithSelection, "Creating folders arrives in M04."),
-      placeholder(
-        "file.newFile", "New File", DefaultShortcuts.newFile, "Creating files arrives in M04."),
-      placeholder("file.open", "Open", DefaultShortcuts.open, "Opening items arrives in M04."),
       placeholder(
         "file.quickLook", "Quick Look", DefaultShortcuts.quickLook,
         "Quick Look arrives in M05."),
