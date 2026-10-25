@@ -18,6 +18,7 @@
 ### M08.03 SFTP
 - [ ] Default port 22. Password and SSH key authentication *(key auth is vendor-documented)*.
 - [ ] Host key verification prompt on first connect.
+- [ ] Built-in terminal extension (M06.10): offer an explicit SSH session for the connected SFTP host and path. Never inject local `cd` commands into remote sessions; honor host-key verification and credential handling.
 
 ### M08.04 FTP & FTP-TLS
 - [ ] Passive and active modes. Explicit TLS for FTP-TLS.

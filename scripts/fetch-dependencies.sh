@@ -24,4 +24,9 @@ if [ ! -f .build/vendor/Settings/Package.swift ]; then
     https://github.com/sindresorhus/Settings.git .build/vendor/Settings
 fi
 
+if [ ! -f .build/vendor/SwiftTerm/Package.swift ]; then
+  git clone --depth 1 --branch v1.20.0 \
+    https://github.com/migueldeicaza/SwiftTerm.git .build/vendor/SwiftTerm
+fi
+
 printf '\nDependencies ready. All downloaded files are inside this project’s .build folder.\n'

@@ -17,7 +17,7 @@ import Testing
     let restored = AppSettings(suite: suite)
     #expect(restored.isVisible(.preview))
     #expect(restored.selectedCategory == "Themes")
-    #expect(SettingsCategory.allCases.count == 7)
+    #expect(SettingsCategory.allCases.count == 8)
   }
 
   @Test func persistsShowHiddenAutoRefreshSearchAndShortcuts() throws {

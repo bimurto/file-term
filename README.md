@@ -59,14 +59,43 @@ If an agent environment prevents SwiftPM's nested sandbox from starting, use
 `swift test --disable-sandbox` inside that environment. Xcode builds may still
 need to run in the native Xcode app when package-resolution services are blocked.
 
+## Built-in terminal
+
+View > Show Terminal (Control-`) opens the SwiftTerm-backed terminal drawer.
+Control-Option-` moves focus between the pane and terminal. The drawer can dock
+below or to the right of the panes; its visibility, position and size are saved
+with each restored window.
+
+Each pane tab owns an independent shell session. Changing tabs switches sessions
+without losing scrollback or running programs. Hiding the drawer retains sessions;
+closing its sessions, closing their pane tabs, or closing the window terminates them.
+
+With shell integration enabled, pane and terminal directories follow each other
+only at an empty shell prompt. Running foreground commands and unsubmitted input
+pause linking. If you navigate the pane while paused, its latest directory wins
+at the next prompt; otherwise a terminal `cd` updates its pane. Search and non-local
+locations pause following. Use the header controls to unlink, disable reverse
+following, synchronize safely, or reveal the terminal directory in the pane.
+
+Settings > Terminal configures the shell, startup flags, integration, linking,
+font, cursor and scrollback. zsh, bash and fish use temporary integration scripts;
+user startup files are not permanently edited. Bash login profiles that replace
+`PROMPT_COMMAND` can prevent integration from loading; the terminal remains usable
+and synchronization stays paused rather than injecting bootstrap commands.
+Other shells remain usable without automatic directory synchronization. Shell processes and scrollback are not
+serialized across app launches. All terminal actions are available in Quick Open
+and Settings > Shortcuts.
+
 ## Structure
 
 - `FileTerm/Core`: provider-neutral locations, async provider protocol, local
   Foundation provider, observable pane model and command registry.
 - `FileTerm/App`, `Commands`, `Views`: AppKit lifecycle and menus with SwiftUI
   presentation, native path control and system file icons.
-- `FileTerm/Settings`: Defaults-backed settings and seven SwiftUI panes hosted
+- `FileTerm/Settings`: Defaults-backed settings and eight SwiftUI panes hosted
   by the Settings package.
+- `FileTerm/Terminal`: SwiftTerm-backed PTY sessions, temporary shell integration,
+  and the per-pane-tab terminal drawer.
 
 Filesystem work runs in a dedicated actor. Reads are pull-based 64 KiB chunks;
 writes consume chunks and refuse existing destinations. Moves also refuse an

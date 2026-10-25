@@ -11,6 +11,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
   case tools = "Tools"
   case editing = "Editing"
   case themes = "Themes"
+  case terminal = "Terminal"
 
   var id: String { rawValue }
   var symbol: String {
@@ -22,6 +23,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
     case .tools: "wrench.and.screwdriver"
     case .editing: "square.and.pencil"
     case .themes: "paintpalette"
+    case .terminal: "terminal"
     }
   }
 }
@@ -63,6 +65,10 @@ enum BrowserChrome: String, CaseIterable {
   var workspace: WorkspacePreferences {
     didSet { Defaults[workspaceKey] = (try? JSONEncoder().encode(workspace)) ?? Data() }
   }
+  var terminal: TerminalPreferences {
+    didSet { Defaults[terminalKey] = (try? JSONEncoder().encode(terminal)) ?? Data() }
+  }
+  @ObservationIgnored private let terminalKey: Defaults.Key<Data>
   var savedWindows: [WindowSnapshot] {
     get { (try? JSONDecoder().decode([WindowSnapshot].self, from: Defaults[sessionKey])) ?? [] }
     set { Defaults[sessionKey] = (try? JSONEncoder().encode(newValue)) ?? Data() }
@@ -111,6 +117,10 @@ enum BrowserChrome: String, CaseIterable {
   @ObservationIgnored private let categoryKey: Defaults.Key<String>
 
   init(suite: UserDefaults = .standard) {
+    terminalKey = Defaults.Key("terminalPreferences", default: Data(), suite: suite)
+    terminal =
+      (try? JSONDecoder().decode(TerminalPreferences.self, from: Defaults[terminalKey]))
+      ?? TerminalPreferences()
     workspaceKey = Defaults.Key("workspace", default: Data(), suite: suite)
     viewsKey = Defaults.Key("viewPreferences", default: Data(), suite: suite)
     sessionKey = Defaults.Key("windowSession", default: Data(), suite: suite)
@@ -135,7 +145,8 @@ enum BrowserChrome: String, CaseIterable {
     visiblePanels = Defaults[panelsKey]
     showHiddenKey = Defaults.Key("showHidden", default: false, suite: suite)
     autoRefreshKey = Defaults.Key("autoRefresh", default: false, suite: suite)
-    searchEngineKey = Defaults.Key("searchEngine", default: SearchEngine.builtIn.rawValue, suite: suite)
+    searchEngineKey = Defaults.Key(
+      "searchEngine", default: SearchEngine.builtIn.rawValue, suite: suite)
     subfoldersKey = Defaults.Key("searchSubfolders", default: true, suite: suite)
     shortcutsKey = Defaults.Key("shortcutOverrides", default: Data(), suite: suite)
     showHidden = Defaults[showHiddenKey]

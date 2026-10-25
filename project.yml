@@ -19,6 +19,8 @@ packages:
     path: .build/vendor/Defaults
   Settings:
     path: .build/vendor/Settings
+  SwiftTerm:
+    path: .build/vendor/SwiftTerm
 targets:
   FileTerm:
     type: application
@@ -32,6 +34,7 @@ targets:
       - package: FileTermCore
       - package: Defaults
       - package: Settings
+      - package: SwiftTerm
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.fileterm.app

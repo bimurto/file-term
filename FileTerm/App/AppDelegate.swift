@@ -1,5 +1,6 @@
 import AppKit
 import FileTermCore
+import SwiftTerm
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -31,6 +32,7 @@ import UniformTypeIdentifiers
   /// The browser window is in front with no dialog on top (Quick Open counts as part of the browser).
   private var browserIsFront: Bool {
     guard let window = browserWindow, window.isVisible else { return false }
+    if window.firstResponder is TerminalView { return false }
     if let key = NSApp.keyWindow {
       if key === window { return window.attachedSheet == nil }
       if browser.isQuickOpenOpen, key.sheetParent === window { return true }
@@ -46,7 +48,7 @@ import UniformTypeIdentifiers
       return false
     }
     if let key = NSApp.keyWindow, key !== window { return false }
-    return !(window.firstResponder is NSText)
+    return !(window.firstResponder is NSText) && !(window.firstResponder is TerminalView)
   }
   private var menuCoordinator: MenuCoordinator?
 
@@ -149,6 +151,7 @@ import UniformTypeIdentifiers
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard FilePreviewContentView.confirmTermination() else { return .terminateCancel }
     settings.savedWindows = windows.map { $0.snapshot() }
+    for controller in windows { controller.terminal.closeAll() }
     return .terminateNow
   }
 
@@ -172,7 +175,8 @@ import UniformTypeIdentifiers
     let deviceModel = DeviceModel(service: volumeService)
     let controller = BrowserWindowController(
       browser: model, devices: deviceModel, settings: settings,
-      registry: registry, provider: provider, frame: snapshot?.frame)
+      registry: registry, provider: provider, frame: snapshot?.frame,
+      terminalPanel: snapshot?.terminal)
     model.onVisit = { [weak self, weak controller, weak model] location in
       self?.settings.recordVisit(location)
       self?.syncWatcher()
@@ -484,6 +488,7 @@ import UniformTypeIdentifiers
           id: "edit.text.\(id)", title: title, menuPath: ["Edit"], shortcut: key,
           isEnabled: { [weak self] _ in
             if NSApp.keyWindow?.firstResponder is NSTextView { return true }
+            if NSApp.keyWindow?.firstResponder is TerminalView { return id != "cut" }
             guard let self, browserIsFront, !fileOperations.isBusy else { return false }
             if id == "copy" { return !browser.activePane.selection.isEmpty }
             if id == "paste" {
@@ -493,7 +498,9 @@ import UniformTypeIdentifiers
           },
           disabledReason: { _ in "Select files, copy file URLs, or focus a text field." },
           handler: { [weak self] in
-            if NSApp.keyWindow?.firstResponder is NSTextView {
+            if NSApp.keyWindow?.firstResponder is NSTextView
+              || NSApp.keyWindow?.firstResponder is TerminalView
+            {
               NSApp.sendAction(action, to: nil, from: nil)
             } else if let self {
               if id == "copy" { fileOperations.copy(browser.activePane) }
@@ -505,7 +512,58 @@ import UniformTypeIdentifiers
           }))
     }
     return commands + navigationCommands() + workspaceCommands() + selectionSearchCommands()
-      + fileOperationCommands() + metadataUtilityCommands()
+      + fileOperationCommands() + metadataUtilityCommands() + terminalCommands()
+  }
+
+  // MARK: Built-in terminal (M06)
+
+  private func terminalCommands() -> [AppCommand] {
+    var commands = [
+      AppCommand(
+        id: "view.terminal", title: "Show Terminal", menuPath: ["View"],
+        shortcut: "`", shortcutModifiers: [.control],
+        isEnabled: { $0.hasBrowserWindow },
+        disabledReason: { _ in "Open a browser window first." },
+        isChecked: { [weak self] _ in self?.currentWindow?.terminal.panel.isVisible == true },
+        handler: { [weak self] in self?.currentWindow?.terminal.toggleVisibility() }),
+      AppCommand(
+        id: "terminal.focus", title: "Focus Terminal / Pane", menuPath: ["View", "Terminal"],
+        shortcut: "`", shortcutModifiers: [.control, .option],
+        isEnabled: { $0.hasBrowserWindow },
+        disabledReason: { _ in "Open a browser window first." },
+        handler: { [weak self] in self?.currentWindow?.terminal.toggleFocus() }),
+    ]
+    for (id, title) in [
+      ("link", "Link Terminal to Pane"), ("reverseSync", "Follow Terminal Directory"),
+      ("sync", "Sync Terminal Now"), ("reveal", "Reveal Terminal Directory in Pane"),
+      ("insertSelection", "Insert Selected Paths in Terminal"),
+      ("clear", "Clear Terminal"), ("find", "Find in Terminal…"),
+      ("dock", "Toggle Terminal Dock"), ("close", "Close Terminal Sessions"),
+      ("followActive", "Follow Active Pane"), ("followFirst", "Follow Left / Top Pane"),
+      ("followSecond", "Follow Right / Bottom Pane"),
+    ] {
+      commands.append(
+        AppCommand(
+          id: "terminal." + id, title: title, menuPath: ["View", "Terminal"],
+          isEnabled: { [weak self] context in
+            context.hasBrowserWindow
+              && (id.hasPrefix("follow") || self?.currentWindow?.terminal.panel.isVisible == true)
+          },
+          disabledReason: { _ in "Show the terminal in a browser window first." },
+          isChecked: { [weak self] _ in
+            guard let terminal = self?.currentWindow?.terminal else { return false }
+            switch id {
+            case "link": return terminal.isLinked
+            case "reverseSync": return terminal.reverseSync
+            case "followActive": return terminal.followMode == .active
+            case "followFirst": return terminal.followMode == .first
+            case "followSecond": return terminal.followMode == .second
+            default: return false
+            }
+          },
+          handler: { [weak self] in self?.currentWindow?.terminal.perform(command: id) }))
+    }
+    return commands
   }
 
   // MARK: Metadata, preview and utilities (M05)
@@ -895,13 +953,15 @@ import UniformTypeIdentifiers
       AppCommand(
         id: "edit.selectAll", title: "Select All", menuPath: ["Edit"], shortcut: "a",
         isEnabled: { context in
-          NSApp.keyWindow?.firstResponder is NSText || inBrowser(context)
+          NSApp.keyWindow?.firstResponder is NSText
+            || NSApp.keyWindow?.firstResponder is TerminalView || inBrowser(context)
         },
         disabledReason: noWindow,
         handler: { [weak self] in
           guard let self else { return }
           if !browser.isQuickOpenOpen,
-            let first = NSApp.keyWindow?.firstResponder, first is NSText
+            let first = NSApp.keyWindow?.firstResponder,
+            first is NSText || first is TerminalView
           {
             NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
           } else {

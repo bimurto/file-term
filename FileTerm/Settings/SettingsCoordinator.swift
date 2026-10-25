@@ -55,6 +55,8 @@ private struct SettingsCategoryView: View {
         GeneralSettingsView(settings: settings)
       } else if category == .shortcuts {
         ShortcutsSettingsView(registry: registry())
+      } else if category == .terminal {
+        TerminalSettingsView(settings: settings)
       } else {
         Text("Settings for \(category.rawValue.lowercased()) will appear here.").foregroundStyle(
           .secondary)
@@ -62,7 +64,10 @@ private struct SettingsCategoryView: View {
       Spacer()
     }
     .padding(28)
-    .frame(width: 600, height: category == .shortcuts ? 480 : 320, alignment: .topLeading)
+    .frame(
+      width: 660, height: category == .terminal ? 640 : (category == .shortcuts ? 480 : 320),
+      alignment: .topLeading
+    )
     .onAppear { settings.selectedCategory = category.rawValue }
   }
 }

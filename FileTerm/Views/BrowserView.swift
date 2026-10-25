@@ -8,6 +8,7 @@ struct BrowserView: View {
   let registry: CommandRegistry
   let localProvider: LocalFileSystemProvider
   let devices: DeviceModel
+  @Bindable var terminal: TerminalWorkspace
   @State private var goToFolder: GoToFolderModel?
   @State private var optionsSheet: BrowserOptionsSheet?
   @State private var quickSelectShown = false
@@ -32,15 +33,7 @@ struct BrowserView: View {
         .padding(8).accessibilityIdentifier("browserNotice")
         Divider()
       }
-      HSplitView {
-        if settings.isVisible(.sidebar) {
-          sidebar.frame(minWidth: 120, idealWidth: 170, maxWidth: 220)
-        }
-        paneLayout
-        if settings.isVisible(.preview) {
-          previewPanel.frame(minWidth: 300, idealWidth: 320, maxWidth: 440)
-        }
-      }
+      terminalLayout
       if settings.isVisible(.activities) || settings.isVisible(.logs) {
         Divider()
         HSplitView {
@@ -109,6 +102,40 @@ struct BrowserView: View {
       Button("OK") { devices.errorMessage = nil }
     } message: {
       Text(devices.errorMessage ?? "")
+    }
+  }
+
+  @ViewBuilder private var terminalLayout: some View {
+    if terminal.panel.isVisible {
+      if terminal.panel.dock == .right {
+        HSplitView {
+          browserContent
+          terminalDrawer.frame(minWidth: 260, idealWidth: terminal.panel.size)
+        }
+      } else {
+        VSplitView {
+          browserContent
+          terminalDrawer.frame(minHeight: 120, idealHeight: terminal.panel.size)
+        }
+      }
+    } else {
+      browserContent
+    }
+  }
+
+  private var terminalDrawer: some View {
+    TerminalPanel(workspace: terminal)
+  }
+
+  private var browserContent: some View {
+    HSplitView {
+      if settings.isVisible(.sidebar) {
+        sidebar.frame(minWidth: 120, idealWidth: 170, maxWidth: 220)
+      }
+      paneLayout
+      if settings.isVisible(.preview) {
+        previewPanel.frame(minWidth: 300, idealWidth: 320, maxWidth: 440)
+      }
     }
   }
 

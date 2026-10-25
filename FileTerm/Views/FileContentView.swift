@@ -56,11 +56,15 @@ struct FileContentView: View {
       metadataColumns
     } rows: {
       if pane.viewOptions.groupField == .none {
-        ForEach(pane.displayEntries) { TableRow($0) }
+        ForEach(pane.displayEntries) { entry in
+          TableRow(entry).itemProvider { fileDragProvider(entry) }
+        }
       } else {
         ForEach(pane.entryGroups) { group in
           Section {
-            ForEach(group.entries) { TableRow($0) }
+            ForEach(group.entries) { entry in
+              TableRow(entry).itemProvider { fileDragProvider(entry) }
+            }
           } header: {
             Text(group.title ?? "").accessibilityIdentifier("groupHeader." + (group.title ?? "all"))
           }
@@ -143,6 +147,7 @@ struct FileContentView: View {
                   pane: pane, entry: entry, provider: provider, open: open,
                   showPackageContents: showPackageContents)
               }
+              .onDrag { fileDragProvider(entry) ?? NSItemProvider() }
               .accessibilityElement(children: .contain)
               .accessibilityIdentifier("icon.\(entry.name)")
               .accessibilityAction(named: "Open") { open(entry) }
@@ -190,6 +195,12 @@ struct FileContentView: View {
     browser.activePaneID = paneID
     Task { await browser.enterFolder(entry.location, in: paneID) }
   }
+}
+
+/// Export file URLs so the terminal can insert quoted paths without submitting commands.
+private func fileDragProvider(_ entry: FileEntry) -> NSItemProvider? {
+  guard entry.location.providerID == "local" else { return nil }
+  return NSItemProvider(object: URL(fileURLWithPath: entry.location.path) as NSURL)
 }
 
 private func isPackage(_ entry: FileEntry, provider: LocalFileSystemProvider) -> Bool {
@@ -289,6 +300,7 @@ private struct HierarchyColumnsView: View {
                             pane: pane, entry: entry, provider: provider, open: open,
                             showPackageContents: showPackageContents)
                         }
+                        .onDrag { fileDragProvider(entry) ?? NSItemProvider() }
                         .accessibilityAddTraits(.isButton)
                         .accessibilityLabel(entry.name)
                         .accessibilityAction {

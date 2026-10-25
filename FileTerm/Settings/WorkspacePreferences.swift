@@ -9,7 +9,7 @@ struct WorkspacePreferences: Codable, Equatable {
     "go.back", "go.forward", "go.enclosingFolder", "view.single", "view.vertical",
     "view.horizontal",
     "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing", "go.toFolder",
-    "view.preview", "view.activities", "view.logs", "view.refresh",
+    "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
   ]
   var sidebarOrder = ["devices", "recents"]
 }
@@ -17,6 +17,7 @@ struct WorkspacePreferences: Codable, Equatable {
 struct WindowSnapshot: Codable {
   let browser: BrowserSnapshot
   let frame: String
+  var terminal: TerminalPanelState? = nil
 }
 
 struct ViewPreferenceSnapshot: Codable {
@@ -41,6 +42,7 @@ enum ToolbarSymbols {
     case "view.preview": "sidebar.right"
     case "view.activities": "arrow.left.arrow.right"
     case "view.logs": "list.bullet.rectangle"
+    case "view.terminal": "terminal"
     case "file.find": "magnifyingglass"
     case "view.showHidden": "eye"
     case "view.refresh": "arrow.clockwise"

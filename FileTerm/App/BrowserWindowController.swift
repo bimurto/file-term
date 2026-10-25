@@ -1,22 +1,26 @@
 import AppKit
 import FileTermCore
 import Observation
+import SwiftTerm
 import SwiftUI
 
 @MainActor final class BrowserWindowController: NSObject, NSWindowDelegate {
   let id = UUID()
   let browser: BrowserModel
   let devices: DeviceModel
+  let terminal: TerminalWorkspace
   let window: NSWindow
   var onClose: (() -> Void)?
   var onActivate: (() -> Void)?
 
   init(
     browser: BrowserModel, devices: DeviceModel, settings: AppSettings,
-    registry: CommandRegistry, provider: LocalFileSystemProvider, frame: String? = nil
+    registry: CommandRegistry, provider: LocalFileSystemProvider, frame: String? = nil,
+    terminalPanel: TerminalPanelState? = nil
   ) {
     self.browser = browser
     self.devices = devices
+    terminal = TerminalWorkspace(browser: browser, settings: settings, panel: terminalPanel)
     window = BrowserWindow(
       registry: registry,
       contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
@@ -32,7 +36,7 @@ import SwiftUI
     window.contentView = NSHostingView(
       rootView: BrowserView(
         browser: browser, settings: settings,
-        registry: registry, localProvider: provider, devices: devices))
+        registry: registry, localProvider: provider, devices: devices, terminal: terminal))
     if let frame {
       let rect = NSRectFromString(frame)
       if rect.width >= 680, rect.height >= 420,
@@ -71,10 +75,14 @@ import SwiftUI
     }
   }
 
-  func windowWillClose(_ notification: Notification) { onClose?() }
+  func windowWillClose(_ notification: Notification) {
+    terminal.closeAll()
+    onClose?()
+  }
   func windowDidBecomeKey(_ notification: Notification) { onActivate?() }
   func snapshot() -> WindowSnapshot {
-    WindowSnapshot(browser: browser.snapshot(), frame: NSStringFromRect(window.frame))
+    WindowSnapshot(
+      browser: browser.snapshot(), frame: NSStringFromRect(window.frame), terminal: terminal.panel)
   }
 }
 
@@ -92,7 +100,7 @@ private final class BrowserWindow: NSWindow {
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     if event.keyCode == 53,
       event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
-      attachedSheet == nil, !(firstResponder is NSText),
+      attachedSheet == nil, !(firstResponder is NSText), !(firstResponder is TerminalView),
       registry.effectiveShortcut(for: "quickOpen") == DefaultShortcuts.quickOpen,
       registry.execute("quickOpen")
     {
