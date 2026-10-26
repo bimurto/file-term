@@ -12,6 +12,11 @@ application associations, cancellable folder sizes and checksums, Copy Path form
 and safe aliases/symlinks. See [M05 status and limitations](docs/milestones/M05-metadata-preview-utilities.md).
 Remote preview caching and public Base URLs remain deferred to M08.
 
+M07 adds a shared operation queue, Activities controls, copyable/exportable Logs,
+Transfers settings, cooperative local copies, conflict policies, verification and
+safe retry diagnostics. See [M07 status and limitations](docs/milestones/M07-transfers-activities-logs.md).
+Interrupted-transfer recovery across launches and retry of partially committed batches remain open.
+
 ## Run
 
 Requires macOS 14+ and Xcode 16+ with Swift 6.

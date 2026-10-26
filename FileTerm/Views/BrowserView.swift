@@ -9,6 +9,7 @@ struct BrowserView: View {
   let localProvider: LocalFileSystemProvider
   let devices: DeviceModel
   @Bindable var terminal: TerminalWorkspace
+  let transfers: TransferQueue
   @State private var goToFolder: GoToFolderModel?
   @State private var optionsSheet: BrowserOptionsSheet?
   @State private var quickSelectShown = false
@@ -37,14 +38,17 @@ struct BrowserView: View {
       if settings.isVisible(.activities) || settings.isVisible(.logs) {
         Divider()
         HSplitView {
-          if settings.isVisible(.activities) { placeholder(.activities) }
-          if settings.isVisible(.logs) { placeholder(.logs) }
-        }.frame(height: 140)
+          if settings.isVisible(.activities) { TransferActivitiesPanel(queue: transfers) }
+          if settings.isVisible(.logs) { TransferLogsPanel(queue: transfers) }
+        }.frame(height: 200)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.background)
     .frame(minWidth: 680, minHeight: 420)
+    .onChange(of: settings.transfers, initial: true) { _, value in
+      transfers.preferences = value
+    }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermGoToFolder)) { notification in
       guard notification.object as? BrowserModel === browser else { return }
       goToFolder = GoToFolderModel(
@@ -329,15 +333,6 @@ struct BrowserView: View {
     }.accessibilityIdentifier("panel.Preview")
   }
 
-  private func placeholder(_ panel: PlaceholderPanel) -> some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Label(panel.rawValue, systemImage: panel.symbol).font(.headline)
-      Text("\(panel.rawValue) is not implemented yet.").foregroundStyle(.secondary)
-      Spacer(minLength: 0)
-    }
-    .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    .accessibilityIdentifier("panel.\(panel.rawValue)")
-  }
 }
 
 private struct BrowserPaneView: View {

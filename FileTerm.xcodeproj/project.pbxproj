@@ -48,8 +48,10 @@
 		9D4F4D85C8B702B6095E4432 /* FilePreviewContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC95DBFA6B2D09F772E31575 /* FilePreviewContentView.swift */; };
 		9DD92ECB33362C291012F843 /* TerminalAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BABF00EED1917EF1D260D5B /* TerminalAppearanceTests.swift */; };
 		9FC70E84D85B7A25847FC0B4 /* QuickOpenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D449AF50B7F247929B7125 /* QuickOpenSheet.swift */; };
+		AFB760582C984AEEE8B30D7E /* TransferPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15A6ED8996680BB41D7ACCC7 /* TransferPanels.swift */; };
 		B542EAF76F646C05C5B84E80 /* TerminalSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B400667AA697F5C52E7E4063 /* TerminalSettings.swift */; };
 		B5C64CE3B3C9A663923693E9 /* TerminalUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428D6D3D2B07B2292ADA3A7F /* TerminalUITests.swift */; };
+		C07D13270FD5220EC288DCB3 /* TransferSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E96F788AE8C30380683520 /* TransferSettingsTests.swift */; };
 		C0C63815F6DBB38D1C6EC547 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7D61C8DE32E2BFDB2C0FC3 /* main.swift */; };
 		C287A0321870963A85164690 /* PaneTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCFB06361D11DA221744D7C /* PaneTabBar.swift */; };
 		C4474E14FA57D2520322BFAA /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D483E6A7975E0538C696081 /* FolderWatcher.swift */; };
@@ -101,6 +103,7 @@
 		14E18FEE1307BB5DD73DB6F5 /* MetadataInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataInspectorView.swift; sourceTree = "<group>"; };
 		14E3686C80E2FBE2FAE16C86 /* FileOperationsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationsUITests.swift; sourceTree = "<group>"; };
 		156380F619C9B0B761320BB4 /* BrowserOptionsSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserOptionsSheets.swift; sourceTree = "<group>"; };
+		15A6ED8996680BB41D7ACCC7 /* TransferPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferPanels.swift; sourceTree = "<group>"; };
 		21D5125609844EF3D285FEDE /* FileOperationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationCoordinatorTests.swift; sourceTree = "<group>"; };
 		252E1CD5E5C248D1EC458280 /* file-term */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "file-term"; path = .; sourceTree = SOURCE_ROOT; };
 		26623D2ABD49E2F4BECAA88A /* TerminalAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAppearance.swift; sourceTree = "<group>"; };
@@ -128,6 +131,7 @@
 		9158F4133C985548B5BA0E7F /* BrowserSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSmokeTests.swift; sourceTree = "<group>"; };
 		929193C30D1DA67A267B5C1A /* FileTermTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileTermTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		944B726D6533BA3E3393EEC7 /* MenuCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuCoordinator.swift; sourceTree = "<group>"; };
+		96E96F788AE8C30380683520 /* TransferSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferSettingsTests.swift; sourceTree = "<group>"; };
 		988CA661CE78F2E9BEFC9FFF /* FileTermUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileTermUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9936DC26BDD617EEE1F745B5 /* FileMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataTests.swift; sourceTree = "<group>"; };
 		9A7D61C8DE32E2BFDB2C0FC3 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -245,6 +249,7 @@
 				76573E0579F8B61E01AC01FE /* PathBar.swift */,
 				A6D449AF50B7F247929B7125 /* QuickOpenSheet.swift */,
 				2B4824913277CA18B7327330 /* QuickSelectSheet.swift */,
+				15A6ED8996680BB41D7ACCC7 /* TransferPanels.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -333,6 +338,7 @@
 				2BABF00EED1917EF1D260D5B /* TerminalAppearanceTests.swift */,
 				4C6CBA69BBC5D272647D9C74 /* TerminalSettingsTests.swift */,
 				55A79DEB4A1BB4855A9BB6CF /* TerminalWorkspaceTests.swift */,
+				96E96F788AE8C30380683520 /* TransferSettingsTests.swift */,
 				5CBF3DED2BF5ED2BA7E37C1F /* WorkspaceSettingsTests.swift */,
 			);
 			path = FileTermTests;
@@ -514,6 +520,7 @@
 				B542EAF76F646C05C5B84E80 /* TerminalSettings.swift in Sources */,
 				6ACB00332FDA81449303A2E8 /* TerminalSettingsView.swift in Sources */,
 				7167DDB43AC70112BD7ECB9A /* TerminalWorkspace.swift in Sources */,
+				AFB760582C984AEEE8B30D7E /* TransferPanels.swift in Sources */,
 				8E59ED63DDC1F9A07D2ED941 /* WorkspacePreferences.swift in Sources */,
 				C0C63815F6DBB38D1C6EC547 /* main.swift in Sources */,
 			);
@@ -533,6 +540,7 @@
 				9DD92ECB33362C291012F843 /* TerminalAppearanceTests.swift in Sources */,
 				06848AFC40645EE18B15A53E /* TerminalSettingsTests.swift in Sources */,
 				E548625D89A7AC5F0CD0A0CA /* TerminalWorkspaceTests.swift in Sources */,
+				C07D13270FD5220EC288DCB3 /* TransferSettingsTests.swift in Sources */,
 				99862C75872DC14F09BEA893 /* WorkspaceSettingsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

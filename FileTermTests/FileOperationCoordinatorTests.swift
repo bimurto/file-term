@@ -135,6 +135,44 @@ import Testing
     #expect(!coordinator.isBusy)
   }
 
+  @Test func queuedDuplicateAndHistoryUseFreshControls() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = root.appendingPathComponent("sample.txt")
+    try Data("contents".utf8).write(to: source)
+    let provider = LocalFileSystemProvider()
+    let pane = PaneModel(providers: [provider])
+    #expect(await pane.navigate(to: provider.location(for: root)))
+    pane.selection = [provider.location(for: source)]
+    let coordinator = FileOperationCoordinator()
+    coordinator.duplicate(pane, window: nil)
+    #expect(coordinator.transfers.jobs.count == 1)
+    for _ in 0..<400 {
+      if !coordinator.isBusy { break }
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    let copied = root.appendingPathComponent("sample copy.txt")
+    #expect(FileManager.default.fileExists(atPath: copied.path))
+    #expect(coordinator.canUndo)
+    #expect(coordinator.transfers.jobs.first?.summary.succeeded == 1)
+    coordinator.history(redo: false, pane: pane, window: nil)
+    for _ in 0..<400 {
+      if !coordinator.isBusy { break }
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    #expect(!FileManager.default.fileExists(atPath: copied.path))
+    #expect(coordinator.canRedo)
+    #expect(coordinator.transfers.jobs.last?.canRetry == false)
+    coordinator.history(redo: true, pane: pane, window: nil)
+    for _ in 0..<400 {
+      if !coordinator.isBusy { break }
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    #expect(FileManager.default.fileExists(atPath: copied.path))
+    #expect(coordinator.transfers.jobs.last?.state == .completed)
+  }
+
   private func snapshot(_ pasteboard: NSPasteboard) throws -> [NSPasteboardItem] {
     try (pasteboard.pasteboardItems ?? []).map { original in
       let saved = NSPasteboardItem()

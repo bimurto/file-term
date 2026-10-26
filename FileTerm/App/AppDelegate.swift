@@ -105,11 +105,14 @@ import UniformTypeIdentifiers
             PaneID.allCases.contains { id in
               controller.browser.tabs(id).tabs.contains { $0 === pane }
             }
-          }), !self.fileOperations.isBusy
+          })
         else { return }
         self.fileOperations.startRename(pane, window: controller.window)
       }
     }
+    fileOperations.preferences = { [weak self] in self?.settings.transfers ?? TransferPreferences()
+    }
+    fileOperations.transfers.preferences = settings.transfers
     fileOperations.refresh = { [weak self] in
       guard let self else { return }
       for controller in windows {
@@ -150,6 +153,15 @@ import UniformTypeIdentifiers
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard FilePreviewContentView.confirmTermination() else { return .terminateCancel }
+    if fileOperations.isBusy {
+      let alert = NSAlert()
+      alert.messageText = "Transfers are still active"
+      alert.informativeText =
+        "Wait for transfers to finish or cancel them in Activities before quitting."
+      alert.addButton(withTitle: "Keep FileTerm Open")
+      alert.runModal()
+      return .terminateCancel
+    }
     settings.savedWindows = windows.map { $0.snapshot() }
     for controller in windows { controller.terminal.closeAll() }
     return .terminateNow
@@ -176,7 +188,7 @@ import UniformTypeIdentifiers
     let controller = BrowserWindowController(
       browser: model, devices: deviceModel, settings: settings,
       registry: registry, provider: provider, frame: snapshot?.frame,
-      terminalPanel: snapshot?.terminal)
+      terminalPanel: snapshot?.terminal, transfers: fileOperations.transfers)
     model.onVisit = { [weak self, weak controller, weak model] location in
       self?.settings.recordVisit(location)
       self?.syncWatcher()
@@ -489,7 +501,7 @@ import UniformTypeIdentifiers
           isEnabled: { [weak self] _ in
             if NSApp.keyWindow?.firstResponder is NSTextView { return true }
             if NSApp.keyWindow?.firstResponder is TerminalView { return id != "cut" }
-            guard let self, browserIsFront, !fileOperations.isBusy else { return false }
+            guard let self, browserIsFront else { return false }
             if id == "copy" { return !browser.activePane.selection.isEmpty }
             if id == "paste" {
               return browser.activePane.location != nil && !fileOperations.clipboardURLs.isEmpty
@@ -761,7 +773,7 @@ import UniformTypeIdentifiers
         isEnabled: { [weak self] context in
           guard let self else { return false }
           return browserIsFront && !(NSApp.keyWindow?.firstResponder is NSText)
-            && !fileOperations.isBusy && !context.isLoading
+            && !context.isLoading
             && context.sourceLocation?.providerID == "local"
             && (!selection || context.selectionCount > 0)
             && (!target || context.targetLocation?.providerID == "local") && condition()

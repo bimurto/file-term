@@ -62,6 +62,29 @@ public enum LocalFileOperationError: Error, LocalizedError, Sendable {
 public actor LocalFileOperations {
   private let fm = FileManager.default
   private var busy = false
+  private var transferControl: TransferControl?
+  private var verification: CopyVerification = .none
+  private var outcomes = TransferSummary()
+
+  /// Counts transferred entries (merged folders count their immediate child outcomes).
+  public func outcomeSummary() -> TransferSummary { outcomes }
+
+  /// Retain transactions even when external changes currently prevent their undo.
+  public func hasUndoHistory() -> Bool { !undoStack.isEmpty }
+
+  public func setTransferControl(
+    _ control: TransferControl?, verification: CopyVerification = .none
+  ) {
+    // Do not replace a running operation's cancellation/progress context.
+    guard !busy else { return }
+    transferControl = control
+    self.verification = verification
+  }
+
+  private func checkpoint() async throws {
+    try Task.checkCancellation()
+    try await transferControl?.checkpoint()
+  }
   private var undoStack: [Transaction] = []
   private var redoStack: [Transaction] = []
 
@@ -102,7 +125,7 @@ public actor LocalFileOperations {
     removeItem = remove
   }
 
-  public func create(in parent: URL, name: String, directory: Bool) throws -> URL {
+  public func create(in parent: URL, name: String, directory: Bool) async throws -> URL {
     try begin()
     defer { busy = false }
     try validate(name)
@@ -117,7 +140,7 @@ public actor LocalFileOperations {
     } else {
       try Data().write(to: staged, options: .withoutOverwriting)
     }
-    try recordMove(staged, destination, in: &transaction)
+    try await recordMove(staged, destination, in: &transaction)
     return destination
   }
 
@@ -142,7 +165,7 @@ public actor LocalFileOperations {
     defer { commit(context.transaction) }
     let staged = try storageURL()
     try fm.createDirectory(at: staged, withIntermediateDirectories: false)
-    try recordMove(staged, destination, in: &context.transaction)
+    try await recordMove(staged, destination, in: &context.transaction)
     for source in sources {
       if context.stopped { break }
       _ = try await transferOne(
@@ -179,7 +202,7 @@ public actor LocalFileOperations {
     return results
   }
 
-  public func duplicate(sources: [URL]) throws -> [URL] {
+  public func duplicate(sources: [URL]) async throws -> [URL] {
     try begin()
     defer { busy = false }
     var transaction = Transaction()
@@ -188,13 +211,21 @@ public actor LocalFileOperations {
     for source in sources {
       try local(source)
       let destination = unique(canonical(source))
-      try copy(source, to: destination, in: &transaction)
+      do {
+        try await copy(source, to: destination, in: &transaction)
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch {
+        outcomes.failed += 1
+        throw error
+      }
+      outcomes.succeeded += 1
       results.append(destination)
     }
     return results
   }
 
-  public func rename(source: URL, name: String) throws -> URL {
+  public func rename(source: URL, name: String) async throws -> URL {
     try begin()
     defer { busy = false }
     try validate(name)
@@ -208,7 +239,7 @@ public actor LocalFileOperations {
     try safe(source, destination)
     var transaction = Transaction()
     defer { commit(transaction) }
-    try recordMove(source, destination, in: &transaction)
+    try await recordMove(source, destination, in: &transaction)
     return destination
   }
 
@@ -238,14 +269,14 @@ public actor LocalFileOperations {
     }
   #endif
 
-  public func undo() throws {
+  public func undo() async throws {
     try begin()
     defer { busy = false }
     guard var transaction = undoStack.popLast() else { throw LocalFileOperationError.nothingToUndo }
     do {
       while transaction.cursor > 0 {
         let step = transaction.steps[transaction.cursor - 1]
-        try guardedMove(step.to, step.from, signature: step.signature)
+        try await guardedMove(step.to, step.from, signature: step.signature)
         transaction.cursor -= 1
       }
       redoStack.append(transaction)
@@ -255,14 +286,14 @@ public actor LocalFileOperations {
     }
   }
 
-  public func redo() throws {
+  public func redo() async throws {
     try begin()
     defer { busy = false }
     guard var transaction = redoStack.popLast() else { throw LocalFileOperationError.nothingToRedo }
     do {
       while transaction.cursor < transaction.steps.count {
         let step = transaction.steps[transaction.cursor]
-        try guardedMove(step.from, step.to, signature: step.signature)
+        try await guardedMove(step.from, step.to, signature: step.signature)
         transaction.cursor += 1
       }
       undoStack.append(transaction)
@@ -283,6 +314,7 @@ public actor LocalFileOperations {
   private func begin() throws {
     guard !busy else { throw LocalFileOperationError.operationInProgress }
     busy = true
+    outcomes = TransferSummary()
   }
 
   private func commit(_ transaction: Transaction) {
@@ -307,13 +339,34 @@ public actor LocalFileOperations {
     source: URL, destination: URL, move: Bool, context: inout TransferContext,
     resolve: ConflictResolver
   ) async throws -> URL? {
+    // Descendant failures are already counted by their recursive call.
+    var handlingChildren = false
+    var completed = false
+    defer {
+      if !completed && !handlingChildren && !Task.isCancelled { outcomes.failed += 1 }
+    }
+    do {
+      return try await transferEntry(
+        source: source, destination: destination, move: move, context: &context,
+        resolve: resolve, handlingChildren: &handlingChildren, completed: &completed)
+    } catch is CancellationError {
+      completed = true
+      throw CancellationError()
+    }
+  }
+
+  private func transferEntry(
+    source: URL, destination: URL, move: Bool, context: inout TransferContext,
+    resolve: ConflictResolver, handlingChildren: inout Bool, completed: inout Bool
+  ) async throws -> URL? {
+    try await checkpoint()
     try local(source)
     try local(destination)
     let source = canonical(source)
     var destination = canonical(destination)
     try safe(source, destination)
     // Fail for missing/unreadable sources even if a conflict would otherwise be skipped.
-    _ = try signature(source)
+    _ = try await cooperativeSignature(source)
     if exists(destination) {
       let mergeable = try isDirectory(source) && isDirectory(destination)
       let resolution: ConflictResolution
@@ -325,14 +378,22 @@ public actor LocalFileOperations {
             source: source, destination: destination, isDirectoryMerge: mergeable))
       }
       // The resolver suspends the actor: recheck paths before any destructive action.
+      try await checkpoint()
       try safe(source, destination)
       if resolution.applyToAll && resolution.decision != .merge {
         context.all = resolution.decision
       }
       switch resolution.decision {
-      case .skip: return nil
+      case .skip:
+        outcomes.skipped += 1
+        completed = true
+        return nil
       case .stop:
+        if transferControl != nil { throw CancellationError() }
+        // Preserve the legacy direct-operation contract; controlled queue jobs
+        // instead surface Stop as cancellation while retaining partial history.
         context.stopped = true
+        completed = true
         return nil
       case .keepBoth: destination = unique(destination)
       case .merge:
@@ -345,6 +406,7 @@ public actor LocalFileOperations {
         defer { context.all = inherited }
         let children = try fm.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
           .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        handlingChildren = true
         for child in children {
           if context.stopped { break }
           _ = try await transferOne(
@@ -352,45 +414,169 @@ public actor LocalFileOperations {
             move: move, context: &context, resolve: resolve)
         }
         if move, try fm.contentsOfDirectory(atPath: source.path).isEmpty {
-          try recordMove(source, storageURL(), in: &context.transaction)
+          try await recordMove(source, storageURL(), in: &context.transaction)
         }
+        if children.isEmpty { outcomes.succeeded += 1 }
+        completed = true
         return destination
       case .replaceOlder:
         let sourceDate = try fm.attributesOfItem(atPath: source.path)[.modificationDate] as? Date
         let targetDate =
           try fm.attributesOfItem(atPath: destination.path)[.modificationDate] as? Date
-        guard let sourceDate, let targetDate, sourceDate > targetDate else { return nil }
-        try recordMove(destination, storageURL(), in: &context.transaction)
+        guard let sourceDate, let targetDate, sourceDate > targetDate else {
+          outcomes.skipped += 1
+          completed = true
+          return nil
+        }
+        try await recordMove(destination, storageURL(), in: &context.transaction)
       case .replace:
-        try recordMove(destination, storageURL(), in: &context.transaction)
+        try await recordMove(destination, storageURL(), in: &context.transaction)
       }
     }
     if move {
-      try recordMove(source, destination, in: &context.transaction)
+      try await recordMove(source, destination, in: &context.transaction)
     } else {
-      try copy(source, to: destination, in: &context.transaction)
+      try await copy(source, to: destination, in: &context.transaction)
     }
+    outcomes.succeeded += 1
+    completed = true
     return destination
   }
 
-  private func copy(_ source: URL, to destination: URL, in transaction: inout Transaction) throws {
+  private func copy(_ source: URL, to destination: URL, in transaction: inout Transaction)
+    async throws
+  {
     try absent(destination)
-    let staged = try storageURL()
-    try fm.copyItem(at: source, to: staged)
+    let original = try await cooperativeSignature(source)
+    let staged = try storageURL(onVolumeOf: destination)
+    var published = false
+    defer {
+      if !published {
+        try? fm.removeItem(at: staged)
+        _ = staged.deletingLastPathComponent().withUnsafeFileSystemRepresentation {
+          Darwin.rmdir($0!)
+        }
+      }
+    }
+    try await copyTree(source, to: staged)
+    guard try await cooperativeSignature(source) == original else {
+      throw LocalFileOperationError.changedContents
+    }
+    if verification == .checksum {
+      guard try await cooperativeSignature(staged) == original else {
+        throw LocalFileOperationError.changedContents
+      }
+    }
+    try await checkpoint()
     // Copies are undone by moving them into storage, never by deleting user-visible contents.
-    try recordMove(staged, destination, in: &transaction)
+    try await recordMove(staged, destination, in: &transaction)
+    published = true
+  }
+
+  /// Bounded reads, no symlink traversal, and no user-visible partial output.
+  private func copyTree(_ source: URL, to destination: URL) async throws {
+    try await checkpoint()
+    let before = try fm.attributesOfItem(atPath: source.path)
+    switch before[.type] as? FileAttributeType {
+    case .typeSymbolicLink:
+      try fm.createSymbolicLink(
+        atPath: destination.path,
+        withDestinationPath: fm.destinationOfSymbolicLink(atPath: source.path))
+      return
+    case .typeDirectory:
+      try fm.createDirectory(at: destination, withIntermediateDirectories: false)
+      let children = try fm.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
+      for child in children {
+        try await copyTree(child, to: destination.appendingPathComponent(child.lastPathComponent))
+      }
+      let after = try fm.contentsOfDirectory(atPath: source.path)
+      guard Set(after) == Set(children.map(\.lastPathComponent)) else {
+        throw LocalFileOperationError.changedContents
+      }
+    case .typeRegular:
+      let descriptor = source.withUnsafeFileSystemRepresentation {
+        Darwin.open($0!, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+      }
+      guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+      let input = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+      defer { try? input.close() }
+      var opened = stat()
+      guard Darwin.fstat(descriptor, &opened) == 0,
+        opened.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG),
+        UInt64(opened.st_ino) == (before[.systemFileNumber] as? NSNumber)?.uint64Value
+      else { throw LocalFileOperationError.changedContents }
+      try Data().write(to: destination, options: .withoutOverwriting)
+      let output = try FileHandle(forWritingTo: destination)
+      defer { try? output.close() }
+      var copied: Int64 = 0
+      var hash = SHA256()
+      while true {
+        try await checkpoint()
+        guard let chunk = try input.read(upToCount: 65_536), !chunk.isEmpty else { break }
+        try output.write(contentsOf: chunk)
+        copied += Int64(chunk.count)
+        if verification == .checksum { hash.update(data: chunk) }
+        try await transferControl?.advance(bytes: Int64(chunk.count))
+      }
+      try output.synchronize()
+      let after = try fm.attributesOfItem(atPath: source.path)
+      guard (before[.size] as? NSNumber)?.int64Value == copied,
+        (after[.size] as? NSNumber)?.int64Value == copied,
+        before[.modificationDate] as? Date == after[.modificationDate] as? Date,
+        before[.systemFileNumber] as? NSNumber == after[.systemFileNumber] as? NSNumber
+      else { throw LocalFileOperationError.changedContents }
+      if verification != .none {
+        let size = try fm.attributesOfItem(atPath: destination.path)[.size] as? NSNumber
+        guard size?.int64Value == copied else { throw LocalFileOperationError.changedContents }
+      }
+      if verification == .checksum {
+        let check = try FileHandle(forReadingFrom: destination)
+        defer { try? check.close() }
+        var destinationHash = SHA256()
+        while let chunk = try check.read(upToCount: 65_536), !chunk.isEmpty {
+          try await checkpoint()
+          destinationHash.update(data: chunk)
+        }
+        guard Data(hash.finalize()) == Data(destinationHash.finalize()) else {
+          throw LocalFileOperationError.changedContents
+        }
+      }
+    default: throw CocoaError(.fileReadUnsupportedScheme)
+    }
+    // copyfile's metadata-only mode preserves ACLs, extended attributes/resource forks,
+    // dates and permissions without recopying data or following symbolic links.
+    try await checkpoint()
+    let status = source.withUnsafeFileSystemRepresentation { from in
+      destination.withUnsafeFileSystemRepresentation { to in
+        Darwin.copyfile(from, to, nil, copyfile_flags_t(COPYFILE_METADATA | COPYFILE_NOFOLLOW))
+      }
+    }
+    guard status == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
   }
 
   private func recordMove(_ source: URL, _ destination: URL, in transaction: inout Transaction)
-    throws
+    async throws
   {
-    let fingerprint = try signature(source)
+    try await checkpoint()
+    let fingerprint = try await cooperativeSignature(source)
     try absent(destination)
     do {
       try renameItem(source, destination)
     } catch {
       guard isCrossDevice(error) else { throw error }
-      try fm.copyItem(at: source, to: destination)
+      let staged = try storageURL(onVolumeOf: destination)
+      defer {
+        try? fm.removeItem(at: staged)
+        _ = staged.deletingLastPathComponent().withUnsafeFileSystemRepresentation {
+          Darwin.rmdir($0!)
+        }
+      }
+      try await copyTree(source, to: staged)
+      guard try await cooperativeSignature(source) == fingerprint,
+        try await cooperativeSignature(staged) == fingerprint
+      else { throw LocalFileOperationError.changedContents }
+      try await checkpoint()
+      try Self.exclusiveRename(staged, destination)
       // Record the completed copy first so a failed source removal remains undoable.
       let stash = try storageURL()
       transaction.steps.append(Step(from: stash, to: destination, signature: fingerprint))
@@ -408,11 +594,24 @@ public actor LocalFileOperations {
     transaction.cursor += 1
   }
 
-  private func guardedMove(_ source: URL, _ destination: URL, signature: Signature) throws {
+  private func guardedMove(_ source: URL, _ destination: URL, signature: Signature) async throws {
+    try await checkpoint()
     try check(source, destination, signature: signature)
     do { try renameItem(source, destination) } catch {
       guard isCrossDevice(error) else { throw error }
-      try fm.copyItem(at: source, to: destination)
+      let staged = try storageURL(onVolumeOf: destination)
+      defer {
+        try? fm.removeItem(at: staged)
+        _ = staged.deletingLastPathComponent().withUnsafeFileSystemRepresentation {
+          Darwin.rmdir($0!)
+        }
+      }
+      try await copyTree(source, to: staged)
+      guard try await cooperativeSignature(source) == signature,
+        try await cooperativeSignature(staged) == signature
+      else { throw LocalFileOperationError.changedContents }
+      try await checkpoint()
+      try Self.exclusiveRename(staged, destination)
       guard try self.signature(source) == signature,
         try self.signature(destination) == signature
       else {
@@ -437,6 +636,33 @@ public actor LocalFileOperations {
   private func check(_ source: URL, _ destination: URL, signature expected: Signature) throws {
     try absent(destination)
     guard try signature(source) == expected else { throw LocalFileOperationError.changedContents }
+  }
+
+  private func cooperativeSignature(_ url: URL) async throws -> Signature {
+    try await checkpoint()
+    let attributes = try fm.attributesOfItem(atPath: url.path)
+    let type = attributes[.type] as? FileAttributeType
+    if type == .typeSymbolicLink {
+      return .link(try fm.destinationOfSymbolicLink(atPath: url.path))
+    }
+    if type == .typeDirectory {
+      var children: [String: Signature] = [:]
+      for child in try fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) {
+        children[child.lastPathComponent] = try await cooperativeSignature(child)
+      }
+      return .directory(children)
+    }
+    guard type == .typeRegular else { throw CocoaError(.fileReadUnsupportedScheme) }
+    let handle = try FileHandle(forReadingFrom: url)
+    defer { try? handle.close() }
+    var hasher = SHA256()
+    while let chunk = try handle.read(upToCount: 65_536), !chunk.isEmpty {
+      try await checkpoint()
+      hasher.update(data: chunk)
+    }
+    return .file(
+      Data(hasher.finalize()), attributes[.modificationDate] as? Date,
+      (attributes[.posixPermissions] as? NSNumber)?.uintValue)
   }
 
   private func signature(_ url: URL) throws -> Signature {

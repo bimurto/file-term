@@ -55,6 +55,8 @@ private struct SettingsCategoryView: View {
         GeneralSettingsView(settings: settings)
       } else if category == .shortcuts {
         ShortcutsSettingsView(registry: registry())
+      } else if category == .transfers {
+        TransfersSettingsView(settings: settings)
       } else if category == .terminal {
         TerminalSettingsView(settings: settings)
       } else {
@@ -65,10 +67,115 @@ private struct SettingsCategoryView: View {
     }
     .padding(28)
     .frame(
-      width: 660, height: category == .terminal ? 640 : (category == .shortcuts ? 480 : 320),
+      width: 660,
+      height: category == .terminal || category == .transfers
+        ? 640 : (category == .shortcuts ? 480 : 320),
       alignment: .topLeading
     )
     .onAppear { settings.selectedCategory = category.rawValue }
+  }
+}
+
+private struct TransfersSettingsView: View {
+  @Bindable var settings: AppSettings
+
+  var body: some View {
+    Form {
+      Section("Conflicts") {
+        policyPicker(
+          "Existing files", selection: $settings.transfers.replacePolicy,
+          choices: [.ask, .replace, .replaceOlder, .keepBoth, .skip, .stop], id: "replacePolicy")
+        policyPicker(
+          "Existing folders", selection: $settings.transfers.mergePolicy,
+          choices: [.ask, .merge, .replace, .keepBoth, .skip, .stop], id: "mergePolicy")
+        policyPicker(
+          "Resume policy (future capability)", selection: $settings.transfers.resumePolicy,
+          choices: [.ask, .replace, .keepBoth, .skip, .stop], id: "resumePolicy"
+        )
+        .disabled(true)
+        Text(
+          "Pause and resume work in this session. Resuming partial files after restarting is not supported."
+        )
+        .font(.caption).foregroundStyle(.secondary)
+      }
+      Section("Bandwidth") {
+        bandwidth(
+          "upload", enabled: $settings.transfers.limitUpload,
+          value: $settings.transfers.uploadBytesPerSecond)
+        bandwidth(
+          "download", enabled: $settings.transfers.limitDownload,
+          value: $settings.transfers.downloadBytesPerSecond)
+        Text(
+          "Upload and download limits apply to directional transfers. Local copies are not rate-limited."
+        )
+        .font(.caption).foregroundStyle(.secondary)
+      }
+      Section("Reliability") {
+        Toggle(
+          "Automatically retry temporary failures", isOn: $settings.transfers.automaticallyRetry
+        )
+        .toggleStyle(.checkbox)
+        .accessibilityIdentifier("automaticallyRetry")
+        Stepper(
+          "Maximum retries: \(settings.transfers.maximumRetries)",
+          value: $settings.transfers.maximumRetries, in: 0...100
+        )
+        .disabled(!settings.transfers.automaticallyRetry).accessibilityIdentifier("maximumRetries")
+        Stepper(
+          "Concurrent operations: \(settings.transfers.maximumConcurrent)",
+          value: $settings.transfers.maximumConcurrent, in: 1...64
+        )
+        .accessibilityIdentifier("maximumConcurrent")
+        Picker("Verify copies", selection: $settings.transfers.verification) {
+          Text("None").tag(CopyVerification.none)
+          Text("File size").tag(CopyVerification.size)
+          Text("Checksum").tag(CopyVerification.checksum)
+        }.accessibilityIdentifier("copyVerification")
+      }
+    }.formStyle(.grouped).accessibilityIdentifier("transfersSettings")
+  }
+
+  private func policyPicker(
+    _ title: String, selection: Binding<TransferPolicy>,
+    choices: [TransferPolicy], id: String
+  ) -> some View {
+    Picker(title, selection: selection) {
+      ForEach(choices, id: \.self) { policy in
+        Text(policyTitle(policy)).tag(policy)
+      }
+    }.accessibilityIdentifier(id)
+  }
+
+  private func policyTitle(_ policy: TransferPolicy) -> String {
+    switch policy {
+    case .ask: "Ask"
+    case .replace: "Replace"
+    case .replaceOlder: "Replace Older"
+    case .keepBoth: "Keep Both"
+    case .skip: "Skip"
+    case .stop: "Stop"
+    case .merge: "Merge"
+    }
+  }
+
+  private func bandwidth(_ direction: String, enabled: Binding<Bool>, value: Binding<Int64>)
+    -> some View
+  {
+    HStack {
+      Toggle("Limit \(direction)", isOn: enabled)
+        .accessibilityIdentifier("limit\(direction.capitalized)")
+      Spacer()
+      TextField(
+        "Bytes/s",
+        value: Binding(
+          get: { value.wrappedValue },
+          set: { value.wrappedValue = max(1, $0) }), format: .number.grouping(.never)
+      )
+      .frame(width: 110).disabled(!enabled.wrappedValue)
+      .accessibilityLabel("\(direction.capitalized) bytes per second")
+      .accessibilityIdentifier("\(direction)BytesPerSecond")
+      Text("Bytes/s").foregroundStyle(.secondary)
+    }
   }
 }
 

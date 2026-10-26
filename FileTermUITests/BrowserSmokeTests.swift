@@ -21,13 +21,22 @@ final class BrowserSmokeTests: XCTestCase {
         XCTAssertTrue(
           app.staticTexts["Select a local item to inspect its metadata and preview its contents."]
             .waitForExistence(timeout: 5))
+      } else if panel == "Activities" {
+        XCTAssertTrue(app.staticTexts["activitiesEmpty"].waitForExistence(timeout: 5))
       } else {
-        XCTAssertTrue(
-          app.staticTexts["\(panel) is not implemented yet."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["logsEmpty"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["copyTransferLogs"].exists)
+        XCTAssertFalse(app.buttons["copyTransferLogs"].isEnabled)
+        XCTAssertTrue(app.buttons["exportTransferLogs"].exists)
       }
     }
     app.typeKey(",", modifierFlags: .command)
     XCTAssertTrue(
       app.checkBoxes["Restore windows and tabs on startup"].waitForExistence(timeout: 5))
+    app.buttons["settingsTab.Transfers"].click()
+    XCTAssertTrue(app.popUpButtons["replacePolicy"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.popUpButtons["mergePolicy"].exists)
+    XCTAssertTrue(app.checkBoxes["automaticallyRetry"].exists)
+    XCTAssertTrue(app.popUpButtons["copyVerification"].exists)
   }
 }

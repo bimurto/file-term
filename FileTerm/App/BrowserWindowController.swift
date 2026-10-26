@@ -16,7 +16,7 @@ import SwiftUI
   init(
     browser: BrowserModel, devices: DeviceModel, settings: AppSettings,
     registry: CommandRegistry, provider: LocalFileSystemProvider, frame: String? = nil,
-    terminalPanel: TerminalPanelState? = nil
+    terminalPanel: TerminalPanelState? = nil, transfers: TransferQueue = TransferQueue()
   ) {
     self.browser = browser
     self.devices = devices
@@ -36,7 +36,8 @@ import SwiftUI
     window.contentView = NSHostingView(
       rootView: BrowserView(
         browser: browser, settings: settings,
-        registry: registry, localProvider: provider, devices: devices, terminal: terminal))
+        registry: registry, localProvider: provider, devices: devices, terminal: terminal,
+        transfers: transfers))
     if let frame {
       let rect = NSRectFromString(frame)
       if rect.width >= 680, rect.height >= 420,
