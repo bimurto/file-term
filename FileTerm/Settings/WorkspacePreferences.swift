@@ -6,7 +6,7 @@ struct WorkspacePreferences: Codable, Equatable {
   var keepWindowsOnce = false
   var startingDirectory = FileManager.default.homeDirectoryForCurrentUser.path
   var toolbarItems = [
-    "go.back", "go.forward", "go.enclosingFolder", "view.single", "view.vertical",
+    "go.back", "go.forward", "go.enclosingFolder", "go.connect", "view.single", "view.vertical",
     "view.horizontal",
     "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing", "go.toFolder",
     "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
@@ -39,6 +39,7 @@ enum ToolbarSymbols {
     case "view.asColumns": "rectangle.split.3x1"
     case "go.syncBrowsing": "link"
     case "go.toFolder": "folder.badge.gearshape"
+    case "go.connect": "network"
     case "view.preview": "sidebar.right"
     case "view.activities": "arrow.left.arrow.right"
     case "view.logs": "list.bullet.rectangle"

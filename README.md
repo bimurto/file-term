@@ -17,6 +17,10 @@ Transfers settings, cooperative local copies, conflict policies, verification an
 safe retry diagnostics. See [M07 status and limitations](docs/milestones/M07-transfers-activities-logs.md).
 Interrupted-transfer recovery across launches and retry of partially committed batches remain open.
 
+M08 adds Go › Connect… with a per-protocol form, keychain-stored passwords, SMB/AFP/NFS
+mounts, a VNC handoff, remote pane placement, Base URLs for Copy/Open URL and Go › Connections.
+Remaining protocols ship in follow-up tickets; see [M08 tickets](docs/milestones/M08-connections-remote.md).
+
 ## Run
 
 Requires macOS 14+ and Xcode 16+ with Swift 6.

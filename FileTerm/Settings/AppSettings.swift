@@ -71,6 +71,10 @@ enum BrowserChrome: String, CaseIterable {
   var transfers: TransferPreferences {
     didSet { Defaults[transfersKey] = (try? JSONEncoder().encode(transfers)) ?? Data() }
   }
+  var connections: ConnectionPreferences {
+    didSet { Defaults[connectionsKey] = (try? JSONEncoder().encode(connections)) ?? Data() }
+  }
+  @ObservationIgnored private let connectionsKey: Defaults.Key<Data>
   @ObservationIgnored private let transfersKey: Defaults.Key<Data>
   @ObservationIgnored private let terminalKey: Defaults.Key<Data>
   var savedWindows: [WindowSnapshot] {
@@ -125,6 +129,10 @@ enum BrowserChrome: String, CaseIterable {
     transfers =
       (try? JSONDecoder().decode(TransferPreferences.self, from: Defaults[transfersKey]))
       ?? TransferPreferences()
+    connectionsKey = Defaults.Key("connectionPreferences", default: Data(), suite: suite)
+    connections =
+      (try? JSONDecoder().decode(ConnectionPreferences.self, from: Defaults[connectionsKey]))
+      ?? ConnectionPreferences()
     terminalKey = Defaults.Key("terminalPreferences", default: Data(), suite: suite)
     terminal =
       (try? JSONDecoder().decode(TerminalPreferences.self, from: Defaults[terminalKey]))

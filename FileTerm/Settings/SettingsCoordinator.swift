@@ -198,6 +198,10 @@ private struct GeneralSettingsView: View {
         Text("Used by new windows and when session restoration is off.").font(.caption)
           .foregroundStyle(.secondary)
       }
+      Picker("Open remote connections in", selection: $settings.connections.remotePlacement) {
+        ForEach(RemotePanePlacement.allCases, id: \.self) { Text($0.title).tag($0) }
+      }
+      .accessibilityIdentifier("remotePlacement")
       Text("Current: " + settings.workspace.startingDirectory).font(.caption).foregroundStyle(
         .secondary)
       if let error { Text(error).font(.caption).foregroundStyle(.red) }

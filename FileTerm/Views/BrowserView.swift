@@ -10,6 +10,8 @@ struct BrowserView: View {
   let devices: DeviceModel
   @Bindable var terminal: TerminalWorkspace
   let transfers: TransferQueue
+  let connections: ConnectionCoordinator
+  @State private var connectionForm: ConnectionFormModel?
   @State private var goToFolder: GoToFolderModel?
   @State private var optionsSheet: BrowserOptionsSheet?
   @State private var quickSelectShown = false
@@ -55,6 +57,16 @@ struct BrowserView: View {
         browser: browser, provider: localProvider, paneID: browser.activePaneID)
     }
     .sheet(item: $goToFolder) { model in GoToFolderSheet(model: model) }
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermConnect)) { notification in
+      guard notification.object as? BrowserModel === browser else { return }
+      let saved = (notification.userInfo?["profileID"] as? UUID).flatMap { id in
+        connections.profiles.first { $0.id == id }
+      }
+      connectionForm = ConnectionFormModel(
+        profile: saved ?? ConnectionProfile(kind: .smb), isEditing: saved != nil,
+        coordinator: connections, browser: browser)
+    }
+    .sheet(item: $connectionForm) { model in ConnectionFormSheet(model: model) }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermQuickSelect)) { notification in
       guard notification.object as? BrowserModel === browser else { return }
       quickSelectShown = true
@@ -199,17 +211,19 @@ struct BrowserView: View {
     let settings = settings
     let provider = localProvider
     let commands = ClosureQuickOpenSource {
-      registry.commands.filter { !$0.id.hasPrefix("go.recent") && $0.id != "quickOpen" }
-        .map { command in
-          let shortcut = registry.effectiveShortcut(for: command.id)?.display
-          let reason = registry.disabledReason(for: command.id)
-          return QuickOpenItem(
-            id: "command:" + command.id, title: command.title,
-            subtitle: [command.menuPath.joined(separator: " › "), shortcut, reason]
-              .compactMap { $0 }.joined(separator: " · "),
-            kind: .command, isEnabled: reason == nil
-          ) { registry.execute(command.id) }
-        }
+      registry.commands.filter {
+        !$0.id.hasPrefix("go.recent") && !$0.id.hasPrefix("go.connections") && $0.id != "quickOpen"
+      }
+      .map { command in
+        let shortcut = registry.effectiveShortcut(for: command.id)?.display
+        let reason = registry.disabledReason(for: command.id)
+        return QuickOpenItem(
+          id: "command:" + command.id, title: command.title,
+          subtitle: [command.menuPath.joined(separator: " › "), shortcut, reason]
+            .compactMap { $0 }.joined(separator: " · "),
+          kind: .command, isEnabled: reason == nil
+        ) { registry.execute(command.id) }
+      }
     }
     let recents = ClosureQuickOpenSource {
       settings.recentFolders.map { path in
@@ -466,6 +480,7 @@ extension GoToFolderModel: Identifiable {
 }
 extension Notification.Name {
   static let fileTermGoToFolder = Notification.Name("FileTerm.goToFolder")
+  static let fileTermConnect = Notification.Name("FileTerm.connect")
   static let fileTermBrowserOptions = Notification.Name("FileTerm.browserOptions")
   static let fileTermQuickSelect = Notification.Name("FileTerm.quickSelect")
   static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")

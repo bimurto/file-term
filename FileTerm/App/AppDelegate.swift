@@ -22,6 +22,7 @@ import UniformTypeIdentifiers
   private lazy var fallbackDevices = DeviceModel(service: volumeService)
   private var devices: DeviceModel { currentWindow?.devices ?? fallbackDevices }
   private lazy var settings = AppSettings(suite: settingsSuite)
+  private lazy var connections = ConnectionCoordinator(settings: settings)
   private lazy var settingsCoordinator = SettingsCoordinator(
     settings: settings, registry: { [unowned self] in registry })
   private let folderWatcher = FolderWatcher()
@@ -63,7 +64,9 @@ import UniformTypeIdentifiers
 
   private lazy var registry = CommandRegistry(
     commands: makeCommands(),
-    dynamicCommands: { [unowned self] in recentCommands() + openWithCommands() },
+    dynamicCommands: { [unowned self] in
+      recentCommands() + connectionCommands() + openWithCommands()
+    },
     shortcutOverrides: settings.shortcutOverrides,
     context: { [unowned self] in
       CommandContext(
@@ -188,7 +191,8 @@ import UniformTypeIdentifiers
     let controller = BrowserWindowController(
       browser: model, devices: deviceModel, settings: settings,
       registry: registry, provider: provider, frame: snapshot?.frame,
-      terminalPanel: snapshot?.terminal, transfers: fileOperations.transfers)
+      terminalPanel: snapshot?.terminal, transfers: fileOperations.transfers,
+      connections: connections)
     model.onVisit = { [weak self, weak controller, weak model] location in
       self?.settings.recordVisit(location)
       self?.syncWatcher()
@@ -255,6 +259,7 @@ import UniformTypeIdentifiers
   @objc private func volumeChanged(_ notification: Notification) {
     let unmounted = notification.name == NSWorkspace.didUnmountNotification
     let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL
+    if unmounted, let url { connections.handleUnmount(at: url) }
     Task {
       for controller in windows {
         await controller.devices.refresh()
@@ -290,6 +295,74 @@ import UniformTypeIdentifiers
           }
         })
     }
+  }
+
+  private func connectionCommands() -> [AppCommand] {
+    let path = ["Go", "Connections"]
+    var commands: [AppCommand] = []
+    for connection in connections.open {
+      let name = "\(connection.profile.displayName) — \(connection.profile.server)"
+      commands.append(
+        AppCommand(
+          id: "go.connections.open.\(connection.id)", title: name, menuPath: path,
+          isEnabled: { $0.hasBrowserWindow },
+          disabledReason: { _ in "Open the browser window first." },
+          handler: { [weak self] in
+            guard let self else { return }
+            let model = browser
+            Task { await self.connections.reveal(connection, in: model) }
+          }))
+    }
+    let openIDs = Set(connections.open.map(\.id))
+    for profile in connections.savedProfiles where !openIDs.contains(profile.id) {
+      commands.append(
+        AppCommand(
+          id: "go.connections.saved.\(profile.id)", title: profile.displayName, menuPath: path,
+          isEnabled: { $0.hasBrowserWindow },
+          disabledReason: { _ in "Open the browser window first." },
+          handler: { [weak self] in
+            guard let self else { return }
+            let model = browser
+            Task {
+              do { try await self.connections.connectAndReveal(profile, in: model) } catch {
+                model.notice = error.localizedDescription
+              }
+            }
+          }))
+    }
+    for profile in connections.profiles {
+      commands.append(
+        AppCommand(
+          id: "go.connections.edit.\(profile.id)", title: "Edit \(profile.displayName)…",
+          menuPath: path + ["Edit Saved Connection"], isEnabled: { $0.hasBrowserWindow },
+          disabledReason: { _ in "Open the browser window first." },
+          handler: { [weak self] in
+            guard let self else { return }
+            NotificationCenter.default.post(
+              name: .fileTermConnect, object: browser, userInfo: ["profileID": profile.id])
+          }))
+    }
+    for connection in connections.open {
+      commands.append(
+        AppCommand(
+          id: "go.connections.disconnect.\(connection.id)",
+          title: "Disconnect \(connection.profile.displayName)",
+          menuPath: path + ["Disconnect"], isEnabled: { _ in true },
+          disabledReason: { _ in "" },
+          handler: { [weak self] in
+            do { try self?.connections.disconnect(connection) } catch {
+              self?.browser.notice = error.localizedDescription
+            }
+          }))
+    }
+    if commands.isEmpty {
+      commands.append(
+        AppCommand(
+          id: "go.connections.empty", title: "No Connections", menuPath: path,
+          isEnabled: { _ in false },
+          disabledReason: { _ in "Use Go › Connect… to open a connection." }, handler: {}))
+    }
+    return commands
   }
 
   private func navigationCommands() -> [AppCommand] {
@@ -348,9 +421,13 @@ import UniformTypeIdentifiers
         isChecked: { [weak self] _ in self?.browser.syncBrowsing == true },
         handler: { [weak self] in self?.browser.syncBrowsing.toggle() }),
       AppCommand(
-        id: "go.connections.empty", title: "No Connections", menuPath: ["Go", "Connections"],
-        isEnabled: { _ in false }, disabledReason: { _ in "Connections will be available in M08." },
-        handler: {}),
+        id: "go.connect", title: "Connect…", menuPath: ["Go"],
+        isEnabled: { $0.hasBrowserWindow },
+        disabledReason: { _ in "Open the browser window first." },
+        handler: { [weak self] in
+          guard let self else { return }
+          NotificationCenter.default.post(name: .fileTermConnect, object: browser)
+        }),
       AppCommand(
         id: "view.twoPanes", title: "Show Two Panes", menuPath: ["View"],
         isEnabled: { $0.hasBrowserWindow },
@@ -746,13 +823,27 @@ import UniformTypeIdentifiers
     for (id, title) in [("file.copyURL", "Copy URL"), ("file.openURL", "Open URL")] {
       result.append(
         AppCommand(
-          id: id, title: title, menuPath: ["File"], isEnabled: { _ in false },
+          id: id, title: title, menuPath: ["File"],
+          isEnabled: { [weak self] _ in self?.selectedPublicURLs().isEmpty == false },
           disabledReason: { _ in
-            "This location does not provide a public URL. Remote Base URLs arrive with M08."
+            "Select an item on a connection that has a Base URL (Connect › Show Advanced)."
           },
-          handler: {}))
+          handler: { [weak self] in
+            guard let urls = self?.selectedPublicURLs(), !urls.isEmpty else { return }
+            if id == "file.copyURL" {
+              NSPasteboard.general.clearContents()
+              NSPasteboard.general.setString(
+                urls.map(\.absoluteString).joined(separator: "\n"), forType: .string)
+            } else {
+              for url in urls { NSWorkspace.shared.open(url) }
+            }
+          }))
     }
     return result
+  }
+
+  private func selectedPublicURLs() -> [URL] {
+    browser.activePane.selectedEntries.compactMap { connections.publicURL(for: $0.location) }
   }
 
   // MARK: Local file operations (M04)
