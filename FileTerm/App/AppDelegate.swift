@@ -118,6 +118,8 @@ import UniformTypeIdentifiers
     fileOperations.preferences = { [weak self] in self?.settings.transfers ?? TransferPreferences()
     }
     fileOperations.transfers.preferences = settings.transfers
+    fileOperations.registry = providerRegistry
+    fileOperations.describe = { [weak self] in self?.connections.describe($0) ?? $0.path }
     fileOperations.refresh = { [weak self] in
       guard let self else { return }
       for controller in windows {
@@ -861,9 +863,11 @@ import UniformTypeIdentifiers
     func command(
       _ id: String, _ title: String, menu: [String] = ["Commands"],
       shortcut: Shortcut? = nil, selection: Bool = false, target: Bool = false,
+      anyProvider: Bool = false,
       condition: @escaping () -> Bool = { true },
       reason: @escaping () -> String = {
-        "Open a local folder and select the required items. Pane transfers need two panes."
+        "Open a local folder and select the required items. Pane transfers need two panes. "
+          + "Remote locations support Copy to… only."
       },
       action: @escaping () -> Void
     ) -> AppCommand {
@@ -874,9 +878,13 @@ import UniformTypeIdentifiers
           guard let self else { return false }
           return browserIsFront && !(NSApp.keyWindow?.firstResponder is NSText)
             && !context.isLoading
-            && context.sourceLocation?.providerID == "local"
+            && (anyProvider
+              ? context.sourceLocation != nil : context.sourceLocation?.providerID == "local")
             && (!selection || context.selectionCount > 0)
-            && (!target || context.targetLocation?.providerID == "local") && condition()
+            && (!target
+              || (anyProvider
+                ? context.targetLocation != nil : context.targetLocation?.providerID == "local"))
+            && condition()
         }, disabledReason: { _ in reason() }, handler: action)
     }
     var result: [AppCommand] = []
@@ -928,7 +936,7 @@ import UniformTypeIdentifiers
     ] {
       result.append(
         command(
-          id, title, selection: true, target: true,
+          id, title, selection: true, target: true, anyProvider: !move,
           condition: { [weak self] in !renamed || self?.browser.activePane.selection.count == 1 }
         ) { [weak self] in
           guard let self else { return }

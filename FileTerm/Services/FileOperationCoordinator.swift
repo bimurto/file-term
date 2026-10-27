@@ -4,6 +4,10 @@ import FileTermCore
 /// App-wide local history and clipboard, with each operation bound to its originating pane.
 @MainActor final class FileOperationCoordinator {
   let transfers = TransferQueue()
+  /// Providers for copies that involve a remote location.
+  var registry = ProviderRegistry()
+  /// Human-readable text for a location, e.g. "Office NAS: /docs". Local locations show the path.
+  var describe: (Location) -> String = { $0.path }
   var preferences: () -> TransferPreferences = { TransferPreferences() }
   private var undoHistory: [LocalFileOperations] = []
   private var redoHistory: [LocalFileOperations] = []
@@ -100,6 +104,13 @@ import FileTermCore
     asNewName: Bool = false, window: NSWindow?
   ) {
     let pane = browser.activePane
+    if !move, !clipboard, let source = pane.location,
+      let destination = browser.targetPane?.location,
+      source.providerID != "local" || destination.providerID != "local"
+    {
+      transferAcrossProviders(browser, asNewName: asNewName, window: window)
+      return
+    }
     let target = clipboard ? pane : browser.targetPane
     guard let location = target?.location else { return }
     let pasteboardRevision = NSPasteboard.general.changeCount
@@ -134,6 +145,92 @@ import FileTermCore
       }
       return results
     }
+  }
+
+  /// Copy to… / Copy to as… when either side is not a local folder (M08.13).
+  func transferAcrossProviders(_ browser: BrowserModel, asNewName: Bool, window: NSWindow?) {
+    let entries = browser.activePane.selectedEntries
+    guard let destination = browser.targetPane?.location, !entries.isEmpty else { return }
+    let alert = NSAlert()
+    alert.messageText = "Copy \(entries.count) item(s)?"
+    let more = entries.count > 1 ? " and \(entries.count - 1) more" : ""
+    alert.informativeText =
+      "From: \(describe(entries[0].location))\(more)\nTo: \(describe(destination))"
+    let field = NSTextField(string: entries.first?.name ?? "")
+    if asNewName {
+      field.frame = NSRect(x: 0, y: 0, width: 360, height: 24)
+      alert.accessoryView = field
+    }
+    alert.addButton(withTitle: "Copy")
+    alert.addButton(withTitle: "Cancel")
+    guard alert.runModal() == .alertFirstButtonReturn else { return }
+    submitProviderCopy(
+      sources: entries.map(\.location), to: destination,
+      newName: asNewName ? field.stringValue : nil, window: window)
+  }
+
+  nonisolated static func direction(from sources: [Location], to destination: Location)
+    -> TransferDirection
+  {
+    let remoteSource = sources.contains { $0.providerID != "local" }
+    switch (remoteSource, destination.providerID != "local") {
+    case (false, false): return .local
+    case (true, false): return .download
+    case (false, true): return .upload
+    case (true, true): return .relay
+    }
+  }
+
+  /// Copies of the same server run one at a time; local sides reserve like local operations.
+  nonisolated static func resources(for locations: [Location]) -> Set<String> {
+    Set(
+      locations.map {
+        $0.providerID == "local"
+          ? URL(fileURLWithPath: $0.path).deletingLastPathComponent().resolvingSymlinksInPath().path
+          : "remote:\($0.providerID)"
+      })
+  }
+
+  @discardableResult
+  func submitProviderCopy(
+    sources: [Location], to destination: Location, newName: String? = nil, window: NSWindow?
+  ) -> UUID? {
+    guard !sources.isEmpty else { return nil }
+    let policy = preferences()
+    transfers.preferences = policy
+    let reference = JobReference()
+    let registry = registry
+    let id = transfers.submit(
+      kind: .copy, resources: Self.resources(for: sources + [destination]),
+      direction: Self.direction(from: sources, to: destination),
+      sourceLabels: sources.map(describe), destinationLabel: describe(destination)
+    ) { control in
+      let transfer = ProviderTransfer(
+        registry: registry, control: control, verification: policy.verification,
+        log: { message in
+          Task { @MainActor in
+            if let id = reference.id { self.transfers.log(id, message) }
+          }
+        },
+        resolve: { conflict in
+          await self.resolve(conflict, window: window)
+        })
+      if let id = reference.id {
+        self.transfers.setTotalBytes(id, await transfer.totalBytes(of: sources))
+      }
+      do {
+        try await control.checkpoint()
+        let summary = try await transfer.copy(sources: sources, to: destination, newName: newName)
+        await self.refresh?()
+        return summary
+      } catch {
+        if let id = reference.id { self.transfers.setSummary(id, await transfer.outcomeSummary()) }
+        await self.refresh?()
+        throw error
+      }
+    }
+    reference.id = id
+    return id
   }
 
   func duplicate(_ pane: PaneModel, window: NSWindow?) {
@@ -270,27 +367,52 @@ import FileTermCore
   }
 
   private func resolve(_ conflict: FileConflict, window: NSWindow?) async -> ConflictResolution {
-    let policy = preferences()
-    let selected = conflict.isDirectoryMerge ? policy.mergePolicy : policy.replacePolicy
-    if let decision = selected.decision {
-      for job in transfers.jobs where job.state == .running {
+    await decide(
+      name: conflict.destination.lastPathComponent, source: conflict.source.path,
+      destination: conflict.destination.path, isDirectoryMerge: conflict.isDirectoryMerge,
+      allowReplace: true, window: window
+    ) { message in
+      for job in self.transfers.jobs where job.state == .running {
         if job.sources.contains(where: {
           conflict.source.path == $0.path || conflict.source.path.hasPrefix($0.path + "/")
         }) {
-          transfers.log(job.id, "Conflict: \(selected.rawValue) — \(conflict.destination.path)")
+          self.transfers.log(job.id, message)
         }
       }
+    }
+  }
+
+  /// Conflicts between providers. The engine logs the chosen decision itself.
+  func resolve(_ conflict: LocationConflict, window: NSWindow?) async -> ConflictResolution {
+    await decide(
+      name: (conflict.destination.path as NSString).lastPathComponent,
+      source: describe(conflict.source), destination: describe(conflict.destination),
+      isDirectoryMerge: conflict.isDirectoryMerge, allowReplace: !conflict.isDirectoryMerge,
+      window: window
+    ) { _ in }
+  }
+
+  /// Applies the Replace/Merge policy, or asks. Folder merges never offer Replace when
+  /// `allowReplace` is false, and a policy that resolves to Replace then falls back to asking.
+  private func decide(
+    name: String, source: String, destination: String, isDirectoryMerge: Bool,
+    allowReplace: Bool, window: NSWindow?, record: (String) -> Void
+  ) async -> ConflictResolution {
+    let policy = preferences()
+    let selected = isDirectoryMerge ? policy.mergePolicy : policy.replacePolicy
+    if let decision = selected.decision,
+      allowReplace || (decision != .replace && decision != .replaceOlder)
+    {
+      record("Conflict: \(selected.rawValue) — \(destination)")
       return ConflictResolution(decision: decision)
     }
     let alert = NSAlert()
-    alert.messageText = "An item named “\(conflict.destination.lastPathComponent)” already exists."
-    alert.informativeText =
-      "Source: \(conflict.source.path)\nDestination: \(conflict.destination.path)"
-    var choices: [(String, ConflictDecision)] = [
-      ("Keep Both", .keepBoth), ("Replace", .replace), ("Replace Older", .replaceOlder),
-      ("Skip", .skip), ("Stop", .stop),
-    ]
-    if conflict.isDirectoryMerge { choices.append(("Merge", .merge)) }
+    alert.messageText = "An item named “\(name)” already exists."
+    alert.informativeText = "Source: \(source)\nDestination: \(destination)"
+    var choices: [(String, ConflictDecision)] = [("Keep Both", .keepBoth)]
+    if allowReplace { choices += [("Replace", .replace), ("Replace Older", .replaceOlder)] }
+    choices += [("Skip", .skip), ("Stop", .stop)]
+    if isDirectoryMerge { choices.append(("Merge", .merge)) }
     for choice in choices { alert.addButton(withTitle: choice.0) }
     alert.showsSuppressionButton = true
     alert.suppressionButton?.title = "Apply to all conflicts"
@@ -302,13 +424,7 @@ import FileTermCore
     }
     let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
     let decision = choices.indices.contains(index) ? choices[index].1 : .stop
-    for job in transfers.jobs where job.state == .running {
-      if job.sources.contains(where: {
-        conflict.source.path == $0.path || conflict.source.path.hasPrefix($0.path + "/")
-      }) {
-        transfers.log(job.id, "Conflict: \(decision) — \(conflict.destination.path)")
-      }
-    }
+    record("Conflict: \(decision) — \(destination)")
     return ConflictResolution(decision: decision, applyToAll: alert.suppressionButton?.state == .on)
   }
 
@@ -351,4 +467,8 @@ import FileTermCore
       panel.begin(completionHandler: completion)
     }
   }
+}
+
+@MainActor private final class JobReference {
+  var id: UUID?
 }

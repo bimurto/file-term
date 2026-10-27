@@ -82,4 +82,17 @@ import Testing
       try ConnectionProfile(kind: .smb).webDAVBaseURL()
     }
   }
+
+  @Test func displayNameSeparatesServersOnTheSameHost() {
+    var profile = ConnectionProfile(kind: .webdav)
+    #expect(profile.displayName == "WebDAV")
+    profile.server = "127.0.0.1"
+    #expect(profile.displayName == "127.0.0.1")
+    profile.port = 8081
+    #expect(profile.displayName == "127.0.0.1:8081")
+    profile.port = 80
+    #expect(profile.displayName == "127.0.0.1")
+    profile.name = "Backup"
+    #expect(profile.displayName == "Backup")
+  }
 }

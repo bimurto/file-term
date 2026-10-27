@@ -87,11 +87,17 @@ public protocol FileSystemProvider: Sendable {
   /// Writes a new file. An existing destination is never overwritten.
   func write(_ contents: any FileByteReader, to location: Location) async throws
   func move(_ source: Location, to destination: Location) async throws
+  /// Creates one folder whose parent exists. An existing item is never reused.
+  func createDirectory(_ location: Location) async throws
   /// Removes the item permanently. User-facing callers must confirm first.
   func delete(_ location: Location) async throws
 }
 
 extension FileSystemProvider {
+  public func createDirectory(_ location: Location) async throws {
+    throw FileSystemError.unsupportedOperation
+  }
+
   public func publicURL(for location: Location) async throws -> URL? { nil }
 
   public func list(_ location: Location, includeHidden: Bool) async throws -> [FileEntry] {

@@ -151,6 +151,33 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     #expect(request.httpMethod == "PUT")
     #expect(request.value(forHTTPHeaderField: "If-None-Match") == "*")
   }
+
+  @Test func createDirectorySendsMKCOLAndMapsExistingFolders() async throws {
+    let created = provider { _ in .init(status: 201) }
+    try await created.createDirectory(Location(providerID: "webdav.test", path: "/new dir"))
+    let request = try #require(StubURLProtocol.requests.last)
+    #expect(request.httpMethod == "MKCOL")
+    #expect(request.url?.absoluteString == "http://dav.test/new%20dir")
+    let existing = provider { _ in .init(status: 405) }
+    await #expect(throws: FileSystemError.destinationExists) {
+      try await existing.createDirectory(Location(providerID: "webdav.test", path: "/new"))
+    }
+    let missingParent = provider { _ in .init(status: 409) }
+    await #expect(throws: FileSystemError.io("The parent folder does not exist on the server.")) {
+      try await missingParent.createDirectory(Location(providerID: "webdav.test", path: "/a/b"))
+    }
+  }
+
+  @Test func moveNeverOverwritesTheDestination() async throws {
+    let dav = provider { _ in .init(status: 201) }
+    try await dav.move(
+      Location(providerID: "webdav.test", path: "/.f.part"),
+      to: Location(providerID: "webdav.test", path: "/f.txt"))
+    let request = try #require(StubURLProtocol.requests.last)
+    #expect(request.httpMethod == "MOVE")
+    #expect(request.value(forHTTPHeaderField: "Overwrite") == "F")
+    #expect(request.value(forHTTPHeaderField: "Destination") == "http://dav.test/f.txt")
+  }
 }
 
 private final class OneShotReader: FileByteReader, @unchecked Sendable {

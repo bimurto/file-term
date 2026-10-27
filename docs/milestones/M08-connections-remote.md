@@ -52,7 +52,7 @@
 
 ### M08.13 Multiple connections & server-to-server copy *(vendor-documented)*
 - [x] Several connections can be open at the same time, in different panes and tabs.
-- [ ] Copying between two remote locations streams data through the app using the M07 queue.
+- [x] Copying between two remote locations streams data through the app using the M07 queue.
 
 ### M08.14 Go › Connections menu
 - [x] Lists open and saved connections, and fills the submenu stubbed in M01.08.
@@ -66,7 +66,8 @@ form; pressing Connect names the ticket that adds them.
 |---|---|---|
 | T1 Connection foundation + OS-networked mounts | M08.01, .02, .09, .10, .11, .14 | Done |
 | T2 Remote provider plumbing + WebDAV | M08.05, .13 (multiple connections) | Done |
-| T3 Cross-provider copy through the M07 queue | M08.13 (server-to-server) | Open |
+| T3 Cross-provider copy through the M07 queue | M08.13 (server-to-server) | Done |
+| T3b Remote move, delete, rename, new folder, paste, drag; open remote files via temp download | Follow-up to T3 | Open |
 | T4 Amazon S3 & Backblaze B2 | M08.06 | Open |
 | T5 FTP & FTP-TLS | M08.04 | Open |
 | T6 SFTP, host-key prompt, SSH terminal | M08.03 | Open |
@@ -105,3 +106,21 @@ form; pressing Connect names the ticket that adds them.
 - Remote tabs fall back to Home when a session is restored; reconnecting is not restored.
 - Several connections at once is covered by tests with stand-in providers. Copying between two
   remote locations remains open (T3).
+
+## T3 notes
+
+- Copy to… and Copy to as… work between any two locations (local, WebDAV, and later protocols).
+  Move, Duplicate, Rename, Trash, New Folder and Paste remain local-only; the disabled-command
+  reason says so. They are tracked as T3b.
+- `ProviderTransfer` streams chunk by chunk through the M07 queue, so Activities show progress,
+  speed and ETA, Pause/Cancel work, and the Replace/Merge policies, retry and verification apply.
+- Each file is written to a hidden `.<name>.fileterm-<id>.part` sibling and moved into place when
+  complete. A crash mid-copy can leave a `.part` file behind; cancel and failure remove it.
+- Replace uploads first, then deletes the old item and moves the new one in, so a failed upload
+  never loses the original. Folder conflicts offer Merge, Keep Both, Skip and Stop (no Replace).
+- Upload and download limits apply by direction. Remote to remote ("relay") consumes both budgets.
+  Copies to the same server run one at a time; copies to different servers run together.
+- A failure after at least one item was committed hides Retry (same rule as local copies).
+- Not preserved across locations: permissions, ownership, extended attributes and modification
+  dates. Symbolic links and special files are skipped and counted as skipped.
+- Cross-provider copies add no undo entry.

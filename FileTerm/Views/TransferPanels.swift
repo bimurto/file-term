@@ -47,11 +47,11 @@ private struct TransferJobRow: View {
         Spacer(minLength: 4)
         controls
       }
-      ForEach(Array(job.sources.enumerated()), id: \.offset) { _, source in
-        Text("From: \(source.path)").lineLimit(1).truncationMode(.middle).help(source.path)
+      ForEach(Array(job.sourceLabels.enumerated()), id: \.offset) { _, source in
+        Text("From: \(source)").lineLimit(1).truncationMode(.middle).help(source)
       }
-      if let destination = job.destination {
-        Text("To: \(destination.path)").lineLimit(1).truncationMode(.middle).help(destination.path)
+      if let destination = job.destinationLabel {
+        Text("To: \(destination)").lineLimit(1).truncationMode(.middle).help(destination)
       }
       if !job.state.isTerminal {
         if let total = job.totalBytes, total > 0 {

@@ -136,8 +136,13 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
 
   public init(kind: ConnectionKind) { self.kind = kind }
 
+  /// The given name, else the server with its port when it is not the protocol default, so two
+  /// servers on one host stay distinguishable.
   public var displayName: String {
-    name.isEmpty ? (server.isEmpty ? kind.title : server) : name
+    if !name.isEmpty { return name }
+    guard !server.isEmpty else { return kind.title }
+    if let port, port != kind.defaultPort { return "\(server):\(port)" }
+    return server
   }
 
   /// The URL handed to the OS (NetFS or the screen-sharing client). Never contains a password.

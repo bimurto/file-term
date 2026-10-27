@@ -107,6 +107,13 @@ public actor WebDAVProvider: ValidatingProvider {
     try Self.check(response.statusCode)
   }
 
+  public func createDirectory(_ location: Location) async throws {
+    let (_, response) = try await send(request(location.path, method: "MKCOL"))
+    // MKCOL answers 405 when the collection already exists.
+    if response.statusCode == 405 { throw FileSystemError.destinationExists }
+    try Self.check(response.statusCode)
+  }
+
   public func delete(_ location: Location) async throws {
     let (_, response) = try await send(request(location.path, method: "DELETE"))
     try Self.check(response.statusCode)

@@ -34,6 +34,9 @@ public struct TransferJob: Identifiable, Sendable {
   public let kind: TransferJobKind
   public let sources: [URL]
   public let destination: URL?
+  /// Human-readable endpoints, which also describe locations that have no file URL.
+  public let sourceLabels: [String]
+  public let destinationLabel: String?
   public var state: TransferJobState = .queued
   public var bytesTransferred: Int64 = 0
   public var bytesPerSecond: Double = 0
@@ -82,11 +85,15 @@ public struct TransferLogEntry: Identifiable, Sendable {
   @discardableResult public func submit(
     kind: TransferJobKind, sources: [URL] = [], destination: URL? = nil,
     resources: Set<String> = [], totalBytes: Int64? = nil, retrySafe: Bool = true,
-    direction: TransferDirection = .local,
+    direction: TransferDirection = .local, sourceLabels: [String]? = nil,
+    destinationLabel: String? = nil,
     action: @escaping Action
   ) -> UUID {
     let id = UUID()
-    var job = TransferJob(id: id, kind: kind, sources: sources, destination: destination)
+    var job = TransferJob(
+      id: id, kind: kind, sources: sources, destination: destination,
+      sourceLabels: sourceLabels ?? sources.map(\.path),
+      destinationLabel: destinationLabel ?? destination?.path)
     job.totalBytes = totalBytes
     job.canRetry = retrySafe
     jobs.append(job)
@@ -102,8 +109,8 @@ public struct TransferLogEntry: Identifiable, Sendable {
     guard let job = jobs.first(where: { $0.id == id }) else { return }
     logs.append(
       TransferLogEntry(
-        jobID: id, source: job.sources.map(\.path).joined(separator: ", "),
-        destination: job.destination?.path ?? "", message: message))
+        jobID: id, source: job.sourceLabels.joined(separator: ", "),
+        destination: job.destinationLabel ?? "", message: message))
   }
   public var exportedLogs: String { logs.map(\.text).joined(separator: "\n") }
 
@@ -210,6 +217,11 @@ public struct TransferLogEntry: Identifiable, Sendable {
         case .download:
           await download.configure(bytesPerSecond: downloadRate)
           try await download.consume(bytes)
+        case .relay:
+          await download.configure(bytesPerSecond: downloadRate)
+          try await download.consume(bytes)
+          await upload.configure(bytesPerSecond: uploadRate)
+          try await upload.consume(bytes)
         }
       })
     controls[id] = control

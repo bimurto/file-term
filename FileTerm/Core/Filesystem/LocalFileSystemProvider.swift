@@ -83,6 +83,13 @@ public actor LocalFileSystemProvider: FileSystemProvider {
     }
   }
 
+  public func createDirectory(_ location: Location) throws {
+    do {
+      try manager.createDirectory(
+        at: url(for: location), withIntermediateDirectories: false)
+    } catch { throw Self.normalized(error) }
+  }
+
   public func delete(_ location: Location) throws {
     do { try manager.removeItem(at: url(for: location)) } catch { throw Self.normalized(error) }
   }

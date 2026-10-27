@@ -19,6 +19,7 @@ Interrupted-transfer recovery across launches and retry of partially committed b
 
 M08 adds Go › Connect… with a per-protocol form, keychain-stored passwords, SMB/AFP/NFS
 mounts, a VNC handoff, remote pane placement, Base URLs for Copy/Open URL and Go › Connections.
+Copy to… streams between local and remote locations through the transfer queue.
 Remaining protocols ship in follow-up tickets; see [M08 tickets](docs/milestones/M08-connections-remote.md).
 
 ## Run

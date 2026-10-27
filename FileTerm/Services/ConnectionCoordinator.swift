@@ -220,6 +220,14 @@ func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
     open.removeAll { $0.mountURL?.path == path }
   }
 
+  /// "Connection name: /path" for remote locations, the plain path for local ones.
+  func describe(_ location: Location) -> String {
+    guard location.providerID != "local",
+      let connection = open.first(where: { $0.root.providerID == location.providerID })
+    else { return location.path }
+    return "\(connection.profile.displayName): \(location.path)"
+  }
+
   /// The Base URL for a location below an open connection's root (M08.02).
   func publicURL(for location: Location) -> URL? {
     for connection in open {

@@ -129,6 +129,56 @@ import Testing
     #expect(queue.exportedLogs.contains("/source"))
     #expect(queue.exportedLogs.contains("/destination"))
   }
+
+  @Test func relayAppliesBothBandwidthBudgets() async throws {
+    let queue = TransferQueue()
+    queue.preferences.limitUpload = true
+    queue.preferences.limitDownload = true
+    queue.preferences.uploadBytesPerSecond = 1000
+    queue.preferences.downloadBytesPerSecond = 1000
+    let clock = ContinuousClock()
+    let start = clock.now
+    queue.submit(kind: .copy, direction: .relay) { control in
+      try await control.advance(bytes: 100)
+      return .init(succeeded: 1)
+    }
+    for _ in 0..<200 {
+      if queue.jobs.first?.state == .completed { break }
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    #expect(queue.jobs.first?.state == .completed)
+    #expect(start.duration(to: clock.now) >= .milliseconds(190))
+  }
+
+  @Test func remoteEndpointsAreLabelledInJobsAndLogs() async throws {
+    let queue = TransferQueue()
+    queue.submit(
+      kind: .copy, sourceLabels: ["Office: /a.txt"], destinationLabel: "Backup: /b"
+    ) { _ in .init(succeeded: 1) }
+    #expect(queue.jobs.first?.sourceLabels == ["Office: /a.txt"])
+    #expect(queue.jobs.first?.destinationLabel == "Backup: /b")
+    #expect(queue.exportedLogs.contains("Office: /a.txt"))
+    #expect(queue.exportedLogs.contains("Backup: /b"))
+  }
+
+  @Test func copiesToTheSameServerSerializeButDifferentServersRunTogether() async throws {
+    let queue = TransferQueue()
+    func blocker() -> TransferQueue.Action {
+      { control in
+        while true {
+          try await control.checkpoint()
+          try await Task.sleep(for: .milliseconds(10))
+        }
+      }
+    }
+    let first = queue.submit(kind: .copy, resources: ["remote:one"], action: blocker())
+    let sameServer = queue.submit(kind: .copy, resources: ["remote:one"], action: blocker())
+    let otherServer = queue.submit(kind: .copy, resources: ["remote:two"], action: blocker())
+    #expect(queue.jobs.first { $0.id == first }?.state == .running)
+    #expect(queue.jobs.first { $0.id == sameServer }?.state == .queued)
+    #expect(queue.jobs.first { $0.id == otherServer }?.state == .running)
+    for job in queue.jobs { queue.cancel(job.id) }
+  }
 }
 
 @MainActor private final class QueueCleanupGate {

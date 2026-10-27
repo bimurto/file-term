@@ -2,6 +2,8 @@ import Foundation
 
 public enum TransferDirection: Sendable {
   case local, upload, download
+  /// Remote to remote: data comes down and goes back up, so both budgets apply.
+  case relay
 }
 
 /// Reserves time on one shared directional budget; concurrent jobs cannot multiply the limit.
