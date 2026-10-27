@@ -24,7 +24,7 @@
 - [ ] Passive and active modes. Explicit TLS for FTP-TLS.
 
 ### M08.05 WebDAV & WebDAV HTTPS
-- [ ] Rejects non-WebDAV endpoints with a clear error (an ordinary website URL is not a WebDAV endpoint).
+- [x] Rejects non-WebDAV endpoints with a clear error (an ordinary website URL is not a WebDAV endpoint).
 
 ### M08.06 Amazon S3 & Backblaze B2
 - [ ] Bucket and object listing, with prefixes shown as folders.
@@ -51,7 +51,7 @@
 - [ ] View › Text Encoding re-decodes remote file names on the fly.
 
 ### M08.13 Multiple connections & server-to-server copy *(vendor-documented)*
-- [ ] Several connections can be open at the same time, in different panes and tabs.
+- [x] Several connections can be open at the same time, in different panes and tabs.
 - [ ] Copying between two remote locations streams data through the app using the M07 queue.
 
 ### M08.14 Go › Connections menu
@@ -65,7 +65,7 @@ form; pressing Connect names the ticket that adds them.
 | Ticket | Covers | Status |
 |---|---|---|
 | T1 Connection foundation + OS-networked mounts | M08.01, .02, .09, .10, .11, .14 | Done |
-| T2 Remote provider plumbing + WebDAV | M08.05, .13 (multiple connections) | Open |
+| T2 Remote provider plumbing + WebDAV | M08.05, .13 (multiple connections) | Done |
 | T3 Cross-provider copy through the M07 queue | M08.13 (server-to-server) | Open |
 | T4 Amazon S3 & Backblaze B2 | M08.06 | Open |
 | T5 FTP & FTP-TLS | M08.04 | Open |
@@ -89,3 +89,19 @@ form; pressing Connect names the ticket that adds them.
 - Go › Connections lists open connections, saved favorites, Edit and Disconnect items.
 - Not done in T1: connection state is not restored across launches; an AFP entry is not hidden
   on systems without AFP support (the mount reports the error).
+
+## T2 notes
+
+- `ProviderRegistry` is shared by every pane and tab; connections register their provider there.
+  Later protocols (S3, FTP, SFTP) plug in the same way through `ValidatingProvider`.
+- WebDAV browses and reads. Provider-level write, move and delete exist but are not reachable from
+  the UI: remote panes keep copy, rename and delete disabled until T3.
+- Connect validates the server first (OPTIONS must send a `DAV` header and PROPFIND must return a
+  207 multistatus). Ordinary websites are rejected with a clear message; a wrong password is
+  reported as an authentication error.
+- Basic and Digest authentication are supported. Self-signed certificates are not trusted.
+- `read` pulls the body through `URLSession.bytes`, one byte at a time into 64 KiB chunks. Fine for
+  browsing and preview; T3 may need a faster path for large transfers.
+- Remote tabs fall back to Home when a session is restored; reconnecting is not restored.
+- Several connections at once is covered by tests with stand-in providers. Copying between two
+  remote locations remains open (T3).

@@ -82,8 +82,7 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
 
   public var availability: ConnectionAvailability {
     switch self {
-    case .smb, .afp, .nfs, .vnc: .available
-    case .webdav, .webdavHTTPS: .plannedIn("T2")
+    case .smb, .afp, .nfs, .vnc, .webdav, .webdavHTTPS: .available
     case .s3, .b2: .plannedIn("T4")
     case .ftp, .ftps: .plannedIn("T5")
     case .sftp: .plannedIn("T6")
@@ -94,6 +93,7 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
 
   /// Opened through the OS networking stack and browsed as a local mount.
   public var isOSMount: Bool { self == .smb || self == .afp || self == .nfs }
+  public var isWebDAV: Bool { self == .webdav || self == .webdavHTTPS }
 
   var urlScheme: String? {
     switch self {
@@ -153,6 +153,28 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
     if !path.isEmpty { components.path = path.hasPrefix("/") ? path : "/" + path }
     guard let url = components.url else { throw ConnectionProfileError.invalidServer }
     return url
+  }
+
+  /// Scheme, host and port of a WebDAV server. The server field takes a bare host name.
+  public func webDAVBaseURL() throws -> URL {
+    guard kind.isWebDAV else { throw ConnectionProfileError.unsupportedURL }
+    let host = server.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !host.isEmpty else { throw ConnectionProfileError.missingServer }
+    guard !host.contains("/"), !host.contains(":") || host.hasPrefix("[") else {
+      throw ConnectionProfileError.invalidServer
+    }
+    var components = URLComponents()
+    components.scheme = kind == .webdavHTTPS ? "https" : "http"
+    components.host = host
+    if let port, port != kind.defaultPort { components.port = port }
+    guard let url = components.url else { throw ConnectionProfileError.invalidServer }
+    return url
+  }
+
+  /// The folder a WebDAV connection opens first, as an absolute server path.
+  public var rootPath: String {
+    let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.hasPrefix("/") ? trimmed : "/" + trimmed
   }
 
   /// Joins the Base URL with a path relative to the connection root (M08.02 → M05.08).

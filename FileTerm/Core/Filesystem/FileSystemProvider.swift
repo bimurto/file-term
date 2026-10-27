@@ -98,3 +98,8 @@ extension FileSystemProvider {
     try await list(location)
   }
 }
+
+/// A remote provider that can confirm the server speaks its protocol before it is registered.
+public protocol ValidatingProvider: FileSystemProvider {
+  func validate(root: String) async throws
+}

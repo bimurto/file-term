@@ -31,12 +31,15 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
   @ObservationIgnored private var coordinationID = UUID()
   @ObservationIgnored private var pendingMirror: PaneModel?
 
-  public init(
+  public init(registry: ProviderRegistry, viewPreferences: ViewPreferences = ViewPreferences()) {
+    firstTabs = PaneTabs(initial: PaneModel(registry: registry, viewPreferences: viewPreferences))
+    secondTabs = PaneTabs(initial: PaneModel(registry: registry, viewPreferences: viewPreferences))
+  }
+
+  public convenience init(
     providers: [any FileSystemProvider], viewPreferences: ViewPreferences = ViewPreferences()
   ) {
-    firstTabs = PaneTabs(initial: PaneModel(providers: providers, viewPreferences: viewPreferences))
-    secondTabs = PaneTabs(
-      initial: PaneModel(providers: providers, viewPreferences: viewPreferences))
+    self.init(registry: ProviderRegistry(providers: providers), viewPreferences: viewPreferences)
   }
 
   public func tabs(_ id: PaneID) -> PaneTabs { id == .first ? firstTabs : secondTabs }
@@ -176,6 +179,23 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
           openedHome
           ? "The volume at \(mount) was unmounted. Affected tabs were moved to Home."
           : "The volume at \(mount) was unmounted. Home could not be opened."
+      }
+    }
+  }
+
+  /// Moves tabs showing a closed remote connection to Home so no pane keeps a dead listing.
+  public func handleDisconnect(providerID: String, home: Location) async {
+    for id in PaneID.allCases {
+      for tab in tabs(id).tabs {
+        guard let location = tab.location, location.providerID == providerID else { continue }
+        invalidateMirror()
+        tab.isPinned = false
+        let openedHome = await tab.navigate(to: home)
+        if openedHome { onVisit?(home) }
+        notice =
+          openedHome
+          ? "The connection was closed. Affected tabs were moved to Home."
+          : "The connection was closed. Home could not be opened."
       }
     }
   }

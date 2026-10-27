@@ -57,18 +57,22 @@ import Observation
   public private(set) var navigationRevision = UUID()
   private var history: [Location] = []
   private var historyIndex = -1
-  @ObservationIgnored private let providers: [String: any FileSystemProvider]
+  @ObservationIgnored private let registry: ProviderRegistry
 
-  public init(
-    providers: [any FileSystemProvider], viewPreferences: ViewPreferences = ViewPreferences()
-  ) {
+  public init(registry: ProviderRegistry, viewPreferences: ViewPreferences = ViewPreferences()) {
     self.viewPreferences = viewPreferences
     tabViewOptions = viewPreferences.defaults
-    self.providers = Dictionary(uniqueKeysWithValues: providers.map { ($0.id, $0) })
+    self.registry = registry
+  }
+
+  public convenience init(
+    providers: [any FileSystemProvider], viewPreferences: ViewPreferences = ViewPreferences()
+  ) {
+    self.init(registry: ProviderRegistry(providers: providers), viewPreferences: viewPreferences)
   }
 
   public func duplicate() -> PaneModel {
-    let pane = PaneModel(providers: Array(providers.values), viewPreferences: viewPreferences)
+    let pane = PaneModel(registry: registry, viewPreferences: viewPreferences)
     pane.location = location
     pane.entries = entries
     pane.tabViewOptions = viewOptions
@@ -159,7 +163,8 @@ import Observation
       let token = searchToken
       var updated: [FileEntry] = []
       for entry in scope.results {
-        let fresh = try? await providers[entry.location.providerID]?.stat(entry.location)
+        let provider = registry.provider(for: entry.location.providerID)
+        let fresh = try? await provider?.stat(entry.location)
         updated.append(fresh ?? entry)
       }
       if token == searchToken, var current = searchScope {
@@ -184,14 +189,14 @@ import Observation
     let scopeRoot = scope.root
     let token = UUID()
     searchToken = token
-    let task = Task { [providers, spotlightRunner] in
+    let task = Task { [registry, spotlightRunner] in
       do {
         let results: [FileEntry]
         if query.engine == .spotlight, query.engine.isAvailable(for: scopeRoot) {
           guard let spotlightRunner else { throw FileSystemError.unsupportedOperation }
           results = try await spotlightRunner(query, scopeRoot)
         } else {
-          guard let provider = providers[scopeRoot.providerID] else {
+          guard let provider = registry.provider(for: scopeRoot.providerID) else {
             throw FileSystemError.unsupportedOperation
           }
           results = try await BuiltInSearch.run(query, in: scopeRoot, provider: provider)
@@ -241,7 +246,7 @@ import Observation
     isLoading = true
     errorMessage = nil
     do {
-      guard let provider = providers[destination.providerID] else {
+      guard let provider = registry.provider(for: destination.providerID) else {
         throw FileSystemError.unsupportedOperation
       }
       let listing = try await provider.list(

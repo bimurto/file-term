@@ -19,6 +19,28 @@ private final class FakeMounter: VolumeMounter, @unchecked Sendable {
   }
 }
 
+private actor FakeRemote: ValidatingProvider {
+  nonisolated let id: String
+  let failure: (any Error)?
+  init(id: String, failure: (any Error)? = nil) {
+    self.id = id
+    self.failure = failure
+  }
+  func validate(root: String) async throws { if let failure { throw failure } }
+  func list(_ location: Location) async throws -> [FileEntry] {
+    [FileEntry(location: Location(providerID: id, path: "/a.txt"), name: "a.txt", kind: .file)]
+  }
+  func stat(_ location: Location) async throws -> FileEntry {
+    FileEntry(location: location, name: "a.txt", kind: .file)
+  }
+  func read(_ location: Location) async throws -> any FileByteReader {
+    throw FileSystemError.unsupportedOperation
+  }
+  func write(_ contents: any FileByteReader, to location: Location) async throws {}
+  func move(_ source: Location, to destination: Location) async throws {}
+  func delete(_ location: Location) async throws {}
+}
+
 @MainActor struct ConnectionCoordinatorTests {
   private func make(
     opened: @escaping (URL) -> Bool = { _ in true }
@@ -31,6 +53,77 @@ private final class FakeMounter: VolumeMounter, @unchecked Sendable {
     let coordinator = ConnectionCoordinator(
       settings: settings, credentials: credentials, mounter: mounter, openExternal: opened)
     return (coordinator, settings, credentials, mounter, suite)
+  }
+
+  private func makeRemote(failure: (any Error)? = nil) throws
+    -> (ConnectionCoordinator, ProviderRegistry)
+  {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    let registry = ProviderRegistry()
+    let coordinator = ConnectionCoordinator(
+      settings: AppSettings(suite: suite), registry: registry, credentials: FakeCredentials(),
+      mounter: FakeMounter(),
+      remoteFactory: { profile, _ in
+        FakeRemote(id: "webdav.\(profile.id.uuidString)", failure: failure)
+      })
+    return (coordinator, registry)
+  }
+
+  private func dav() -> ConnectionProfile {
+    var profile = ConnectionProfile(kind: .webdav)
+    profile.server = "dav.local"
+    profile.path = "files"
+    profile.baseURL = "https://dav.example.com"
+    return profile
+  }
+
+  @Test func webDAVConnectRegistersProviderAndOpensRootInThePlacementPane() async throws {
+    let (coordinator, registry) = try makeRemote()
+    let profile = dav()
+    let browser = BrowserModel(registry: registry)
+    try await coordinator.connectAndReveal(profile, in: browser)
+    let id = "webdav.\(profile.id.uuidString)"
+    #expect(registry.provider(for: id) != nil)
+    #expect(browser.layout == .vertical)
+    #expect(browser.secondPane.location == Location(providerID: id, path: "/files"))
+    #expect(coordinator.open.first?.mountURL == nil)
+  }
+
+  @Test func failedValidationRegistersNothing() async throws {
+    let (coordinator, registry) = try makeRemote(failure: WebDAVError.notWebDAV)
+    let profile = dav()
+    await #expect(throws: WebDAVError.notWebDAV) { try await coordinator.connect(profile) }
+    #expect(registry.provider(for: "webdav.\(profile.id.uuidString)") == nil)
+    #expect(coordinator.open.isEmpty)
+  }
+
+  @Test func disconnectUnregistersAndMovesTabsHome() async throws {
+    let (coordinator, registry) = try makeRemote()
+    let local = FakeRemote(id: "local")
+    registry.register(local)
+    let browser = BrowserModel(registry: registry)
+    let profile = dav()
+    try await coordinator.connectAndReveal(profile, in: browser)
+    let connection = try #require(coordinator.open.first)
+    let home = Location(providerID: "local", path: "/home")
+    try await coordinator.disconnect(connection, in: browser, home: home)
+    #expect(registry.provider(for: connection.root.providerID) == nil)
+    #expect(coordinator.open.isEmpty)
+    #expect(browser.secondPane.location == home)
+  }
+
+  @Test func webDAVPublicURLUsesTheBaseURL() async throws {
+    let (coordinator, _) = try makeRemote()
+    let profile = dav()
+    try await coordinator.connect(profile)
+    let root = try #require(coordinator.open.first?.root)
+    let file = Location(providerID: root.providerID, path: "/files/a b.txt")
+    #expect(
+      coordinator.publicURL(for: file)?.absoluteString
+        == "https://dav.example.com/a%20b.txt")
+    #expect(
+      coordinator.publicURL(for: Location(providerID: root.providerID, path: "/other")) == nil)
   }
 
   private func smb() -> ConnectionProfile {

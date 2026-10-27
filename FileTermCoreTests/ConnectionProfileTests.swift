@@ -35,6 +35,7 @@ import Testing
     #expect(!ConnectionKind.smb.advancedFields.contains(.textEncoding))
     #expect(ConnectionKind.smb.availability == .available)
     #expect(ConnectionKind.sftp.availability == .plannedIn("T6"))
+    #expect(ConnectionKind.webdav.availability == .available)
   }
 
   @Test func joinsBaseURLWithEncodedRelativePath() {
@@ -59,5 +60,26 @@ import Testing
     let decoded = try JSONDecoder().decode(ConnectionPreferences.self, from: Data(json.utf8))
     #expect(decoded == preferences)
     #expect(decoded.remotePlacement == .right)
+  }
+
+  @Test func buildsWebDAVBaseURLs() throws {
+    var profile = ConnectionProfile(kind: .webdav)
+    profile.server = "dav.example.com"
+    #expect(try profile.webDAVBaseURL().absoluteString == "http://dav.example.com")
+    profile.port = 8080
+    #expect(try profile.webDAVBaseURL().absoluteString == "http://dav.example.com:8080")
+    profile.kind = .webdavHTTPS
+    profile.port = nil
+    #expect(try profile.webDAVBaseURL().absoluteString == "https://dav.example.com")
+    #expect(profile.rootPath == "/")
+    profile.path = "files/docs"
+    #expect(profile.rootPath == "/files/docs")
+    profile.server = "https://dav.example.com"
+    #expect(throws: ConnectionProfileError.invalidServer) { try profile.webDAVBaseURL() }
+    profile.server = ""
+    #expect(throws: ConnectionProfileError.missingServer) { try profile.webDAVBaseURL() }
+    #expect(throws: ConnectionProfileError.unsupportedURL) {
+      try ConnectionProfile(kind: .smb).webDAVBaseURL()
+    }
   }
 }

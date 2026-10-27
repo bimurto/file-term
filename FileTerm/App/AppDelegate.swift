@@ -6,8 +6,9 @@ import UniformTypeIdentifiers
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
   private let provider = LocalFileSystemProvider()
+  private lazy var providerRegistry = ProviderRegistry(providers: [provider])
   private lazy var fallbackBrowser = BrowserModel(
-    providers: [provider], viewPreferences: settings.viewPreferences)
+    registry: providerRegistry, viewPreferences: settings.viewPreferences)
   private var windows: [BrowserWindowController] = []
   private weak var lastBrowser: BrowserWindowController?
   private var currentWindow: BrowserWindowController? {
@@ -22,7 +23,8 @@ import UniformTypeIdentifiers
   private lazy var fallbackDevices = DeviceModel(service: volumeService)
   private var devices: DeviceModel { currentWindow?.devices ?? fallbackDevices }
   private lazy var settings = AppSettings(suite: settingsSuite)
-  private lazy var connections = ConnectionCoordinator(settings: settings)
+  private lazy var connections = ConnectionCoordinator(
+    settings: settings, registry: providerRegistry)
   private lazy var settingsCoordinator = SettingsCoordinator(
     settings: settings, registry: { [unowned self] in registry })
   private let folderWatcher = FolderWatcher()
@@ -186,7 +188,8 @@ import UniformTypeIdentifiers
   }
 
   private func newWindow(restoring snapshot: WindowSnapshot? = nil) async {
-    let model = BrowserModel(providers: [provider], viewPreferences: settings.viewPreferences)
+    let model = BrowserModel(
+      registry: providerRegistry, viewPreferences: settings.viewPreferences)
     let deviceModel = DeviceModel(service: volumeService)
     let controller = BrowserWindowController(
       browser: model, devices: deviceModel, settings: settings,
@@ -350,8 +353,14 @@ import UniformTypeIdentifiers
           menuPath: path + ["Disconnect"], isEnabled: { _ in true },
           disabledReason: { _ in "" },
           handler: { [weak self] in
-            do { try self?.connections.disconnect(connection) } catch {
-              self?.browser.notice = error.localizedDescription
+            guard let self else { return }
+            let model = browser
+            let home = self.provider.location(for: FileManager.default.homeDirectoryForCurrentUser)
+            Task {
+              do { try await self.connections.disconnect(connection, in: model, home: home) } catch
+              {
+                model.notice = error.localizedDescription
+              }
             }
           }))
     }

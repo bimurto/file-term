@@ -60,8 +60,22 @@ struct NetFSMounter: VolumeMounter {
 
 struct OpenConnection: Identifiable, Equatable {
   let profile: ConnectionProfile
-  let mountURL: URL
+  let root: Location
+  /// Set for OS-mounted shares; remote providers have none.
+  let mountURL: URL?
   var id: UUID { profile.id }
+}
+
+typealias RemoteProviderFactory =
+  @Sendable (ConnectionProfile, String?) throws -> any ValidatingProvider
+
+func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
+  -> any ValidatingProvider
+{
+  guard profile.kind.isWebDAV else { throw ConnectionProfileError.unsupportedURL }
+  return WebDAVProvider(
+    id: "webdav.\(profile.id.uuidString)", baseURL: try profile.webDAVBaseURL(),
+    username: profile.username.isEmpty ? nil : profile.username, password: password)
 }
 
 @MainActor @Observable final class ConnectionCoordinator {
@@ -71,13 +85,19 @@ struct OpenConnection: Identifiable, Equatable {
   @ObservationIgnored private let credentials: CredentialStore
   @ObservationIgnored private let mounter: VolumeMounter
   @ObservationIgnored private let openExternal: (URL) -> Bool
+  @ObservationIgnored private let registry: ProviderRegistry
+  @ObservationIgnored private let remoteFactory: RemoteProviderFactory
 
   init(
-    settings: AppSettings, credentials: CredentialStore = KeychainCredentialStore(),
+    settings: AppSettings, registry: ProviderRegistry = ProviderRegistry(),
+    credentials: CredentialStore = KeychainCredentialStore(),
     mounter: VolumeMounter = NetFSMounter(),
+    remoteFactory: @escaping RemoteProviderFactory = { try makeRemoteProvider($0, password: $1) },
     openExternal: @escaping (URL) -> Bool = { NSWorkspace.shared.open($0) }
   ) {
     self.settings = settings
+    self.registry = registry
+    self.remoteFactory = remoteFactory
     self.credentials = credentials
     self.mounter = mounter
     self.openExternal = openExternal
@@ -116,6 +136,10 @@ struct OpenConnection: Identifiable, Equatable {
       }
       return nil
     }
+    if profile.kind.isWebDAV {
+      try await connectRemote(profile, password: password)
+      return nil
+    }
     let url = try profile.url()
     if profile.kind == .vnc {
       guard openExternal(url) else { throw ConnectionError.couldNotOpen }
@@ -127,8 +151,30 @@ struct OpenConnection: Identifiable, Equatable {
     let mountURL = try await mounter.mount(
       url, user: profile.username.isEmpty ? nil : profile.username, password: secret)
     open.removeAll { $0.id == profile.id }
-    open.append(OpenConnection(profile: profile, mountURL: mountURL.standardizedFileURL))
+    let standardized = mountURL.standardizedFileURL
+    open.append(
+      OpenConnection(
+        profile: profile, root: Location(providerID: "local", path: standardized.path),
+        mountURL: standardized))
     return mountURL
+  }
+
+  /// Validates the server, then registers its provider so any pane can browse it.
+  private func connectRemote(_ profile: ConnectionProfile, password: String?) async throws {
+    isConnecting = true
+    defer { isConnecting = false }
+    let secret = password.flatMap { $0.isEmpty ? nil : $0 } ?? credentials.password(for: profile.id)
+    let provider = try remoteFactory(profile, secret)
+    try await provider.validate(root: profile.rootPath)
+    if let previous = open.first(where: { $0.id == profile.id }) {
+      registry.unregister(id: previous.root.providerID)
+      open.removeAll { $0.id == profile.id }
+    }
+    registry.register(provider)
+    open.append(
+      OpenConnection(
+        profile: profile, root: Location(providerID: provider.id, path: profile.rootPath),
+        mountURL: nil))
   }
 
   /// Applies Settings › General › Open remote connections in.
@@ -146,36 +192,43 @@ struct OpenConnection: Identifiable, Equatable {
 
   func reveal(_ connection: OpenConnection, in browser: BrowserModel) async {
     let pane = placementPane(in: browser)
-    await browser.navigate(
-      to: Location(providerID: "local", path: connection.mountURL.path), in: pane)
+    await browser.navigate(to: connection.root, in: pane)
   }
 
   func connectAndReveal(
     _ profile: ConnectionProfile, password: String? = nil, in browser: BrowserModel
   ) async throws {
-    guard let mountURL = try await connect(profile, password: password),
-      let connection = open.first(where: { $0.mountURL == mountURL.standardizedFileURL })
-    else { return }
+    try await connect(profile, password: password)
+    guard let connection = open.first(where: { $0.id == profile.id }) else { return }
     await reveal(connection, in: browser)
   }
 
-  func disconnect(_ connection: OpenConnection) throws {
-    try NSWorkspace.shared.unmountAndEjectDevice(at: connection.mountURL)
+  func disconnect(_ connection: OpenConnection, in browser: BrowserModel, home: Location)
+    async throws
+  {
+    if let mountURL = connection.mountURL {
+      try NSWorkspace.shared.unmountAndEjectDevice(at: mountURL)
+    } else {
+      registry.unregister(id: connection.root.providerID)
+      open.removeAll { $0.id == connection.id }
+      await browser.handleDisconnect(providerID: connection.root.providerID, home: home)
+    }
   }
 
   func handleUnmount(at url: URL) {
     let path = url.standardizedFileURL.path
-    open.removeAll { $0.mountURL.path == path }
+    open.removeAll { $0.mountURL?.path == path }
   }
 
-  /// The Base URL for a location below an open connection's mount (M08.02).
+  /// The Base URL for a location below an open connection's root (M08.02).
   func publicURL(for location: Location) -> URL? {
-    guard location.providerID == "local" else { return nil }
     for connection in open {
-      let root = connection.mountURL.path
-      guard location.path == root || location.path.hasPrefix(root + "/") else { continue }
+      let root = connection.root
+      guard location.providerID == root.providerID else { continue }
+      let prefix = root.path == "/" ? "" : root.path
+      guard location.path == root.path || location.path.hasPrefix(prefix + "/") else { continue }
       return connection.profile.publicURL(
-        forRelativePath: String(location.path.dropFirst(root.count)))
+        forRelativePath: String(location.path.dropFirst(prefix.count)))
     }
     return nil
   }
