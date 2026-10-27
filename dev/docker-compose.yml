@@ -1,0 +1,134 @@
+# Local stand-ins for the servers FileTerm connects to (docs/milestones/M08-connections-remote.md).
+#
+#   docker-compose -f dev/docker-compose.yml up -d                  # core servers
+#   docker-compose -f dev/docker-compose.yml --profile os up -d     # + SMB, NFS, VNC
+#   docker-compose -f dev/docker-compose.yml --profile swift up -d  # + OpenStack Swift
+#   docker-compose -f dev/docker-compose.yml down
+#
+# Everyone uses the same login:  tester / testpass123  (VNC: password only).
+# Files live in dev/data/<service>/ (git-ignored). Everything listens on 127.0.0.1.
+#
+# | Protocol in FileTerm     | Server        | Port  | Notes                                   |
+# |--------------------------|---------------|-------|-----------------------------------------|
+# | WebDAV                   | 127.0.0.1     | 8080  | basic auth, root path /                 |
+# | WebDAV (second server)   | 127.0.0.1     | 8081  | for server-to-server copy tests         |
+# | Amazon S3 / Backblaze B2 | http://127.0.0.1 | 9000 | buckets "test" and "test2"           |
+# | FTP / FTP-TLS (explicit) | 127.0.0.1     | 2121  | passive 30000-30009; self-signed cert   |
+# | SFTP                     | 127.0.0.1     | 2222  | work inside /upload                     |
+# | SMB   (profile os)       | 127.0.0.1     | 1445  | share "share"; non-standard port        |
+# | NFS   (profile os)       | 127.0.0.1     | 2049  | experimental, needs a privileged VM     |
+# | VNC   (profile os)       | 127.0.0.1     | 5901  | password testpass123                    |
+# | Swift (profile swift)    | 127.0.0.1     | 8082  | user test:tester, key testing           |
+#
+# Not simulated: Google Drive, OneDrive and Dropbox (vendor OAuth APIs have no local emulator),
+# Rackspace Cloud Files proper (Swift above covers the object API, not Rackspace's identity
+# service), and AFP (macOS 26 no longer ships an AFP client).
+#
+# These images have not been run by the project's CI. On Apple Silicon some run under emulation.
+
+
+services:
+  webdav:
+    image: bytemark/webdav
+    restart: unless-stopped
+    ports: ["8080:80"]
+    environment:
+      AUTH_TYPE: Basic
+      USERNAME: tester
+      PASSWORD: testpass123
+    volumes: ["./data/webdav:/var/lib/dav"]
+
+  webdav2:
+    image: bytemark/webdav
+    restart: unless-stopped
+    ports: ["8081:80"]
+    environment:
+      AUTH_TYPE: Basic
+      USERNAME: tester
+      PASSWORD: testpass123
+    volumes: ["./data/webdav2:/var/lib/dav"]
+
+  # S3-compatible gateway (MinIO no longer publishes images). Buckets are folders in ./data/s3.
+  s3:
+    image: ghcr.io/versity/versitygw
+    restart: unless-stopped
+    command: ["--access", "tester", "--secret", "testpass123", "posix", "/data"]
+    ports: ["9000:7070"]
+    volumes: ["./data/s3:/data"]
+
+  s3-setup:
+    image: amazon/aws-cli
+    depends_on: [s3]
+    restart: "no"
+    environment:
+      AWS_ACCESS_KEY_ID: tester
+      AWS_SECRET_ACCESS_KEY: testpass123
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for bucket in test test2; do
+          until aws --endpoint-url http://s3:7070 s3 mb s3://$$bucket 2>/dev/null \
+            || aws --endpoint-url http://s3:7070 s3api head-bucket --bucket $$bucket 2>/dev/null; do
+            sleep 1
+          done
+        done
+
+  ftp:
+    image: stilliard/pure-ftpd
+    restart: unless-stopped
+    ports: ["2121:21", "30000-30009:30000-30009"]
+    environment:
+      PUBLICHOST: 127.0.0.1
+      FTP_USER_NAME: tester
+      FTP_USER_PASS: testpass123
+      FTP_USER_HOME: /home/tester
+      # --tls=1 accepts both plain FTP and explicit TLS (FTP-TLS); the image makes a
+      # self-signed certificate from the TLS_* values.
+      ADDED_FLAGS: "--tls=1"
+      TLS_CN: localhost
+      TLS_ORG: FileTerm
+      TLS_C: US
+    volumes: ["./data/ftp:/home/tester"]
+
+  sftp:
+    image: atmoz/sftp
+    restart: unless-stopped
+    ports: ["2222:22"]
+    command: tester:testpass123:::upload
+    volumes: ["./data/sftp:/home/tester/upload"]
+
+  samba:
+    image: dperson/samba
+    profiles: [os]
+    restart: unless-stopped
+    ports: ["1445:445"]
+    command: -u "tester;testpass123" -s "share;/share;yes;no;no;tester" -p
+    volumes: ["./data/samba:/share"]
+
+  nfs:
+    image: erichough/nfs-server
+    profiles: [os]
+    restart: unless-stopped
+    privileged: true
+    ports: ["2049:2049"]
+    environment:
+      NFS_EXPORT_0: "/export *(rw,no_subtree_check,fsid=0,insecure,no_root_squash)"
+    volumes:
+      - ./data/nfs:/export
+      - /lib/modules:/lib/modules:ro
+
+  vnc:
+    image: consol/ubuntu-xfce-vnc
+    profiles: [os]
+    restart: unless-stopped
+    ports: ["5901:5901", "6901:6901"]
+    environment:
+      VNC_PW: testpass123
+
+  swift:
+    image: bouncestorage/swift-aio
+    profiles: [swift]
+    restart: unless-stopped
+    ports: ["8082:8080"]
+    volumes: ["./data/swift:/srv"]

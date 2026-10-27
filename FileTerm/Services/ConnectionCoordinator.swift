@@ -72,10 +72,19 @@ typealias RemoteProviderFactory =
 func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
   -> any ValidatingProvider
 {
-  guard profile.kind.isWebDAV else { throw ConnectionProfileError.unsupportedURL }
-  return WebDAVProvider(
-    id: "webdav.\(profile.id.uuidString)", baseURL: try profile.webDAVBaseURL(),
-    username: profile.username.isEmpty ? nil : profile.username, password: password)
+  let user = profile.username.isEmpty ? nil : profile.username
+  if profile.kind.isWebDAV {
+    return WebDAVProvider(
+      id: "webdav.\(profile.id.uuidString)", baseURL: try profile.webDAVBaseURL(),
+      username: user, password: password)
+  }
+  guard profile.kind.isObjectStore else { throw ConnectionProfileError.unsupportedURL }
+  guard let user, let password, !password.isEmpty else {
+    throw ConnectionProfileError.missingCredentials
+  }
+  return S3Provider(
+    id: "s3.\(profile.id.uuidString)", endpoint: try profile.objectStoreEndpoint(),
+    region: profile.resolvedRegion, accessKey: user, secretKey: password)
 }
 
 @MainActor @Observable final class ConnectionCoordinator {
@@ -136,7 +145,7 @@ func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
       }
       return nil
     }
-    if profile.kind.isWebDAV {
+    if profile.kind.usesProvider {
       try await connectRemote(profile, password: password)
       return nil
     }

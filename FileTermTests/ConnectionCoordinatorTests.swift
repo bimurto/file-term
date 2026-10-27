@@ -126,6 +126,38 @@ private actor FakeRemote: ValidatingProvider {
       coordinator.publicURL(for: Location(providerID: root.providerID, path: "/other")) == nil)
   }
 
+  @Test func objectStoreConnectOpensTheBucketAndRegistersItsProvider() async throws {
+    let (coordinator, registry) = try makeRemote()
+    var profile = ConnectionProfile(kind: .s3)
+    profile.username = "AKID"
+    profile.path = "photos/2026"
+    let browser = BrowserModel(registry: registry)
+    try await coordinator.connectAndReveal(profile, password: "secret", in: browser)
+    let id = "webdav.\(profile.id.uuidString)"  // the fake factory names every provider this way
+    #expect(registry.provider(for: id) != nil)
+    #expect(browser.secondPane.location == Location(providerID: id, path: "/photos/2026"))
+  }
+
+  @Test func providerFactoryValidatesObjectStoreSettings() throws {
+    var b2 = ConnectionProfile(kind: .b2)
+    b2.username = "keyID"
+    #expect(throws: ConnectionProfileError.missingServer) {
+      try makeRemoteProvider(b2, password: "key")
+    }
+    b2.server = "s3.us-west-004.backblazeb2.com"
+    #expect(throws: ConnectionProfileError.missingCredentials) {
+      try makeRemoteProvider(b2, password: nil)
+    }
+    let provider = try makeRemoteProvider(b2, password: "key")
+    #expect(provider.id == "s3.\(b2.id.uuidString)")
+    var dav = ConnectionProfile(kind: .webdav)
+    dav.server = "dav.local"
+    #expect(try makeRemoteProvider(dav, password: nil).id == "webdav.\(dav.id.uuidString)")
+    #expect(throws: ConnectionProfileError.unsupportedURL) {
+      try makeRemoteProvider(ConnectionProfile(kind: .smb), password: nil)
+    }
+  }
+
   private func smb() -> ConnectionProfile {
     var profile = ConnectionProfile(kind: .smb)
     profile.server = "nas.local"

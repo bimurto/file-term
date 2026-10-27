@@ -27,8 +27,8 @@
 - [x] Rejects non-WebDAV endpoints with a clear error (an ordinary website URL is not a WebDAV endpoint).
 
 ### M08.06 Amazon S3 & Backblaze B2
-- [ ] Bucket and object listing, with prefixes shown as folders.
-- [ ] Access and permission errors are reported for each bucket.
+- [x] Bucket and object listing, with prefixes shown as folders.
+- [x] Access and permission errors are reported for each bucket.
 
 ### M08.07 Google Drive, OneDrive, Dropbox
 - [ ] OAuth sign-in in the browser that returns to the app.
@@ -68,7 +68,7 @@ form; pressing Connect names the ticket that adds them.
 | T2 Remote provider plumbing + WebDAV | M08.05, .13 (multiple connections) | Done |
 | T3 Cross-provider copy through the M07 queue | M08.13 (server-to-server) | Done |
 | T3b Remote move, delete, rename, new folder, paste, drag; open remote files via temp download | Follow-up to T3 | Open |
-| T4 Amazon S3 & Backblaze B2 | M08.06 | Open |
+| T4 Amazon S3 & Backblaze B2 | M08.06 | Done |
 | T5 FTP & FTP-TLS | M08.04 | Open |
 | T6 SFTP, host-key prompt, SSH terminal | M08.03 | Open |
 | T7 Text encoding | M08.12 | Open |
@@ -124,3 +124,26 @@ form; pressing Connect names the ticket that adds them.
 - Not preserved across locations: permissions, ownership, extended attributes and modification
   dates. Symbolic links and special files are skipped and counted as skipped.
 - Cross-provider copies add no undo entry.
+
+## T4 notes
+
+- One `S3Provider` serves Amazon S3, Backblaze B2 (through its S3-compatible API) and other
+  S3-compatible servers such as MinIO. Requests use AWS Signature V4 (`S3Signer`, checked against
+  the examples published by AWS) and path-style addressing (`https://endpoint/bucket/key`).
+- Endpoint: a bare host uses https; `http://host` is accepted for local servers. S3 defaults to
+  Amazon when empty; B2 needs its `s3.<region>.backblazeb2.com` endpoint. The Advanced Region field
+  falls back to the region in the host name, then us-east-1. Credentials are the access key ID and
+  secret (B2: application key ID and key), the secret in the keychain.
+- Path takes `bucket/prefix`. With no bucket the root lists buckets. Restricted keys that cannot
+  list buckets are told to enter the bucket in Path.
+- Permission errors name the bucket they belong to. A bucket in another region is retried once in
+  its own region, which is remembered.
+- Folders are key prefixes; New Folder (inside Copy) writes a zero-byte `prefix/` marker.
+  Buckets cannot be created or deleted.
+- Uploads and server-side copies are single requests, so files over 5 GB are refused (multipart
+  is follow-up work). A move is CopyObject plus DeleteObject.
+- Uploads use `If-None-Match: *`; stores that do not support it (HTTP 501) fall back to a HEAD
+  check, which is not atomic.
+- Not covered: presigned URLs, object versions, storage classes, ACLs, and public-URL generation
+  beyond the connection's Base URL. Reads on a bucket in an unseen region fail until a listing has
+  discovered its region.

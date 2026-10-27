@@ -95,4 +95,54 @@ import Testing
     profile.name = "Backup"
     #expect(profile.displayName == "Backup")
   }
+
+  @Test func resolvesObjectStoreEndpointsAndRegions() throws {
+    var s3 = ConnectionProfile(kind: .s3)
+    #expect(try s3.objectStoreEndpoint().absoluteString == "https://s3.amazonaws.com")
+    s3.region = "eu-west-1"
+    #expect(try s3.objectStoreEndpoint().absoluteString == "https://s3.eu-west-1.amazonaws.com")
+    #expect(s3.resolvedRegion == "eu-west-1")
+    s3.region = ""
+    s3.server = "http://127.0.0.1"
+    s3.port = 9000
+    #expect(try s3.objectStoreEndpoint().absoluteString == "http://127.0.0.1:9000")
+    #expect(s3.resolvedRegion == "us-east-1")
+    s3.port = nil
+    s3.server = "localhost:9000"
+    #expect(try s3.objectStoreEndpoint().absoluteString == "https://localhost:9000")
+    s3.server = "ftp://host"
+    #expect(throws: ConnectionProfileError.invalidServer) { try s3.objectStoreEndpoint() }
+
+    var b2 = ConnectionProfile(kind: .b2)
+    #expect(throws: ConnectionProfileError.missingServer) { try b2.objectStoreEndpoint() }
+    b2.server = "s3.us-west-004.backblazeb2.com"
+    #expect(b2.resolvedRegion == "us-west-004")
+    #expect(try b2.objectStoreEndpoint().host == "s3.us-west-004.backblazeb2.com")
+    b2.server = "s3-us-west-2.amazonaws.com"
+    #expect(b2.resolvedRegion == "us-west-2")
+    #expect(throws: ConnectionProfileError.unsupportedURL) {
+      try ConnectionProfile(kind: .smb).objectStoreEndpoint()
+    }
+  }
+
+  @Test func objectStoresShowKeyLabelsAndRegion() {
+    #expect(ConnectionKind.s3.usernameTitle == "Access Key ID")
+    #expect(ConnectionKind.b2.passwordTitle == "Application Key")
+    #expect(
+      ConnectionKind.s3.serverTitle == "Endpoint" && ConnectionKind.smb.serverTitle == "Server")
+    #expect(ConnectionKind.s3.advancedFields.contains(.region))
+    #expect(ConnectionKind.s3.availability == .available && ConnectionKind.b2.usesProvider)
+  }
+
+  @Test func profilesSavedBeforeRegionExistedStillDecode() throws {
+    let id = UUID()
+    let json = """
+      {"id":"\(id.uuidString)","kind":"webdav","name":"Old","server":"dav.local",
+       "username":"ann","path":"files","localPath":"","baseURL":"","textEncoding":"UTF-8",
+       "note":"","colorLabel":"","isFavorite":true}
+      """
+    let profile = try JSONDecoder().decode(ConnectionProfile.self, from: Data(json.utf8))
+    #expect(profile.id == id && profile.region == "" && profile.isFavorite)
+    #expect(profile.name == "Old" && profile.server == "dav.local")
+  }
 }

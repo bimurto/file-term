@@ -75,7 +75,7 @@ public actor WebDAVProvider: ValidatingProvider {
       throw FileSystemError.unsupportedOperation
     }
     try Self.check(http.statusCode)
-    return WebDAVByteReader(bytes: bytes.makeAsyncIterator())
+    return HTTPByteReader(bytes: bytes.makeAsyncIterator())
   }
 
   public func write(_ contents: any FileByteReader, to location: Location) async throws {
@@ -173,7 +173,7 @@ public actor WebDAVProvider: ValidatingProvider {
     }
   }
 
-  private static func isCertificateError(_ error: URLError) -> Bool {
+  static func isCertificateError(_ error: URLError) -> Bool {
     [
       .serverCertificateUntrusted, .serverCertificateHasBadDate, .serverCertificateHasUnknownRoot,
       .serverCertificateNotYetValid, .secureConnectionFailed,
@@ -222,7 +222,7 @@ private final class WebDAVAuthenticator: NSObject, URLSessionTaskDelegate, @unch
 }
 
 /// Single-consumer reader: callers pull chunks one at a time, as the transfer engine does.
-private final class WebDAVByteReader: FileByteReader, @unchecked Sendable {
+final class HTTPByteReader: FileByteReader, @unchecked Sendable {
   private var bytes: URLSession.AsyncBytes.AsyncIterator
   private var finished = false
 

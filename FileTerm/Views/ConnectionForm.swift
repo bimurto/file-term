@@ -76,14 +76,17 @@ struct ConnectionFormSheet: View {
         .accessibilityIdentifier("connectionProtocol")
         .onChange(of: model.profile.kind) { _, _ in model.profile.port = nil }
         if kind.usesServer {
-          TextField("Server", text: $model.profile.server)
-            .accessibilityIdentifier("connectionServer")
+          TextField(
+            kind.serverTitle, text: $model.profile.server,
+            prompt: Text(kind == .s3 ? "s3.amazonaws.com (default)" : "")
+          )
+          .accessibilityIdentifier("connectionServer")
         }
         if kind.usesCredentials {
-          TextField("Username", text: $model.profile.username)
+          TextField(kind.usernameTitle, text: $model.profile.username)
             .accessibilityIdentifier("connectionUsername")
           SecureField(
-            "Password", text: $model.password,
+            kind.passwordTitle, text: $model.password,
             prompt: Text(model.isEditing ? "Leave empty to keep the saved password" : "")
           )
           .accessibilityIdentifier("connectionPassword")
@@ -131,7 +134,11 @@ struct ConnectionFormSheet: View {
       TextField(
         "Port", value: $model.profile.port, format: .number.grouping(.never),
         prompt: Text(kind.defaultPort.map(String.init) ?? "Default"))
-    case .path: TextField("Path", text: $model.profile.path)
+    case .region:
+      TextField("Region", text: $model.profile.region, prompt: Text(model.profile.resolvedRegion))
+    case .path:
+      TextField(
+        kind.isObjectStore ? "Bucket / Prefix" : "Path", text: $model.profile.path)
     case .localPath: TextField("Local Path", text: $model.profile.localPath)
     case .baseURL: TextField("Base URL", text: $model.profile.baseURL)
     case .textEncoding:
