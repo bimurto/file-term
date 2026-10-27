@@ -171,6 +171,7 @@ import UniformTypeIdentifiers
     }
     settings.savedWindows = windows.map { $0.snapshot() }
     for controller in windows { controller.terminal.closeAll() }
+    FileOperationCoordinator.removeTemporaryDownloads()
     return .terminateNow
   }
 
@@ -867,7 +868,7 @@ import UniformTypeIdentifiers
       condition: @escaping () -> Bool = { true },
       reason: @escaping () -> String = {
         "Open a local folder and select the required items. Pane transfers need two panes. "
-          + "Remote locations support Copy to… only."
+          + "Remote locations support Copy to…, Move to…, Rename, Delete, New Folder and Open."
       },
       action: @escaping () -> Void
     ) -> AppCommand {
@@ -897,7 +898,10 @@ import UniformTypeIdentifiers
       ("file.newFile", "New File", DefaultShortcuts.newFile, false, false),
     ] {
       result.append(
-        command(id, title, menu: ["File"], shortcut: shortcut, selection: selected) { [weak self] in
+        command(
+          id, title, menu: ["File"], shortcut: shortcut, selection: selected,
+          anyProvider: id == "file.newFolder"
+        ) { [weak self] in
           guard let self else { return }
           fileOperations.create(
             browser.activePane, directory: directory, withSelection: selected, window: browserWindow
@@ -905,8 +909,10 @@ import UniformTypeIdentifiers
         })
     }
     result.append(
-      command("file.open", "Open", menu: ["File"], shortcut: DefaultShortcuts.open, selection: true)
-      { [weak self] in
+      command(
+        "file.open", "Open", menu: ["File"], shortcut: DefaultShortcuts.open, selection: true,
+        anyProvider: true
+      ) { [weak self] in
         guard let self else { return }
         fileOperations.open(browser)
       })
@@ -936,7 +942,7 @@ import UniformTypeIdentifiers
     ] {
       result.append(
         command(
-          id, title, selection: true, target: true, anyProvider: !move,
+          id, title, selection: true, target: true, anyProvider: true,
           condition: { [weak self] in !renamed || self?.browser.activePane.selection.count == 1 }
         ) { [weak self] in
           guard let self else { return }
@@ -946,7 +952,7 @@ import UniformTypeIdentifiers
     result.append(
       command(
         "edit.moveItemsHere", "Move Items Here", menu: ["Edit"],
-        shortcut: Shortcut(key: "v", modifiers: [.command, .option]),
+        shortcut: Shortcut(key: "v", modifiers: [.command, .option]), anyProvider: true,
         condition: { [weak self] in self?.fileOperations.clipboardURLs.isEmpty == false }
       ) { [weak self] in
         guard let self else { return }
@@ -961,14 +967,14 @@ import UniformTypeIdentifiers
         fileOperations.duplicate(browser.activePane, window: browserWindow)
       })
     result.append(
-      command("commands.rename", "Rename", selection: true) { [weak self] in
+      command("commands.rename", "Rename", selection: true, anyProvider: true) { [weak self] in
         guard let self else { return }
         fileOperations.startRename(browser.activePane, window: browserWindow)
       })
     result.append(
       command(
         "file.trash", "Move to Trash", menu: ["File"],
-        shortcut: Shortcut(key: "\u{7F}", command: true), selection: true
+        shortcut: Shortcut(key: "\u{7F}", command: true), selection: true, anyProvider: true
       ) { [weak self] in
         guard let self else { return }
         fileOperations.trash(browser.activePane, window: browserWindow)

@@ -70,6 +70,32 @@ public actor ProviderTransfer {
     return outcomes
   }
 
+  /// Copies, then deletes the sources. The sources are deleted only when every item was copied:
+  /// a skipped or failed item, or a Stop, leaves all of them in place.
+  public func move(sources: [Location], to folder: Location, newName: String? = nil)
+    async throws -> TransferSummary
+  {
+    if sources.contains(where: {
+      $0.providerID == folder.providerID && Self.parentPath($0.path) == folder.path
+        && (newName == nil || newName == ($0.path as NSString).lastPathComponent)
+    }) {
+      throw FileSystemError.io("The items are already in this folder.")
+    }
+    let summary = try await copy(sources: sources, to: folder, newName: newName)
+    guard summary.failed == 0, summary.skipped == 0, !stopped else {
+      log("Sources kept: not every item was moved")
+      return summary
+    }
+    for source in sources {
+      try await control.checkpoint()
+      do { try await provider(source.providerID).delete(source) } catch {
+        throw PartialTransferError(
+          "Copied, but could not delete \(source.path): \(error.localizedDescription)")
+      }
+    }
+    return summary
+  }
+
   // MARK: Items
 
   private func copyItem(_ entry: FileEntry, to destination: Location) async throws {

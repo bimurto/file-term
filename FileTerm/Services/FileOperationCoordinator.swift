@@ -39,6 +39,7 @@ import FileTermCore
   }
 
   func bindRename(_ pane: PaneModel, window: NSWindow?) {
+    if isRemote(pane) { return bindRemoteRename(pane) }
     pane.onRename = { [weak self, weak pane, weak window] location, name in
       guard let self, let pane else { return }
       let source = URL(fileURLWithPath: location.path)
@@ -79,6 +80,7 @@ import FileTermCore
 
   func create(_ pane: PaneModel, directory: Bool, withSelection: Bool, window: NSWindow?) {
     guard let location = pane.location else { return }
+    if isRemote(pane) { return createRemoteFolder(pane) }
     let destination = URL(fileURLWithPath: location.path)
     let sources = withSelection ? localURLs(pane) : []
     bindRename(pane, window: window)
@@ -104,11 +106,16 @@ import FileTermCore
     asNewName: Bool = false, window: NSWindow?
   ) {
     let pane = browser.activePane
-    if !move, !clipboard, let source = pane.location,
+    if clipboard, let location = pane.location, location.providerID != "local" {
+      let sources = clipboardURLs.map { Location(providerID: "local", path: $0.path) }
+      submitProviderCopy(sources: sources, to: location, move: move, window: window)
+      return
+    }
+    if !clipboard, let source = pane.location,
       let destination = browser.targetPane?.location,
       source.providerID != "local" || destination.providerID != "local"
     {
-      transferAcrossProviders(browser, asNewName: asNewName, window: window)
+      transferAcrossProviders(browser, move: move, asNewName: asNewName, window: window)
       return
     }
     let target = clipboard ? pane : browser.targetPane
@@ -148,11 +155,13 @@ import FileTermCore
   }
 
   /// Copy to… / Copy to as… when either side is not a local folder (M08.13).
-  func transferAcrossProviders(_ browser: BrowserModel, asNewName: Bool, window: NSWindow?) {
+  func transferAcrossProviders(
+    _ browser: BrowserModel, move: Bool = false, asNewName: Bool, window: NSWindow?
+  ) {
     let entries = browser.activePane.selectedEntries
     guard let destination = browser.targetPane?.location, !entries.isEmpty else { return }
     let alert = NSAlert()
-    alert.messageText = "Copy \(entries.count) item(s)?"
+    alert.messageText = "\(move ? "Move" : "Copy") \(entries.count) item(s)?"
     let more = entries.count > 1 ? " and \(entries.count - 1) more" : ""
     alert.informativeText =
       "From: \(describe(entries[0].location))\(more)\nTo: \(describe(destination))"
@@ -161,11 +170,11 @@ import FileTermCore
       field.frame = NSRect(x: 0, y: 0, width: 360, height: 24)
       alert.accessoryView = field
     }
-    alert.addButton(withTitle: "Copy")
+    alert.addButton(withTitle: move ? "Move" : "Copy")
     alert.addButton(withTitle: "Cancel")
     guard alert.runModal() == .alertFirstButtonReturn else { return }
     submitProviderCopy(
-      sources: entries.map(\.location), to: destination,
+      sources: entries.map(\.location), to: destination, move: move,
       newName: asNewName ? field.stringValue : nil, window: window)
   }
 
@@ -193,7 +202,8 @@ import FileTermCore
 
   @discardableResult
   func submitProviderCopy(
-    sources: [Location], to destination: Location, newName: String? = nil, window: NSWindow?
+    sources: [Location], to destination: Location, move: Bool = false, newName: String? = nil,
+    window: NSWindow?
   ) -> UUID? {
     guard !sources.isEmpty else { return nil }
     let policy = preferences()
@@ -201,7 +211,7 @@ import FileTermCore
     let reference = JobReference()
     let registry = registry
     let id = transfers.submit(
-      kind: .copy, resources: Self.resources(for: sources + [destination]),
+      kind: move ? .move : .copy, resources: Self.resources(for: sources + [destination]),
       direction: Self.direction(from: sources, to: destination),
       sourceLabels: sources.map(describe), destinationLabel: describe(destination)
     ) { control in
@@ -220,7 +230,10 @@ import FileTermCore
       }
       do {
         try await control.checkpoint()
-        let summary = try await transfer.copy(sources: sources, to: destination, newName: newName)
+        let summary =
+          move
+          ? try await transfer.move(sources: sources, to: destination, newName: newName)
+          : try await transfer.copy(sources: sources, to: destination, newName: newName)
         await self.refresh?()
         return summary
       } catch {
@@ -241,6 +254,7 @@ import FileTermCore
   }
 
   func trash(_ pane: PaneModel, window: NSWindow?) {
+    if isRemote(pane) { return deleteRemote(pane) }
     let sources = localURLs(pane)
     run(kind: .delete, sources: sources, pane: pane, window: window) { operations in
       _ = try await operations.trash(sources: sources)
@@ -429,6 +443,7 @@ import FileTermCore
   }
 
   func open(_ browser: BrowserModel, packageContents: Bool = false, application: URL? = nil) {
+    if isRemote(browser.activePane) { return openRemote(browser) }
     let paneID = browser.activePaneID
     let entries = browser.activePane.selectedEntries
     for entry in entries {

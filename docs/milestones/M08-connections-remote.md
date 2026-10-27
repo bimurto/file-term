@@ -67,7 +67,7 @@ form; pressing Connect names the ticket that adds them.
 | T1 Connection foundation + OS-networked mounts | M08.01, .02, .09, .10, .11, .14 | Done |
 | T2 Remote provider plumbing + WebDAV | M08.05, .13 (multiple connections) | Done |
 | T3 Cross-provider copy through the M07 queue | M08.13 (server-to-server) | Done |
-| T3b Remote move, delete, rename, new folder, paste, drag; open remote files via temp download | Follow-up to T3 | Open |
+| T3b Remote move, delete, rename, new folder, paste; open remote files via temp download | Follow-up to T3 | Done (drag and drop left out) |
 | T4 Amazon S3 & Backblaze B2 | M08.06 | Done |
 | T5 FTP & FTP-TLS | M08.04 | Open |
 | T6 SFTP, host-key prompt, SSH terminal | M08.03 | Open |
@@ -124,6 +124,24 @@ form; pressing Connect names the ticket that adds them.
 - Not preserved across locations: permissions, ownership, extended attributes and modification
   dates. Symbolic links and special files are skipped and counted as skipped.
 - Cross-provider copies add no undo entry.
+
+## T3b notes
+
+- In a remote pane these now work: Open, Rename, New Folder, Move to…, Move Items Here, Paste
+  (local files from the clipboard) and Move to Trash. Duplicate, New File, New Folder With
+  Selection, Open With and Undo stay local-only.
+- Move to Trash on a remote item is a permanent delete after a confirmation. It cannot be undone.
+- Move to… involving a remote side copies first, then deletes the sources. The sources are kept
+  if any item was skipped, failed or the copy was stopped. Moving into the same folder is refused.
+  A local source moved to a server is deleted permanently, not trashed.
+- Rename checks that the name is free. In S3/B2 only an empty folder can be renamed or moved (a
+  folder is only a key prefix); one with items must be copied. WebDAV renames folders natively.
+- `FILETERM_LIVE=1 swift test --disable-sandbox --filter LiveServerTests` runs the edit and move
+  checks against the servers in `dev/docker-compose.yml`.
+- Open downloads the file to a temporary folder as a queue job and opens it with the default
+  application. Edits are not uploaded back. The temporary folder is removed on quit.
+- Not done: drag and drop to or from remote panes (the app has no drop targets yet), copying
+  remote items to the clipboard.
 
 ## T4 notes
 

@@ -187,7 +187,10 @@ public actor S3Provider: ValidatingProvider {
       throw FileSystemError.unsupportedOperation
     }
     let original = try await stat(source)
-    guard original.kind == .file else { throw FileSystemError.unsupportedOperation }
+    guard original.kind == .file else {
+      try await moveEmptyFolder(bucket: sourceBucket, key: sourceKey, to: (bucket, key))
+      return
+    }
     if (original.size ?? 0) > singleRequestLimit { throw S3Error.tooLarge }
     if try await objectExists(bucket: bucket, key: key) { throw FileSystemError.destinationExists }
     var copy = request("PUT", bucket: bucket, key: key)
@@ -197,6 +200,27 @@ public actor S3Provider: ValidatingProvider {
     let (data, response) = try await perform(copy, bucket: bucket)
     try check(response, data: data, bucket: bucket)
     try await deleteObject(bucket: sourceBucket, key: sourceKey)
+  }
+
+  /// A folder is only a key prefix, so only an empty one (just its marker) can be moved.
+  private func moveEmptyFolder(bucket: String, key: String, to destination: (String, String))
+    async throws
+  {
+    let prefix = Self.folderPrefix(key)
+    let contents = try await listPage(
+      bucket: bucket, prefix: prefix, delimiter: false, token: nil, limit: 2)
+    guard contents.objects.allSatisfy({ $0.key == prefix }), contents.prefixes.isEmpty else {
+      throw FileSystemError.io(
+        "Folders with items in object storage cannot be renamed or moved. Copy them instead.")
+    }
+    let target = Self.folderPrefix(destination.1)
+    let existing = try await listPage(
+      bucket: destination.0, prefix: target, delimiter: false, token: nil, limit: 1)
+    guard existing.objects.isEmpty else { throw FileSystemError.destinationExists }
+    let marker = request("PUT", bucket: destination.0, key: target)
+    let (data, response) = try await perform(marker, bucket: destination.0)
+    try check(response, data: data, bucket: destination.0)
+    try await deleteObject(bucket: bucket, key: prefix)
   }
 
   public func createDirectory(_ location: Location) async throws {

@@ -57,6 +57,7 @@
 		B6F720D12A93B009A6673E54 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DC0CE81A8B6F13514020EE /* CredentialStore.swift */; };
 		C07D13270FD5220EC288DCB3 /* TransferSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E96F788AE8C30380683520 /* TransferSettingsTests.swift */; };
 		C0C63815F6DBB38D1C6EC547 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7D61C8DE32E2BFDB2C0FC3 /* main.swift */; };
+		C189AE31558133FD53A0ED7B /* FileOperationCoordinator+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */; };
 		C287A0321870963A85164690 /* PaneTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCFB06361D11DA221744D7C /* PaneTabBar.swift */; };
 		C4474E14FA57D2520322BFAA /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D483E6A7975E0538C696081 /* FolderWatcher.swift */; };
 		D6737E253E9C71DDCF0DCD50 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E4E4D917C96AB62ABB605E /* AppSettings.swift */; };
@@ -147,6 +148,7 @@
 		9ABBE0A5FF7F9D17EE0DB14E /* BrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
 		9C85B5D01AFA8DC93ACF54A6 /* BrowserWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWindowController.swift; sourceTree = "<group>"; };
 		9FD263E41E833AB5F62AAF16 /* FilePreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewTests.swift; sourceTree = "<group>"; };
+		A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+Remote.swift"; sourceTree = "<group>"; };
 		A6D449AF50B7F247929B7125 /* QuickOpenSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickOpenSheet.swift; sourceTree = "<group>"; };
 		AAB56E1FAD8BBF17F8C90C3D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B400667AA697F5C52E7E4063 /* TerminalSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSettings.swift; sourceTree = "<group>"; };
@@ -330,6 +332,7 @@
 				C1DC0CE81A8B6F13514020EE /* CredentialStore.swift */,
 				E2B6D81AF101F9349284282D /* FileMetadataService.swift */,
 				06E54F3B1A88E09053B58B87 /* FileOperationCoordinator.swift */,
+				A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */,
 				0DBF840FFE04CC5F96F1814A /* FilePreviewCoordinator.swift */,
 				6BA026A229572C46FC23F25D /* FileUtilityCoordinator.swift */,
 				4D483E6A7975E0538C696081 /* FolderWatcher.swift */,
@@ -513,6 +516,7 @@
 				5541AB42821FCD706D96624C /* DeviceModel.swift in Sources */,
 				DD35E4153C841353CCDE3C50 /* FileContentView.swift in Sources */,
 				8C8CF6975EA756CA2BC30F24 /* FileMetadataService.swift in Sources */,
+				C189AE31558133FD53A0ED7B /* FileOperationCoordinator+Remote.swift in Sources */,
 				E14D880CAAED820ABA416AC9 /* FileOperationCoordinator.swift in Sources */,
 				9D4F4D85C8B702B6095E4432 /* FilePreviewContentView.swift in Sources */,
 				F628FB003527B4CA73613BC3 /* FilePreviewCoordinator.swift in Sources */,
