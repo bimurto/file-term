@@ -145,6 +145,13 @@ struct ConnectionFormSheet: View {
       Picker("Text Encoding", selection: $model.profile.textEncoding) {
         ForEach(Self.encodings, id: \.self) { Text($0).tag($0) }
       }
+    case .ftpMode:
+      Picker("Transfer Mode", selection: $model.profile.ftpActiveMode) {
+        Text("Passive").tag(false)
+        Text("Active").tag(true)
+      }
+    case .allowInvalidCertificate:
+      Toggle("Allow invalid certificate", isOn: $model.profile.allowInvalidCertificate)
     case .note: TextField("Note", text: $model.profile.note)
     case .colorLabel:
       Picker("Color Label", selection: $model.profile.colorLabel) {

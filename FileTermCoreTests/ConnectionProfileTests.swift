@@ -35,6 +35,7 @@ import Testing
     #expect(!ConnectionKind.smb.advancedFields.contains(.textEncoding))
     #expect(ConnectionKind.smb.availability == .available)
     #expect(ConnectionKind.sftp.availability == .plannedIn("T6"))
+    #expect(ConnectionKind.ftp.availability == .available && ConnectionKind.ftps.usesProvider)
     #expect(ConnectionKind.webdav.availability == .available)
   }
 
@@ -144,5 +145,29 @@ import Testing
     let profile = try JSONDecoder().decode(ConnectionProfile.self, from: Data(json.utf8))
     #expect(profile.id == id && profile.region == "" && profile.isFavorite)
     #expect(profile.name == "Old" && profile.server == "dav.local")
+  }
+
+  @Test func ftpOptionsAndOldProfiles() throws {
+    #expect(ConnectionKind.ftp.advancedFields.contains(.ftpMode))
+    #expect(!ConnectionKind.ftp.advancedFields.contains(.allowInvalidCertificate))
+    #expect(ConnectionKind.ftps.advancedFields.contains(.allowInvalidCertificate))
+    var profile = ConnectionProfile(kind: .ftp)
+    #expect(throws: ConnectionProfileError.missingServer) { try profile.ftpEndpoint() }
+    profile.server = "ftp.example.com"
+    profile.port = 2121
+    #expect(try profile.ftpEndpoint().host == "ftp.example.com")
+    #expect(try profile.ftpEndpoint().port == 2121)
+    profile.server = "ftp.example.com:21"
+    #expect(throws: ConnectionProfileError.invalidServer) { try profile.ftpEndpoint() }
+    #expect(profile.rootPath == "/")
+    let json = """
+      {"id":"\(UUID().uuidString)","kind":"ftp","name":"Old","server":"h","username":"u"}
+      """
+    let old = try JSONDecoder().decode(ConnectionProfile.self, from: Data(json.utf8))
+    #expect(!old.ftpActiveMode && !old.allowInvalidCertificate)
+    profile.ftpActiveMode = true
+    let round = try JSONDecoder().decode(
+      ConnectionProfile.self, from: JSONEncoder().encode(profile))
+    #expect(round.ftpActiveMode)
   }
 }

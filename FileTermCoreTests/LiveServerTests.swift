@@ -156,3 +156,106 @@ struct LiveServerTests {
     #expect(try await text(ProviderTransfer.child(target, "2 x.txt"), in: p.dav2) == "two")
   }
 }
+
+/// FTP and FTP-TLS against the `ftp` service (port 2121). Skipped unless FILETERM_LIVE=1.
+@Suite(
+  .enabled(if: ProcessInfo.processInfo.environment["FILETERM_LIVE"] == "1"), .serialized)
+struct LiveFTPTests {
+  private func provider(
+    secure: Bool = false, insecure: Bool = false, active: Bool = false,
+    password: String = "testpass123",
+    port: Int = 2121
+  ) -> FTPProvider {
+    FTPProvider(
+      id: "ftp", host: "127.0.0.1", port: port, username: "tester", password: password,
+      secure: secure, activeMode: active, allowInvalidCertificate: insecure)
+  }
+
+  private func put(_ text: String, _ location: Location, in provider: FTPProvider) async throws {
+    let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try text.write(to: file, atomically: true, encoding: .utf8)
+    defer { try? FileManager.default.removeItem(at: file) }
+    let reader = try await LocalFileSystemProvider().read(
+      Location(providerID: "local", path: file.path))
+    try await provider.write(reader, to: location)
+  }
+
+  private func text(_ location: Location, in provider: FTPProvider) async throws -> String {
+    let reader = try await provider.read(location)
+    var data = Data()
+    while let chunk = try await reader.next() { data.append(chunk) }
+    return String(decoding: data, as: UTF8.self)
+  }
+
+  private func exercise(_ ftp: FTPProvider) async throws {
+    let root = Location(providerID: "ftp", path: "/t5-\(UUID().uuidString.prefix(8))")
+    try await ftp.validate(root: "/")
+    try await ftp.createDirectory(root)
+    do {
+      await #expect(throws: FileSystemError.destinationExists) {
+        try await ftp.createDirectory(root)
+      }
+      let file = ProviderTransfer.child(root, "a b é.txt")
+      try await put("hello ftp", file, in: ftp)
+      #expect(try await text(file, in: ftp) == "hello ftp")
+      await #expect(throws: FileSystemError.destinationExists) {
+        try await put("again", file, in: ftp)
+      }
+      let entry = try await ftp.stat(file)
+      #expect(entry.kind == .file && entry.size == 9)
+
+      let sub = ProviderTransfer.child(root, "sub")
+      try await ftp.createDirectory(sub)
+      let renamed = ProviderTransfer.child(sub, "renamed.txt")
+      try await ftp.move(file, to: renamed)
+      #expect(try await text(renamed, in: ftp) == "hello ftp")
+      await #expect(throws: FileSystemError.notFound) { _ = try await ftp.stat(file) }
+      #expect(try await ftp.list(root).map(\.name) == ["sub"])
+    } catch {
+      try? await ftp.delete(root)
+      throw error
+    }
+    try await ftp.delete(root)
+    await #expect(throws: FileSystemError.notFound) { _ = try await ftp.stat(root) }
+  }
+
+  @Test func plainFTPEdits() async throws { try await exercise(provider()) }
+
+  @Test func explicitTLSNeedsTheInvalidCertificateOption() async throws {
+    await #expect(throws: FTPError.certificate) {
+      try await provider(secure: true).validate(root: "/")
+    }
+    // The test server takes about two seconds to log in, so TLS gets a shorter round trip.
+    let tls = provider(secure: true, insecure: true)
+    let file = Location(providerID: "ftp", path: "/t5-tls-\(UUID().uuidString.prefix(8)).txt")
+    try await put("secret", file, in: tls)
+    let downloaded = try await text(file, in: tls)
+    try await tls.delete(file)
+    #expect(downloaded == "secret")
+  }
+
+  @Test func wrongPasswordAndClosedPortHaveClearMessages() async throws {
+    await #expect(throws: FTPError.loginDenied) {
+      try await provider(password: "wrong").validate(root: "/")
+    }
+    await #expect(throws: FTPError.cannotConnect(host: "127.0.0.1", port: 2999)) {
+      try await provider(port: 2999).validate(root: "/")
+    }
+  }
+
+  @Test func activeModeReportsWhyItFailedInsideDocker() async throws {
+    await #expect(throws: FTPError.activeModeFailed) {
+      try await provider(active: true).validate(root: "/")
+    }
+  }
+
+  @Test func downloadsAndUploadsAMultiChunkFile() async throws {
+    let ftp = provider()
+    let location = Location(providerID: "ftp", path: "/t5-big-\(UUID().uuidString.prefix(8)).bin")
+    let big = String(repeating: "0123456789abcdef", count: 40_000)  // 640 KB
+    try await put(big, location, in: ftp)
+    let downloaded = try await text(location, in: ftp)
+    try await ftp.delete(location)
+    #expect(downloaded == big)
+  }
+}

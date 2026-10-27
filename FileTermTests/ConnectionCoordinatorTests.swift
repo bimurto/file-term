@@ -211,6 +211,25 @@ private actor FakeRemote: ValidatingProvider {
     #expect(coordinator.open.isEmpty)
   }
 
+  @Test func ftpBuildsAProviderFromTheProfile() throws {
+    var profile = ConnectionProfile(kind: .ftps)
+    profile.server = "ftp.example.com"
+    profile.port = 990
+    profile.username = "ann"
+    profile.allowInvalidCertificate = true
+    let provider = try makeRemoteProvider(profile, password: "pw")
+    #expect(provider is FTPProvider)
+    #expect(provider.id == "ftp.\(profile.id.uuidString)")
+    profile.server = ""
+    #expect(throws: ConnectionProfileError.missingServer) {
+      try makeRemoteProvider(profile, password: "pw")
+    }
+    profile.server = "ftp://host"
+    #expect(throws: ConnectionProfileError.invalidServer) {
+      try makeRemoteProvider(profile, password: "pw")
+    }
+  }
+
   @Test func unimplementedProtocolsNameTheirTicket() async throws {
     let (coordinator, _, _, mounter, _) = try make()
     var profile = ConnectionProfile(kind: .sftp)

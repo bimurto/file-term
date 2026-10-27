@@ -21,7 +21,7 @@
 - [ ] Built-in terminal extension (M06.10): offer an explicit SSH session for the connected SFTP host and path. Never inject local `cd` commands into remote sessions; honor host-key verification and credential handling.
 
 ### M08.04 FTP & FTP-TLS
-- [ ] Passive and active modes. Explicit TLS for FTP-TLS.
+- [x] Passive and active modes. Explicit TLS for FTP-TLS.
 
 ### M08.05 WebDAV & WebDAV HTTPS
 - [x] Rejects non-WebDAV endpoints with a clear error (an ordinary website URL is not a WebDAV endpoint).
@@ -69,7 +69,7 @@ form; pressing Connect names the ticket that adds them.
 | T3 Cross-provider copy through the M07 queue | M08.13 (server-to-server) | Done |
 | T3b Remote move, delete, rename, new folder, paste; open remote files via temp download | Follow-up to T3 | Done (drag and drop left out) |
 | T4 Amazon S3 & Backblaze B2 | M08.06 | Done |
-| T5 FTP & FTP-TLS | M08.04 | Open |
+| T5 FTP & FTP-TLS | M08.04 | Done |
 | T6 SFTP, host-key prompt, SSH terminal | M08.03 | Open |
 | T7 Text encoding | M08.12 | Open |
 | T8 Rackspace Cloud Files | M08.08 | Open |
@@ -142,6 +142,28 @@ form; pressing Connect names the ticket that adds them.
   application. Edits are not uploaded back. The temporary folder is removed on quit.
 - Not done: drag and drop to or from remote panes (the app has no drop targets yet), copying
   remote items to the clipboard.
+
+## T5 notes
+
+- `FTPProvider` runs the system `/usr/bin/curl`, one process and connection per operation.
+  Network.framework cannot upgrade an open connection to TLS, which explicit FTP-TLS needs; curl
+  already handles passive, active and both TLS modes. Cost: each action logs in again, so big
+  folder trees list more slowly than with a persistent connection.
+- The user name and password are written to a private temporary curl config (mode 0600, deleted
+  when the process ends), never passed as arguments, so `ps` does not show them.
+- Advanced › Transfer Mode picks passive (default) or active. FTP-TLS uses explicit TLS
+  (`AUTH TLS`); port 990 switches to implicit `ftps://`. A self-signed certificate is refused
+  with a message until Allow invalid certificate is ticked (FTP-TLS only).
+- Paths are relative to the login folder; "/" is the folder the server opens after login, so
+  folders above it cannot be browsed.
+- Listings use MLSD, falling back to Unix or DOS `LIST` when the server refuses it. Times from
+  `LIST` carry no zone and are read as UTC.
+- FTP cannot refuse an overwrite itself, so a write first checks the destination; another client
+  could still create it in between.
+- File names are read as UTF-8 until T7 (text encoding).
+- Live checks: `FILETERM_LIVE=1 swift test --disable-sandbox --filter LiveFTPTests` against the
+  `ftp` service in `dev/docker-compose.yml` (about 80 seconds; that image takes two seconds per
+  login). Active mode is expected to fail inside Docker.
 
 ## T4 notes
 

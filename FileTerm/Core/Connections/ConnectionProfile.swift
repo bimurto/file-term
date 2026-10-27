@@ -2,6 +2,7 @@ import Foundation
 
 public enum ConnectionField: String, Codable, CaseIterable, Sendable {
   case port, region, path, localPath, baseURL, textEncoding, note, colorLabel
+  case ftpMode, allowInvalidCertificate
 }
 
 public enum ConnectionAvailability: Equatable, Sendable {
@@ -85,8 +86,15 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
   /// Fields shown under Show Advanced (M08.02).
   public var advancedFields: [ConnectionField] {
     switch self {
-    case .sftp, .ftp, .ftps:
+    case .sftp:
       [.port, .path, .localPath, .baseURL, .textEncoding, .note, .colorLabel]
+    case .ftp:
+      [.port, .ftpMode, .path, .localPath, .baseURL, .textEncoding, .note, .colorLabel]
+    case .ftps:
+      [
+        .port, .ftpMode, .allowInvalidCertificate, .path, .localPath, .baseURL, .textEncoding,
+        .note, .colorLabel,
+      ]
     case .webdav, .webdavHTTPS:
       [.port, .path, .localPath, .baseURL, .note, .colorLabel]
     case .s3, .b2: [.port, .region, .path, .localPath, .baseURL, .note, .colorLabel]
@@ -99,8 +107,7 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
 
   public var availability: ConnectionAvailability {
     switch self {
-    case .smb, .afp, .nfs, .vnc, .webdav, .webdavHTTPS, .s3, .b2: .available
-    case .ftp, .ftps: .plannedIn("T5")
+    case .smb, .afp, .nfs, .vnc, .webdav, .webdavHTTPS, .s3, .b2, .ftp, .ftps: .available
     case .sftp: .plannedIn("T6")
     case .rackspace: .plannedIn("T8")
     case .googleDrive, .oneDrive, .dropbox: .plannedIn("T9")
@@ -112,7 +119,8 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
   public var isWebDAV: Bool { self == .webdav || self == .webdavHTTPS }
   public var isObjectStore: Bool { self == .s3 || self == .b2 }
   /// Browsed through a provider registered at runtime rather than an OS mount.
-  public var usesProvider: Bool { isWebDAV || isObjectStore }
+  public var isFTP: Bool { self == .ftp || self == .ftps }
+  public var usesProvider: Bool { isWebDAV || isObjectStore || isFTP }
 
   var urlScheme: String? {
     switch self {
@@ -151,6 +159,10 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
   public var localPath = ""
   public var baseURL = ""
   public var textEncoding = "UTF-8"
+  /// FTP only: connect back from the server (active) instead of the usual passive mode.
+  public var ftpActiveMode = false
+  /// FTP-TLS only: accept a self-signed or otherwise untrusted server certificate.
+  public var allowInvalidCertificate = false
   public var note = ""
   public var colorLabel = ""
   public var isFavorite = false
@@ -159,7 +171,7 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
 
   private enum CodingKeys: String, CodingKey {
     case id, kind, name, server, username, port, region, path, localPath, baseURL
-    case textEncoding, note, colorLabel, isFavorite
+    case textEncoding, note, colorLabel, isFavorite, ftpActiveMode, allowInvalidCertificate
   }
 
   /// Fields added after the first release decode with defaults, so saved profiles keep loading.
@@ -179,6 +191,9 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
     note = try values.decodeIfPresent(String.self, forKey: .note) ?? ""
     colorLabel = try values.decodeIfPresent(String.self, forKey: .colorLabel) ?? ""
     isFavorite = try values.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
+    ftpActiveMode = try values.decodeIfPresent(Bool.self, forKey: .ftpActiveMode) ?? false
+    allowInvalidCertificate =
+      try values.decodeIfPresent(Bool.self, forKey: .allowInvalidCertificate) ?? false
   }
 
   /// The given name, else the server with its port when it is not the protocol default, so two
@@ -219,6 +234,17 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
     if let port, port != kind.defaultPort { components.port = port }
     guard let url = components.url else { throw ConnectionProfileError.invalidServer }
     return url
+  }
+
+  /// Host and port of an FTP server. The server field takes a bare host name or address.
+  public func ftpEndpoint() throws -> (host: String, port: Int?) {
+    guard kind.isFTP else { throw ConnectionProfileError.unsupportedURL }
+    let host = server.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !host.isEmpty else { throw ConnectionProfileError.missingServer }
+    guard !host.contains("/"), !host.contains(" "), !host.contains("://"),
+      !host.contains(":") || host.hasPrefix("[")
+    else { throw ConnectionProfileError.invalidServer }
+    return (host, port)
   }
 
   /// The signing region: the Region field, else the one in a `s3.<region>.…` host, else us-east-1.

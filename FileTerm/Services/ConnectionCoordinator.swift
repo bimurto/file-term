@@ -78,6 +78,14 @@ func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
       id: "webdav.\(profile.id.uuidString)", baseURL: try profile.webDAVBaseURL(),
       username: user, password: password)
   }
+  if profile.kind.isFTP {
+    let endpoint = try profile.ftpEndpoint()
+    return FTPProvider(
+      id: "ftp.\(profile.id.uuidString)", host: endpoint.host, port: endpoint.port,
+      username: user ?? "anonymous", password: user == nil ? "anonymous@" : password,
+      secure: profile.kind == .ftps, activeMode: profile.ftpActiveMode,
+      allowInvalidCertificate: profile.allowInvalidCertificate)
+  }
   guard profile.kind.isObjectStore else { throw ConnectionProfileError.unsupportedURL }
   guard let user, let password, !password.isEmpty else {
     throw ConnectionProfileError.missingCredentials
