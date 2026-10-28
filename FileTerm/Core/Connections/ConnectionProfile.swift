@@ -2,7 +2,7 @@ import Foundation
 
 public enum ConnectionField: String, Codable, CaseIterable, Sendable {
   case port, region, path, localPath, baseURL, textEncoding, note, colorLabel
-  case ftpMode, allowInvalidCertificate
+  case ftpMode, allowInvalidCertificate, privateKey
 }
 
 public enum ConnectionAvailability: Equatable, Sendable {
@@ -87,7 +87,7 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
   public var advancedFields: [ConnectionField] {
     switch self {
     case .sftp:
-      [.port, .path, .localPath, .baseURL, .textEncoding, .note, .colorLabel]
+      [.port, .privateKey, .path, .localPath, .baseURL, .textEncoding, .note, .colorLabel]
     case .ftp:
       [.port, .ftpMode, .path, .localPath, .baseURL, .textEncoding, .note, .colorLabel]
     case .ftps:
@@ -107,8 +107,7 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
 
   public var availability: ConnectionAvailability {
     switch self {
-    case .smb, .afp, .nfs, .vnc, .webdav, .webdavHTTPS, .s3, .b2, .ftp, .ftps: .available
-    case .sftp: .plannedIn("T6")
+    case .smb, .afp, .nfs, .vnc, .webdav, .webdavHTTPS, .s3, .b2, .ftp, .ftps, .sftp: .available
     case .rackspace: .plannedIn("T8")
     case .googleDrive, .oneDrive, .dropbox: .plannedIn("T9")
     }
@@ -120,7 +119,8 @@ public enum ConnectionKind: String, CaseIterable, Codable, Sendable {
   public var isObjectStore: Bool { self == .s3 || self == .b2 }
   /// Browsed through a provider registered at runtime rather than an OS mount.
   public var isFTP: Bool { self == .ftp || self == .ftps }
-  public var usesProvider: Bool { isWebDAV || isObjectStore || isFTP }
+  public var isSFTP: Bool { self == .sftp }
+  public var usesProvider: Bool { isWebDAV || isObjectStore || isFTP || isSFTP }
 
   var urlScheme: String? {
     switch self {
@@ -163,6 +163,8 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
   public var ftpActiveMode = false
   /// FTP-TLS only: accept a self-signed or otherwise untrusted server certificate.
   public var allowInvalidCertificate = false
+  /// SFTP only: path of an SSH private key; empty uses the agent and default keys.
+  public var privateKeyPath = ""
   public var note = ""
   public var colorLabel = ""
   public var isFavorite = false
@@ -172,6 +174,7 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
   private enum CodingKeys: String, CodingKey {
     case id, kind, name, server, username, port, region, path, localPath, baseURL
     case textEncoding, note, colorLabel, isFavorite, ftpActiveMode, allowInvalidCertificate
+    case privateKeyPath
   }
 
   /// Fields added after the first release decode with defaults, so saved profiles keep loading.
@@ -194,6 +197,7 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
     ftpActiveMode = try values.decodeIfPresent(Bool.self, forKey: .ftpActiveMode) ?? false
     allowInvalidCertificate =
       try values.decodeIfPresent(Bool.self, forKey: .allowInvalidCertificate) ?? false
+    privateKeyPath = try values.decodeIfPresent(String.self, forKey: .privateKeyPath) ?? ""
   }
 
   /// The given name, else the server with its port when it is not the protocol default, so two
@@ -239,12 +243,24 @@ public struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
   /// Host and port of an FTP server. The server field takes a bare host name or address.
   public func ftpEndpoint() throws -> (host: String, port: Int?) {
     guard kind.isFTP else { throw ConnectionProfileError.unsupportedURL }
+    return (try bareHost(), port)
+  }
+
+  /// Host and port of an SSH server. A host starting with "-" would be read by ssh as an option.
+  public func sshEndpoint() throws -> (host: String, port: Int?) {
+    guard kind.isSFTP else { throw ConnectionProfileError.unsupportedURL }
+    let host = try bareHost()
+    guard !host.hasPrefix("-") else { throw ConnectionProfileError.invalidServer }
+    return (host, port)
+  }
+
+  private func bareHost() throws -> String {
     let host = server.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !host.isEmpty else { throw ConnectionProfileError.missingServer }
     guard !host.contains("/"), !host.contains(" "), !host.contains("://"),
       !host.contains(":") || host.hasPrefix("[")
     else { throw ConnectionProfileError.invalidServer }
-    return (host, port)
+    return host
   }
 
   /// The signing region: the Region field, else the one in a `s3.<region>.…` host, else us-east-1.

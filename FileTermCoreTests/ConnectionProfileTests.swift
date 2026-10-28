@@ -34,9 +34,34 @@ import Testing
     #expect(ConnectionKind.ftp.advancedFields.contains(.textEncoding))
     #expect(!ConnectionKind.smb.advancedFields.contains(.textEncoding))
     #expect(ConnectionKind.smb.availability == .available)
-    #expect(ConnectionKind.sftp.availability == .plannedIn("T6"))
+    #expect(ConnectionKind.sftp.availability == .available && ConnectionKind.sftp.usesProvider)
+    #expect(ConnectionKind.sftp.advancedFields.contains(.privateKey))
+    #expect(ConnectionKind.rackspace.availability == .plannedIn("T8"))
     #expect(ConnectionKind.ftp.availability == .available && ConnectionKind.ftps.usesProvider)
     #expect(ConnectionKind.webdav.availability == .available)
+  }
+
+  @Test func sshEndpointRejectsOptionLookalikesAndPaths() throws {
+    var profile = ConnectionProfile(kind: .sftp)
+    profile.server = " example.com "
+    profile.port = 2222
+    let endpoint = try profile.sshEndpoint()
+    #expect(endpoint.host == "example.com" && endpoint.port == 2222)
+    for bad in ["-oProxyCommand=x", "host/path", "a b", "ssh://host", ""] {
+      profile.server = bad
+      #expect(throws: ConnectionProfileError.self) { try profile.sshEndpoint() }
+    }
+  }
+
+  @Test func profilesSavedBeforeTheKeyFieldStillDecode() throws {
+    var profile = ConnectionProfile(kind: .sftp)
+    profile.privateKeyPath = "/Users/me/.ssh/id_ed25519"
+    let data = try JSONEncoder().encode(profile)
+    var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(try JSONDecoder().decode(ConnectionProfile.self, from: data) == profile)
+    object["privateKeyPath"] = nil
+    let old = try JSONSerialization.data(withJSONObject: object)
+    #expect(try JSONDecoder().decode(ConnectionProfile.self, from: old).privateKeyPath == "")
   }
 
   @Test func joinsBaseURLWithEncodedRelativePath() {

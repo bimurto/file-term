@@ -108,4 +108,13 @@ extension FileSystemProvider {
 /// A remote provider that can confirm the server speaks its protocol before it is registered.
 public protocol ValidatingProvider: FileSystemProvider {
   func validate(root: String) async throws
+  /// The absolute folder a connection opens first, from the Path the user typed.
+  func resolveRoot(_ requested: String) async throws -> String
+}
+
+extension ValidatingProvider {
+  public func resolveRoot(_ requested: String) async throws -> String {
+    let trimmed = requested.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.hasPrefix("/") ? trimmed : "/" + trimmed
+  }
 }

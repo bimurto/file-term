@@ -16,9 +16,9 @@
 - [x] Base URL is passed to Copy URL/Open URL (M05.08).
 
 ### M08.03 SFTP
-- [ ] Default port 22. Password and SSH key authentication *(key auth is vendor-documented)*.
-- [ ] Host key verification prompt on first connect.
-- [ ] Built-in terminal extension (M06.10): offer an explicit SSH session for the connected SFTP host and path. Never inject local `cd` commands into remote sessions; honor host-key verification and credential handling.
+- [x] Default port 22. Password and SSH key authentication *(key auth is vendor-documented)*.
+- [x] Host key verification prompt on first connect.
+- [x] Built-in terminal extension (M06.10): offer an explicit SSH session for the connected SFTP host and path. Never inject local `cd` commands into remote sessions; honor host-key verification and credential handling.
 
 ### M08.04 FTP & FTP-TLS
 - [x] Passive and active modes. Explicit TLS for FTP-TLS.
@@ -70,7 +70,7 @@ form; pressing Connect names the ticket that adds them.
 | T3b Remote move, delete, rename, new folder, paste; open remote files via temp download | Follow-up to T3 | Done (drag and drop left out) |
 | T4 Amazon S3 & Backblaze B2 | M08.06 | Done |
 | T5 FTP & FTP-TLS | M08.04 | Done |
-| T6 SFTP, host-key prompt, SSH terminal | M08.03 | Open |
+| T6 SFTP, host-key prompt, SSH terminal | M08.03 | Done |
 | T7 Text encoding | M08.12 | Open |
 | T8 Rackspace Cloud Files | M08.08 | Open |
 | T9 Google Drive, OneDrive, Dropbox | M08.07 | Open |
@@ -187,3 +187,38 @@ form; pressing Connect names the ticket that adds them.
 - Not covered: presigned URLs, object versions, storage classes, ACLs, and public-URL generation
   beyond the connection's Base URL. Reads on a bucket in an unseen region fail until a listing has
   discovered its region.
+
+## T6 notes
+
+- `SFTPProvider` runs the system `/usr/bin/ssh -s sftp`: one long-lived process per connection,
+  with a small SFTP version 3 client over its pipes (`SFTPPacket`). ssh does the transport, keys,
+  the agent and `~/.ssh/config`. macOS `curl` has no SFTP, so the T5 approach did not apply.
+- Sign-in: Advanced › Private Key picks a key file (`-i`, `IdentitiesOnly`); without one, ssh uses
+  the agent and default keys. The password field holds the password or the key passphrase. It
+  reaches ssh through a one-shot `SSH_ASKPASS` script (0600 secret in a 0700 temporary folder),
+  deleted as soon as SFTP starts or the process ends, and never appears in `ps`. With no
+  password, ssh runs in `BatchMode` and cannot hang on a prompt.
+- Host keys are always checked strictly. ssh trusts `~/.ssh/known_hosts` plus FileTerm's own
+  `~/Library/Application Support/FileTerm/known_hosts`; only the second is ever written. A new
+  server stops the connection, `ssh-keyscan` fetches its keys, and an alert shows the SHA256
+  fingerprints (Cancel is the default button). Trust saves all of them and retries once.
+- A changed key is a hard error naming both files; there is no override in the app.
+- Paths are absolute server paths. An empty Path opens the login folder (`REALPATH .`); a relative
+  one is relative to it (`ValidatingProvider.resolveRoot`, new, default unchanged for the other
+  protocols). Links to folders and files are shown as what they point to; deleting a link removes
+  the link only.
+- Writes open with `CREAT|EXCL`, so an existing file is refused by the server. A failed or
+  cancelled write removes the partial file.
+- Requests are sequential 32 KiB reads and writes, so large transfers are limited by round-trip
+  time. Pipelining is follow-up work.
+- Open SSH Session (panel menu, View › Terminal): types an explicit `ssh -t … 'cd <folder> && exec
+  "$SHELL" -l'` into the local shell, only when it is idle at a prompt. ssh asks for any password
+  itself. Folder sync stays paused for the remote pane, and while ssh runs the shell is busy and
+  not in the foreground, so no local `cd` reaches the remote shell. A server that confines SFTP
+  to a jail, or has no shell for the account, may not match or accept the session.
+- Tests: `SFTPProviderTests` run against macOS's own `/usr/libexec/sftp-server` through a
+  stand-in for ssh. `FILETERM_LIVE=1 swift test --disable-sandbox --filter LiveSFTPTests` uses
+  the `sftp` service in `dev/docker-compose.yml` (password login, host-key flow, edits). Key
+  login needs an authorized key mounted into that container and was not exercised live.
+- Not covered: keyboard-interactive or two-factor prompts beyond a single answer, ssh
+  `ProxyJump` passwords, connection state across launches.

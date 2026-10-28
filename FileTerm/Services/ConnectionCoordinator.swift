@@ -7,6 +7,7 @@ enum ConnectionError: Error, LocalizedError, Equatable {
   case notYetAvailable(protocolName: String, ticket: String)
   case mountFailed(String)
   case couldNotOpen
+  case hostNotTrusted
 
   var errorDescription: String? {
     switch self {
@@ -14,6 +15,7 @@ enum ConnectionError: Error, LocalizedError, Equatable {
       "\(name) connections are not available yet. They arrive with M08 \(ticket)."
     case .mountFailed(let message): message
     case .couldNotOpen: "No application could open the screen-sharing address."
+    case .hostNotTrusted: "The server’s host key was not trusted, so no connection was made."
     }
   }
 }
@@ -66,13 +68,52 @@ struct OpenConnection: Identifiable, Equatable {
   var id: UUID { profile.id }
 }
 
+/// An SSH server FileTerm has not seen before, with the keys it presented.
+struct HostKeyChallenge: Equatable {
+  let target: SSHTarget
+  let keys: [HostKey]
+
+  var serverName: String {
+    HostKeyStore.hostPattern(host: target.host, port: target.port)
+  }
+
+  /// One line per key: the algorithm and its SHA256 fingerprint, as `ssh-keygen -l` prints it.
+  var details: String {
+    keys.map { "\($0.algorithm)  \($0.fingerprint ?? "unreadable key")" }.joined(separator: "\n")
+  }
+}
+
+typealias HostKeyConfirmation = @MainActor (HostKeyChallenge) async -> Bool
+
+/// Asks whether to trust a new server. Cancel is the default button: trusting is the choice that
+/// must be deliberate.
+@MainActor func confirmHostKeyWithAlert(_ challenge: HostKeyChallenge) -> Bool {
+  let alert = NSAlert()
+  alert.alertStyle = .warning
+  alert.messageText = "Trust the server “\(challenge.serverName)”?"
+  alert.informativeText =
+    "FileTerm has not connected to this server before. Trust it only if these fingerprints "
+    + "match the ones its administrator gave you.\n\n\(challenge.details)"
+  let trust = alert.addButton(withTitle: "Trust")
+  let cancel = alert.addButton(withTitle: "Cancel")
+  trust.keyEquivalent = ""
+  cancel.keyEquivalent = "\r"
+  return alert.runModal() == .alertFirstButtonReturn
+}
+
 typealias RemoteProviderFactory =
   @Sendable (ConnectionProfile, String?) throws -> any ValidatingProvider
 
-func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
-  -> any ValidatingProvider
-{
+func makeRemoteProvider(
+  _ profile: ConnectionProfile, password: String?,
+  knownHosts: URL = HostKeyStore.defaultFileURL
+) throws -> any ValidatingProvider {
   let user = profile.username.isEmpty ? nil : profile.username
+  if profile.kind.isSFTP {
+    return SFTPProvider(
+      id: "sftp.\(profile.id.uuidString)", target: try SSHTarget(profile: profile),
+      password: password, knownHosts: knownHosts)
+  }
   if profile.kind.isWebDAV {
     return WebDAVProvider(
       id: "webdav.\(profile.id.uuidString)", baseURL: try profile.webDAVBaseURL(),
@@ -104,17 +145,23 @@ func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
   @ObservationIgnored private let openExternal: (URL) -> Bool
   @ObservationIgnored private let registry: ProviderRegistry
   @ObservationIgnored private let remoteFactory: RemoteProviderFactory
+  @ObservationIgnored private let hostKeys: HostKeyStore
+  @ObservationIgnored private let confirmHostKey: HostKeyConfirmation
 
   init(
     settings: AppSettings, registry: ProviderRegistry = ProviderRegistry(),
     credentials: CredentialStore = KeychainCredentialStore(),
     mounter: VolumeMounter = NetFSMounter(),
     remoteFactory: @escaping RemoteProviderFactory = { try makeRemoteProvider($0, password: $1) },
+    hostKeys: HostKeyStore = HostKeyStore(),
+    confirmHostKey: @escaping HostKeyConfirmation = { confirmHostKeyWithAlert($0) },
     openExternal: @escaping (URL) -> Bool = { NSWorkspace.shared.open($0) }
   ) {
     self.settings = settings
     self.registry = registry
     self.remoteFactory = remoteFactory
+    self.hostKeys = hostKeys
+    self.confirmHostKey = confirmHostKey
     self.credentials = credentials
     self.mounter = mounter
     self.openExternal = openExternal
@@ -182,7 +229,7 @@ func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
     defer { isConnecting = false }
     let secret = password.flatMap { $0.isEmpty ? nil : $0 } ?? credentials.password(for: profile.id)
     let provider = try remoteFactory(profile, secret)
-    try await provider.validate(root: profile.rootPath)
+    let root = try await openRoot(of: provider, for: profile)
     if let previous = open.first(where: { $0.id == profile.id }) {
       registry.unregister(id: previous.root.providerID)
       open.removeAll { $0.id == profile.id }
@@ -190,8 +237,35 @@ func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
     registry.register(provider)
     open.append(
       OpenConnection(
-        profile: profile, root: Location(providerID: provider.id, path: profile.rootPath),
+        profile: profile, root: Location(providerID: provider.id, path: root),
         mountURL: nil))
+  }
+
+  /// Resolves the folder to open and checks it. An SSH server seen for the first time is shown to
+  /// the user once; if they trust it, its keys are saved and the connection is tried again.
+  private func openRoot(of provider: any ValidatingProvider, for profile: ConnectionProfile)
+    async throws -> String
+  {
+    do {
+      return try await validatedRoot(of: provider, for: profile)
+    } catch let error as SFTPError {
+      guard case .unknownHostKey = error else { throw error }
+      let target = try SSHTarget(profile: profile)
+      let keys = try await hostKeys.scan(target)
+      guard await confirmHostKey(HostKeyChallenge(target: target, keys: keys)) else {
+        throw ConnectionError.hostNotTrusted
+      }
+      try hostKeys.trust(keys, for: target)
+      return try await validatedRoot(of: provider, for: profile)
+    }
+  }
+
+  private func validatedRoot(of provider: any ValidatingProvider, for profile: ConnectionProfile)
+    async throws -> String
+  {
+    let root = try await provider.resolveRoot(profile.path)
+    try await provider.validate(root: root)
+    return root
   }
 
   /// Applies Settings › General › Open remote connections in.
@@ -235,6 +309,21 @@ func makeRemoteProvider(_ profile: ConnectionProfile, password: String?) throws
   func handleUnmount(at url: URL) {
     let path = url.standardizedFileURL.path
     open.removeAll { $0.mountURL?.path == path }
+  }
+
+  /// The ssh command for a folder on an open SFTP connection (M06.10 extension), or nil for any
+  /// other location. The folder is the SFTP path; a server that confines SFTP to a jail may use
+  /// different paths in a shell.
+  func sshSession(for location: Location) -> SSHSessionCommand? {
+    guard
+      let connection = open.first(where: {
+        $0.root.providerID == location.providerID && $0.profile.kind.isSFTP
+      }), let target = try? SSHTarget(profile: connection.profile)
+    else { return nil }
+    return SSHSessionCommand(
+      executable: SSHCommand.executable.path,
+      arguments: SSHCommand.terminalArguments(
+        target: target, knownHosts: hostKeys.fileURL, directory: location.path))
   }
 
   /// "Connection name: /path" for remote locations, the plain path for local ones.

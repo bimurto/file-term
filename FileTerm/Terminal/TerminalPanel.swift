@@ -100,6 +100,8 @@ struct TerminalPanel: View {
           workspace.toggleLinked()
         }
         Button("Reveal Directory in Pane") { workspace.revealDirectory() }
+        Button("Open SSH Session") { workspace.openSSHSession() }
+          .disabled(!workspace.canOpenSSH)
         Button("Insert Selected Paths") { workspace.insertSelection() }
         Divider()
         Button("Clear Terminal") { workspace.perform(command: "terminal.clear") }

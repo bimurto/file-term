@@ -144,6 +144,49 @@ import Testing
     try await wait { !session.terminalView.process.running }
   }
 
+  @Test func sshSessionIsTypedOnlyForAnSFTPPaneAndNeverLetsLocalCdReachIt() async throws {
+    let fixture = try await Fixture.make(extraProviders: [RemoteStub(id: "sftp.test")])
+    defer { fixture.cleanup() }
+    let workspace = fixture.workspace
+    let browser = fixture.browser
+    // Stands in for ssh: records its arguments, then stays running like a remote shell.
+    let arguments = fixture.root.appendingPathComponent("arguments.txt")
+    let script = fixture.root.appendingPathComponent("fake-ssh")
+    try "#!/bin/sh\nprintf '%s\\n' \"$@\" > '\(arguments.path)'\nexec /bin/sleep 5\n"
+      .write(to: script, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+    let remoteFolder = "/srv/it's here"
+    let command = SSHSessionCommand(
+      executable: script.path,
+      arguments: ["-t", "--", "host", "cd '/srv/it'\\''s here' && exec \"$SHELL\" -l"])
+    workspace.sshSession = { $0.providerID == "sftp.test" ? command : nil }
+
+    workspace.toggleVisibility()
+    let session = try #require(workspace.currentSession)
+    try await wait { session.canSendDirectory && workspace.status == "Linked" }
+    #expect(!workspace.canOpenSSH)
+    workspace.openSSHSession()
+    #expect(!session.isBusy)
+
+    let remote = Location(providerID: "sftp.test", path: remoteFolder)
+    #expect(await browser.navigate(to: remote, in: .first))
+    try await wait { workspace.canOpenSSH && workspace.status == "Paused · SFTP folder" }
+    workspace.openSSHSession()
+    try await wait { FileManager.default.fileExists(atPath: arguments.path) && session.isBusy }
+    let received = try String(contentsOf: arguments, encoding: .utf8).split(separator: "\n")
+    #expect(received.map(String.init) == command.arguments)
+    #expect(!workspace.canOpenSSH)
+
+    // While ssh owns the terminal, moving a pane to a local folder must not type a `cd` into it.
+    let elsewhere = fixture.root.appendingPathComponent("elsewhere")
+    try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+    #expect(await browser.navigate(to: fixture.provider.location(for: elsewhere), in: .first))
+    workspace.syncNow()
+    try await remainsTrue { session.isBusy && !directoryMatches(session, elsewhere) }
+    workspace.closeAll()
+    try await wait { !session.terminalView.process.running }
+  }
+
   @Test(arguments: ["/bin/zsh", "/bin/bash"])
   func linkedNavigationSyncsButPendingInputAndUnlinkedModeDoNotInjectCommands(shell: String)
     async throws
@@ -434,6 +477,21 @@ import Testing
     }
   }
 
+  /// A server folder that lists nothing; enough for a pane to sit on a non-local location.
+  private struct RemoteStub: FileSystemProvider {
+    let id: String
+    func list(_ location: Location) async throws -> [FileEntry] { [] }
+    func stat(_ location: Location) async throws -> FileEntry {
+      FileEntry(location: location, name: "stub", kind: .directory)
+    }
+    func read(_ location: Location) async throws -> any FileByteReader {
+      throw FileSystemError.unsupportedOperation
+    }
+    func write(_ contents: any FileByteReader, to location: Location) async throws {}
+    func move(_ source: Location, to destination: Location) async throws {}
+    func delete(_ location: Location) async throws {}
+  }
+
   private func directoryMatches(_ session: TerminalSession, _ url: URL) -> Bool {
     guard let path = session.directory else { return false }
     let u1 = URL(fileURLWithPath: path).resolvingSymlinksInPath()
@@ -492,7 +550,8 @@ import Testing
 
     static func make(
       shell: String = "/bin/zsh", reverseSync: Bool = false,
-      browserProvider: (any FileSystemProvider)? = nil
+      browserProvider: (any FileSystemProvider)? = nil,
+      extraProviders: [any FileSystemProvider] = []
     ) async throws -> Fixture {
       _ = NSApplication.shared
       let temporary = FileManager.default.temporaryDirectory
@@ -511,7 +570,7 @@ import Testing
       settings.terminal.followMode = .active
       settings.terminal.reverseSync = reverseSync
       let provider = LocalFileSystemProvider()
-      let browser = BrowserModel(providers: [browserProvider ?? provider])
+      let browser = BrowserModel(providers: [browserProvider ?? provider] + extraProviders)
       #expect(await browser.navigate(to: provider.location(for: root), in: .first))
       #expect(await browser.navigate(to: provider.location(for: root), in: .second))
       let oldHome = getenv("HOME").map { String(cString: $0) }

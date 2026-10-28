@@ -2,6 +2,12 @@ import AppKit
 import FileTermCore
 import Observation
 
+/// The `ssh` command that opens a shell on the host behind a connected pane.
+struct SSHSessionCommand: Equatable {
+  let executable: String
+  let arguments: [String]
+}
+
 /// A window owns the workspace; a pane-tab identity owns each process, even while offscreen.
 @MainActor @Observable final class TerminalWorkspace {
   var panel: TerminalPanelState
@@ -35,6 +41,15 @@ import Observation
     return record.session.canSendDirectory
       && record.pane.searchScope == nil && location.providerID == "local"
       && Self.existingDirectory(location.path)
+  }
+
+  /// Set by the window: the ssh command for a pane location, or nil when it has none (M08.03).
+  @ObservationIgnored var sshSession: @MainActor (Location) -> SSHSessionCommand? = { _ in nil }
+
+  var canOpenSSH: Bool {
+    guard let record = currentRecord, let location = record.pane.location else { return false }
+    return record.session.canSendDirectory && record.pane.searchScope == nil
+      && sshSession(location) != nil
   }
 
   @ObservationIgnored private let browser: BrowserModel
@@ -126,6 +141,19 @@ import Observation
     navigate(destination, owning: target)
   }
 
+  /// Types an explicit `ssh` command for the connected SFTP host and folder into the local
+  /// shell. ssh asks for any password itself. Only an idle shell is given the command, and folder
+  /// sync stays paused for the remote pane, so no local `cd` ever reaches the remote shell.
+  func openSSHSession() {
+    guard canOpenSSH, let record = currentRecord, let location = record.pane.location,
+      let command = sshSession(location)
+    else { return }
+    let words = [command.executable] + command.arguments
+    let line = " " + words.map(record.session.quotePath).joined(separator: " ")
+    record.session.sendCommand(line)
+    updateStatus()
+  }
+
   func insertSelection() {
     let paths = browser.activePane.selectedEntries
       .filter { $0.location.providerID == "local" }.map { $0.location.path }
@@ -150,6 +178,7 @@ import Observation
     case "sync", "terminal.sync", "terminal.syncNow": syncNow()
     case "reveal", "terminal.reveal", "terminal.revealDirectory": revealDirectory()
     case "insertSelection", "terminal.insertSelection": insertSelection()
+    case "openSSH", "terminal.openSSH": openSSHSession()
     case "clear", "terminal.clear": currentSession?.clear()
     case "find", "terminal.find": find()
     case "terminal.dockBottom": panel.dock = .bottom
@@ -485,6 +514,8 @@ import Observation
       status = "Unlinked"
     } else if record.pane.searchScope != nil {
       status = "Paused · Search results"
+    } else if let location = record.pane.location, sshSession(location) != nil {
+      status = "Paused · SFTP folder"
     } else if record.pane.location?.providerID != "local" {
       status = "Paused · Non-local folder"
     } else if record.session.isBusy {

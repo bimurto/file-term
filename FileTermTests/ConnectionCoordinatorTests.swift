@@ -41,6 +41,33 @@ private actor FakeRemote: ValidatingProvider {
   func delete(_ location: Location) async throws {}
 }
 
+/// Fails its first folder lookups with the given errors, then resolves "upload" to a home path.
+private actor ScriptedSFTP: ValidatingProvider {
+  nonisolated let id: String
+  private var failures: [any Error]
+  private(set) var lookups = 0
+  init(id: String, failures: [any Error]) {
+    self.id = id
+    self.failures = failures
+  }
+  func resolveRoot(_ requested: String) async throws -> String {
+    lookups += 1
+    if !failures.isEmpty { throw failures.removeFirst() }
+    return "/home/tester/" + requested
+  }
+  func validate(root: String) async throws {}
+  func list(_ location: Location) async throws -> [FileEntry] { [] }
+  func stat(_ location: Location) async throws -> FileEntry {
+    FileEntry(location: location, name: "x", kind: .directory)
+  }
+  func read(_ location: Location) async throws -> any FileByteReader {
+    throw FileSystemError.unsupportedOperation
+  }
+  func write(_ contents: any FileByteReader, to location: Location) async throws {}
+  func move(_ source: Location, to destination: Location) async throws {}
+  func delete(_ location: Location) async throws {}
+}
+
 @MainActor struct ConnectionCoordinatorTests {
   private func make(
     opened: @escaping (URL) -> Bool = { _ in true }
@@ -232,9 +259,11 @@ private actor FakeRemote: ValidatingProvider {
 
   @Test func unimplementedProtocolsNameTheirTicket() async throws {
     let (coordinator, _, _, mounter, _) = try make()
-    var profile = ConnectionProfile(kind: .sftp)
+    var profile = ConnectionProfile(kind: .rackspace)
     profile.server = "host"
-    await #expect(throws: ConnectionError.notYetAvailable(protocolName: "SFTP", ticket: "T6")) {
+    await #expect(
+      throws: ConnectionError.notYetAvailable(protocolName: "Rackspace Cloud Files", ticket: "T8")
+    ) {
       try await coordinator.connect(profile)
     }
     #expect(mounter.mounts.isEmpty)
@@ -263,5 +292,118 @@ private actor FakeRemote: ValidatingProvider {
     #expect(coordinator.publicURL(for: Location(providerID: "local", path: "/tmp/x")) == nil)
     coordinator.handleUnmount(at: URL(fileURLWithPath: "/Volumes/share"))
     #expect(coordinator.publicURL(for: inside) == nil)
+  }
+
+  // MARK: SFTP host keys
+
+  private static let keyBlob =
+    "AAAAC3NzaC1lZDI1NTE5AAAAILsDCh5m+CJP4O3x9/4wGhLcOnVU20Z5j+X9TfkV86rU"
+
+  private func sftpProfile() -> ConnectionProfile {
+    var profile = ConnectionProfile(kind: .sftp)
+    profile.server = "127.0.0.1"
+    profile.port = 2222
+    profile.username = "tester"
+    profile.path = "upload"
+    return profile
+  }
+
+  /// A coordinator whose provider fails with `failures` first, whose ssh-keyscan prints one key,
+  /// and whose host-key prompt answers `trust` and records what it was shown.
+  private func makeSFTP(
+    failures: [any Error], trust: Bool,
+    shown: @escaping @MainActor (HostKeyChallenge) -> Void = { _ in }
+  ) throws -> (ConnectionCoordinator, ProviderRegistry, URL, ScriptedSFTP) {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "fileterm-keys-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let keyscan = folder.appendingPathComponent("keyscan")
+    try "#!/bin/sh\necho '[127.0.0.1]:2222 ssh-ed25519 \(Self.keyBlob)'\n"
+      .write(to: keyscan, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: keyscan.path)
+    let knownHosts = folder.appendingPathComponent("known_hosts")
+    let suite = try #require(UserDefaults(suiteName: "com.fileterm.tests.\(UUID().uuidString)"))
+    let registry = ProviderRegistry()
+    let provider = ScriptedSFTP(id: "sftp.test", failures: failures)
+    let coordinator = ConnectionCoordinator(
+      settings: AppSettings(suite: suite), registry: registry, credentials: FakeCredentials(),
+      mounter: FakeMounter(), remoteFactory: { _, _ in provider },
+      hostKeys: HostKeyStore(fileURL: knownHosts, keyscan: keyscan),
+      confirmHostKey: { challenge in
+        shown(challenge)
+        return trust
+      })
+    return (coordinator, registry, knownHosts, provider)
+  }
+
+  @Test func newSFTPServerIsShownSavedAndRetried() async throws {
+    var challenges: [HostKeyChallenge] = []
+    let (coordinator, registry, knownHosts, provider) = try makeSFTP(
+      failures: [SFTPError.unknownHostKey(host: "127.0.0.1", port: 2222)], trust: true,
+      shown: { challenges.append($0) })
+    let profile = sftpProfile()
+    try await coordinator.connect(profile)
+
+    let challenge = try #require(challenges.first)
+    #expect(challenges.count == 1 && challenge.serverName == "[127.0.0.1]:2222")
+    #expect(challenge.details == "ED25519  SHA256:DhJYvQCPgSQA9Y9JN8bbYNLl1pRhfc74ceXtpnZXxyo")
+    #expect(
+      try String(contentsOf: knownHosts, encoding: .utf8)
+        == "[127.0.0.1]:2222 ssh-ed25519 \(Self.keyBlob)\n")
+    #expect(await provider.lookups == 2)
+    #expect(registry.provider(for: "sftp.test") != nil)
+    // The folder the user typed is resolved by the server, not guessed locally.
+    #expect(
+      coordinator.open.first?.root
+        == Location(providerID: "sftp.test", path: "/home/tester/upload"))
+  }
+
+  @Test func decliningTheHostKeyConnectsNothingAndSavesNothing() async throws {
+    let (coordinator, registry, knownHosts, provider) = try makeSFTP(
+      failures: [SFTPError.unknownHostKey(host: "127.0.0.1", port: 2222)], trust: false)
+    await #expect(throws: ConnectionError.hostNotTrusted) {
+      try await coordinator.connect(self.sftpProfile())
+    }
+    #expect(!FileManager.default.fileExists(atPath: knownHosts.path))
+    #expect(registry.provider(for: "sftp.test") == nil && coordinator.open.isEmpty)
+    #expect(await provider.lookups == 1)
+  }
+
+  @Test func otherSFTPFailuresSkipThePrompt() async throws {
+    for failure in [SFTPError.loginDenied, .hostKeyChanged(host: "127.0.0.1")] {
+      var asked = false
+      let (coordinator, _, knownHosts, _) = try makeSFTP(
+        failures: [failure], trust: true, shown: { _ in asked = true })
+      await #expect(throws: failure) { try await coordinator.connect(self.sftpProfile()) }
+      #expect(!asked && !FileManager.default.fileExists(atPath: knownHosts.path))
+    }
+  }
+
+  @Test func sshSessionIsOfferedOnlyForOpenSFTPLocations() async throws {
+    let (coordinator, _, knownHosts, _) = try makeSFTP(failures: [], trust: true)
+    #expect(
+      coordinator.sshSession(for: Location(providerID: "sftp.test", path: "/home/tester")) == nil)
+    try await coordinator.connect(sftpProfile())
+
+    let folder = Location(providerID: "sftp.test", path: "/home/tester/up load")
+    let command = try #require(coordinator.sshSession(for: folder))
+    #expect(command.executable == "/usr/bin/ssh")
+    #expect(command.arguments.contains("StrictHostKeyChecking=yes"))
+    #expect(
+      command.arguments.contains("UserKnownHostsFile=\"\(knownHosts.path)\" ~/.ssh/known_hosts"))
+    #expect(command.arguments.last == "cd '/home/tester/up load' && exec \"$SHELL\" -l")
+    #expect(!command.arguments.contains { $0.contains("pw") })
+    #expect(coordinator.sshSession(for: Location(providerID: "local", path: "/tmp")) == nil)
+  }
+
+  @Test func sftpProviderIsBuiltFromTheProfile() throws {
+    let profile = sftpProfile()
+    let provider = try makeRemoteProvider(profile, password: "pw")
+    #expect(provider is SFTPProvider && provider.id == "sftp.\(profile.id.uuidString)")
+    var bad = profile
+    bad.server = "-oProxyCommand=x"
+    #expect(throws: ConnectionProfileError.invalidServer) {
+      try makeRemoteProvider(bad, password: nil)
+    }
   }
 }

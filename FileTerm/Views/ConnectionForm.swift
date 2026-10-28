@@ -1,3 +1,4 @@
+import AppKit
 import FileTermCore
 import Observation
 import SwiftUI
@@ -87,7 +88,10 @@ struct ConnectionFormSheet: View {
             .accessibilityIdentifier("connectionUsername")
           SecureField(
             kind.passwordTitle, text: $model.password,
-            prompt: Text(model.isEditing ? "Leave empty to keep the saved password" : "")
+            prompt: Text(
+              model.isEditing
+                ? "Leave empty to keep the saved password"
+                : kind.isSFTP ? "Password or key passphrase" : "")
           )
           .accessibilityIdentifier("connectionPassword")
         }
@@ -128,6 +132,17 @@ struct ConnectionFormSheet: View {
     .padding(16).frame(width: 460)
   }
 
+  private func chooseKey() {
+    let panel = NSOpenPanel()
+    panel.canChooseDirectories = false
+    panel.showsHiddenFiles = true
+    panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+      .appendingPathComponent(".ssh")
+    if panel.runModal() == .OK, let url = panel.url {
+      model.profile.privateKeyPath = url.path
+    }
+  }
+
   @ViewBuilder private func advancedField(_ field: ConnectionField) -> some View {
     switch field {
     case .port:
@@ -152,6 +167,13 @@ struct ConnectionFormSheet: View {
       }
     case .allowInvalidCertificate:
       Toggle("Allow invalid certificate", isOn: $model.profile.allowInvalidCertificate)
+    case .privateKey:
+      HStack {
+        TextField(
+          "Private Key", text: $model.profile.privateKeyPath,
+          prompt: Text("Agent and default keys"))
+        Button("Choose…") { chooseKey() }
+      }
     case .note: TextField("Note", text: $model.profile.note)
     case .colorLabel:
       Picker("Color Label", selection: $model.profile.colorLabel) {

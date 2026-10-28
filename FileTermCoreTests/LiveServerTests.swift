@@ -259,3 +259,102 @@ struct LiveFTPTests {
     #expect(downloaded == big)
   }
 }
+
+/// SFTP against the `sftp` service (port 2222, chrooted: the user works in /upload). Skipped
+/// unless FILETERM_LIVE=1. Key authentication needs an authorized key mounted into the container
+/// and is covered by the argument tests instead.
+@Suite(
+  .enabled(if: ProcessInfo.processInfo.environment["FILETERM_LIVE"] == "1"), .serialized)
+struct LiveSFTPTests {
+  private let target = SSHTarget(host: "127.0.0.1", port: 2222, username: "tester")
+
+  private func knownHosts() -> URL {
+    FileManager.default.temporaryDirectory.appendingPathComponent(
+      "fileterm-live-\(UUID().uuidString)/known_hosts")
+  }
+
+  private func provider(knownHosts: URL, password: String = "testpass123") -> SFTPProvider {
+    SFTPProvider(id: "sftp", target: target, password: password, knownHosts: knownHosts)
+  }
+
+  private func trusted() async throws -> (SFTPProvider, URL) {
+    let file = knownHosts()
+    let store = HostKeyStore(fileURL: file)
+    try store.trust(try await store.scan(target), for: target)
+    return (provider(knownHosts: file), file)
+  }
+
+  private func put(_ text: String, _ location: Location, in provider: SFTPProvider) async throws {
+    let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try text.write(to: file, atomically: true, encoding: .utf8)
+    defer { try? FileManager.default.removeItem(at: file) }
+    try await provider.write(
+      try await LocalFileSystemProvider().read(Location(providerID: "local", path: file.path)),
+      to: location)
+  }
+
+  private func text(_ location: Location, in provider: SFTPProvider) async throws -> String {
+    let reader = try await provider.read(location)
+    var data = Data()
+    while let chunk = try await reader.next() { data.append(chunk) }
+    return String(decoding: data, as: UTF8.self)
+  }
+
+  @Test func anUnknownServerIsRefusedUntilItsKeyIsTrusted() async throws {
+    let file = knownHosts()
+    defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+    await #expect(throws: SFTPError.unknownHostKey(host: "127.0.0.1", port: 2222)) {
+      _ = try await self.provider(knownHosts: file).resolveRoot("upload")
+    }
+    #expect(!FileManager.default.fileExists(atPath: file.path))
+
+    let store = HostKeyStore(fileURL: file)
+    let keys = try await store.scan(target)
+    #expect(!keys.isEmpty && keys.allSatisfy { $0.fingerprint?.hasPrefix("SHA256:") == true })
+    try store.trust(keys, for: target)
+    let sftp = provider(knownHosts: file)
+    #expect(try await sftp.resolveRoot("upload") == "/upload")
+    try await sftp.validate(root: "/upload")
+  }
+
+  @Test func aWrongPasswordIsReported() async throws {
+    let (_, file) = try await trusted()
+    defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+    await #expect(throws: SFTPError.loginDenied) {
+      try await self.provider(knownHosts: file, password: "wrong").validate(root: "/upload")
+    }
+  }
+
+  @Test func editsOnTheServer() async throws {
+    let (sftp, file) = try await trusted()
+    defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+    let root = Location(providerID: "sftp", path: "/upload/t6-\(UUID().uuidString.prefix(8))")
+    try await sftp.createDirectory(root)
+    do {
+      await #expect(throws: FileSystemError.destinationExists) {
+        try await sftp.createDirectory(root)
+      }
+      let item = ProviderTransfer.child(root, "a b é.txt")
+      try await put("hello sftp", item, in: sftp)
+      #expect(try await text(item, in: sftp) == "hello sftp")
+      await #expect(throws: FileSystemError.destinationExists) {
+        try await self.put("again", item, in: sftp)
+      }
+      let entry = try await sftp.stat(item)
+      #expect(entry.kind == .file && entry.size == 10)
+
+      let sub = ProviderTransfer.child(root, "sub")
+      try await sftp.createDirectory(sub)
+      let renamed = ProviderTransfer.child(sub, "renamed.txt")
+      try await sftp.move(item, to: renamed)
+      #expect(try await text(renamed, in: sftp) == "hello sftp")
+      await #expect(throws: FileSystemError.notFound) { _ = try await sftp.stat(item) }
+      #expect(try await sftp.list(root).map(\.name) == ["sub"])
+    } catch {
+      try? await sftp.delete(root)
+      throw error
+    }
+    try await sftp.delete(root)
+    await #expect(throws: FileSystemError.notFound) { _ = try await sftp.stat(root) }
+  }
+}

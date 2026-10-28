@@ -638,6 +638,7 @@ import UniformTypeIdentifiers
       ("link", "Link Terminal to Pane"), ("reverseSync", "Follow Terminal Directory"),
       ("sync", "Sync Terminal Now"), ("reveal", "Reveal Terminal Directory in Pane"),
       ("insertSelection", "Insert Selected Paths in Terminal"),
+      ("openSSH", "Open SSH Session for Connected Host"),
       ("clear", "Clear Terminal"), ("find", "Find in Terminal…"),
       ("dock", "Toggle Terminal Dock"), ("close", "Close Terminal Sessions"),
       ("followActive", "Follow Active Pane"), ("followFirst", "Follow Left / Top Pane"),

@@ -22,6 +22,7 @@ import SwiftUI
     self.browser = browser
     self.devices = devices
     terminal = TerminalWorkspace(browser: browser, settings: settings, panel: terminalPanel)
+    terminal.sshSession = { connections.sshSession(for: $0) }
     window = BrowserWindow(
       registry: registry,
       contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),

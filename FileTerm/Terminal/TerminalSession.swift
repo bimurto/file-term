@@ -91,17 +91,24 @@ final class TerminalSession {
 
   @discardableResult
   func sendDirectory(_ path: String) -> Bool {
-    guard canSendDirectory, path.hasPrefix("/"), !path.utf8.contains(0),
-      !path.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
+    guard path.hasPrefix("/") else { return false }
+    return sendCommand(" cd -- \(quotePath(path))")
+  }
+
+  /// Types one line into an idle local shell, with the same guards as a directory change. Only
+  /// for commands the app builds itself; never text that came from a remote program.
+  @discardableResult
+  func sendCommand(_ line: String) -> Bool {
+    guard canSendDirectory, !line.utf8.contains(0),
+      !line.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
     else { return false }
-    let quote = quotePath(path)
     pendingDirectory = nil
     atPrompt = false
     isBusy = true
     status = .busy
     onStateChange?()
     // Bypass the user-input callback: this is a guarded, app-generated command.
-    terminalView.process.send(data: Array(" cd -- \(quote)\r".utf8)[...])
+    terminalView.process.send(data: Array((line + "\r").utf8)[...])
     return true
   }
 
