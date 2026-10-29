@@ -26,6 +26,21 @@ struct LocalFileOperationsTests {
     #expect(try String(contentsOf: file, encoding: .utf8) == "original")
   }
 
+  @Test func permanentDeleteRemovesItemsAndLeavesNothingToUndo() async throws {
+    let root = try sandbox()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("gone.txt")
+    let folder = root.appendingPathComponent("folder")
+    try Data("x".utf8).write(to: file)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try Data("y".utf8).write(to: folder.appendingPathComponent("inner.txt"))
+    let engine = LocalFileOperations()
+    try await engine.deletePermanently(sources: [file, folder])
+    #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
+    #expect(await !engine.hasUndoHistory())
+    await #expect(throws: (any Error).self) { try await engine.deletePermanently(sources: [file]) }
+  }
+
   #if os(macOS)
     @Test func trashRestoresOriginalLocationAndRedoes() async throws {
       let root = try sandbox()

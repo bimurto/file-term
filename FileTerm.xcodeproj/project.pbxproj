@@ -67,6 +67,7 @@
 		C287A0321870963A85164690 /* PaneTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCFB06361D11DA221744D7C /* PaneTabBar.swift */; };
 		C4474E14FA57D2520322BFAA /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D483E6A7975E0538C696081 /* FolderWatcher.swift */; };
 		D0CBCD4BB7CB0AF21DB557BB /* SyncDialogModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4E27DBCCE21F8A35D700D6A /* SyncDialogModel.swift */; };
+		D4A7FF4B5C491331FB0B8B08 /* FileOperationCoordinator+Delete.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */; };
 		D6737E253E9C71DDCF0DCD50 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E4E4D917C96AB62ABB605E /* AppSettings.swift */; };
 		DD35E4153C841353CCDE3C50 /* FileContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6827571BFC5023EDC064B80A /* FileContentView.swift */; };
 		DFCC78C4337AE4D04F9BAA70 /* QuickSelectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4824913277CA18B7327330 /* QuickSelectSheet.swift */; };
@@ -179,6 +180,7 @@
 		D8039C31BEB9E425384F2870 /* Settings */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Settings; path = .build/vendor/Settings; sourceTree = SOURCE_ROOT; };
 		E2B6D81AF101F9349284282D /* FileMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataService.swift; sourceTree = "<group>"; };
 		E4E27DBCCE21F8A35D700D6A /* SyncDialogModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDialogModel.swift; sourceTree = "<group>"; };
+		E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+Delete.swift"; sourceTree = "<group>"; };
 		EC6E2D416E7AD4CDF58E9324 /* ShellIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellIntegration.swift; sourceTree = "<group>"; };
 		FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -352,6 +354,7 @@
 				E2B6D81AF101F9349284282D /* FileMetadataService.swift */,
 				06E54F3B1A88E09053B58B87 /* FileOperationCoordinator.swift */,
 				50FB4E30DB9AB84C96291389 /* FileOperationCoordinator+Archive.swift */,
+				E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */,
 				A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */,
 				5E927BE4B6695C6DE166344A /* FileOperationCoordinator+Sync.swift */,
 				0DBF840FFE04CC5F96F1814A /* FilePreviewCoordinator.swift */,
@@ -543,6 +546,7 @@
 				DD35E4153C841353CCDE3C50 /* FileContentView.swift in Sources */,
 				8C8CF6975EA756CA2BC30F24 /* FileMetadataService.swift in Sources */,
 				1D8E69565519D69D208A668F /* FileOperationCoordinator+Archive.swift in Sources */,
+				D4A7FF4B5C491331FB0B8B08 /* FileOperationCoordinator+Delete.swift in Sources */,
 				C189AE31558133FD53A0ED7B /* FileOperationCoordinator+Remote.swift in Sources */,
 				4140A5374DBB60C325FD3ACD /* FileOperationCoordinator+Sync.swift in Sources */,
 				E14D880CAAED820ABA416AC9 /* FileOperationCoordinator.swift in Sources */,
@@ -727,6 +731,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = FileTerm;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "FileTerm asks Finder to empty the Trash when you choose Empty Trash.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FileTerm connects to servers on your network when you press Connect.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -783,6 +788,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = FileTerm;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "FileTerm asks Finder to empty the Trash when you choose Empty Trash.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FileTerm connects to servers on your network when you press Connect.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

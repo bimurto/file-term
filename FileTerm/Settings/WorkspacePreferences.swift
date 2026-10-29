@@ -9,7 +9,7 @@ struct WorkspacePreferences: Codable, Equatable {
     "go.back", "go.forward", "go.enclosingFolder", "go.connect", "view.single", "view.vertical",
     "view.horizontal",
     "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing", "commands.sync",
-    "go.toFolder",
+    "go.toFolder", "file.trash",
     "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
   ]
   var sidebarOrder = ["devices", "recents"]
@@ -41,6 +41,7 @@ enum ToolbarSymbols {
     case "go.syncBrowsing": "link"
     case "commands.sync": "arrow.triangle.2.circlepath"
     case "go.toFolder": "folder.badge.gearshape"
+    case "file.trash": "trash"
     case "go.connect": "network"
     case "view.preview": "sidebar.right"
     case "view.activities": "arrow.left.arrow.right"

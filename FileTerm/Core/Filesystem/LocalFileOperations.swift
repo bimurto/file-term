@@ -291,6 +291,17 @@ public actor LocalFileOperations {
     }
   #endif
 
+  /// Removes items for good: no Trash, no undo step. Callers must confirm first.
+  public func deletePermanently(sources: [URL]) throws {
+    try begin()
+    defer { busy = false }
+    for source in sources {
+      try Task.checkCancellation()
+      try local(source)
+      try fm.removeItem(at: canonical(source))
+    }
+  }
+
   public func undo() async throws {
     try begin()
     defer { busy = false }

@@ -580,6 +580,12 @@ import UniformTypeIdentifiers
         }
       ),
       AppCommand(
+        id: "app.emptyTrash", title: "Empty Trash…", menuPath: ["FileTerm"],
+        isEnabled: { [weak self] _ in self?.fileOperations.trashItemCount() != 0 },
+        disabledReason: { _ in "The Trash is empty." },
+        handler: { [weak self] in self?.fileOperations.emptyTrash() }
+      ),
+      AppCommand(
         id: "app.hide", title: "Hide FileTerm", menuPath: ["FileTerm"], shortcut: "h",
         isEnabled: { _ in true }, disabledReason: { _ in "" },
         handler: {
@@ -1168,11 +1174,20 @@ import UniformTypeIdentifiers
     }
     result.append(
       command(
-        "file.trash", "Move to Trash", menu: ["File"],
+        "file.trash", "Move to Trash",
         shortcut: Shortcut(key: "\u{7F}", command: true), selection: true, anyProvider: true
       ) { [weak self] in
         guard let self else { return }
         fileOperations.trash(browser.activePane, window: browserWindow)
+      })
+    result.append(
+      command(
+        "commands.delete", "Delete…",
+        shortcut: Shortcut(key: "\u{7F}", command: true, option: true), selection: true,
+        anyProvider: true
+      ) { [weak self] in
+        guard let self else { return }
+        fileOperations.deletePermanently(browser.activePane, window: browserWindow)
       })
     for redo in [false, true] {
       result.append(

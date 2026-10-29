@@ -5,6 +5,11 @@ import Testing
 @testable import FileTerm
 
 @MainActor struct WorkspaceSettingsTests {
+  @Test func defaultToolbarHasTheDeleteButton() {
+    #expect(WorkspacePreferences().toolbarItems.contains("file.trash"))
+    #expect(ToolbarSymbols.symbol(for: "file.trash") == "trash")
+  }
+
   @Test func customizationViewPreferencesAndSessionSettingsPersist() throws {
     let name = "com.fileterm.tests.\(UUID().uuidString)"
     let suite = try #require(UserDefaults(suiteName: name))

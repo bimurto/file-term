@@ -43,6 +43,7 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: FileTerm
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: FileTerm connects to servers on your network when you press Connect.
+        INFOPLIST_KEY_NSAppleEventsUsageDescription: FileTerm asks Finder to empty the Trash when you choose Empty Trash.
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
       configs:

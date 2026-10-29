@@ -19,12 +19,12 @@
 - [x] Search and filter work inside an archive opened as a folder.
 
 ### M10.04 Move to Trash
-- [ ] Commands › Move to Trash and the Delete toolbar button move local items to the system Trash, and the action can be undone.
-- [ ] ForkLift › Empty Trash is a separate command that asks for confirmation.
+- [x] Commands › Move to Trash and the Delete toolbar button move local items to the system Trash, and the action can be undone.
+- [x] ForkLift › Empty Trash is a separate command that asks for confirmation.
 
 ### M10.05 Delete (permanent)
-- [ ] Commands › Delete asks for confirmation and says clearly that the deletion is permanent.
-- [ ] For remote items, the dialog says they will not go to the Mac's Trash.
+- [x] Commands › Delete asks for confirmation and says clearly that the deletion is permanent.
+- [x] For remote items, the dialog says they will not go to the Mac's Trash.
 
 ### M10.06 App Deleter
 - [ ] When Settings › General › Detect application when deleting is on, deleting a `.app` shows a list of related files (prefs, caches, support folders).
@@ -46,7 +46,7 @@ M10 ships in tickets, one commit each.
 |---|---|---|
 | T1 Compress, Extract, archive settings | M10.01, .02, first item of .03, Extract part of .08 | Done |
 | T2 Archives as folders | M10.03 | Done |
-| T3 Trash, Delete, Empty Trash | M10.04, .05 | Open |
+| T3 Trash, Delete, Empty Trash | M10.04, .05 | Done |
 | T4 App Deleter | M10.06, App cleanup part of .08 | Open |
 | T5 Compare tool | M10.07, Compare part of .08 | Open |
 
@@ -92,3 +92,20 @@ M10 ships in tickets, one commit each.
   session cannot reopen an archive; that tab falls back as for any missing provider.
 - Not done: the path bar shows the path inside the archive, not the archive's name; large remote
   archives are downloaded completely before they open; not driven by hand on the desktop.
+
+## T3 notes
+
+- Move to Trash (⌘⌫) moved from the File menu to Commands, and Delete… (⌥⌘⌫) sits next to it. The
+  Delete button is in the default toolbar (`file.trash`); saved toolbars keep their own list, and
+  Customize Toolbar can add it. Local Move to Trash asks nothing and can be undone, as before.
+- Delete… on local items asks first. The dialog says the deletion is permanent and the items will
+  not go to the Trash; Cancel is the default button. It is not added to Undo history.
+- On a server, Delete… and Move to Trash show the remote delete dialog, which now also says the
+  items will not go to the Mac's Trash.
+- FileTerm › Empty Trash… is separate. It asks (with the item count when macOS lets FileTerm read
+  `~/.Trash`), then asks Finder to empty the Trash through AppleScript, so every volume is covered.
+  The first use shows macOS's Automation prompt (`NSAppleEventsUsageDescription`). It is disabled
+  with "The Trash is empty." only when the count is known to be zero. It is not undoable.
+- Not done: Empty Trash and the delete dialogs have not been driven by hand on the desktop (the
+  Finder prompt needs an interactive session); unit tests cover the permanent delete engine and the
+  toolbar default.

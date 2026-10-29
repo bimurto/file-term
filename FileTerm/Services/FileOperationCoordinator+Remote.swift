@@ -109,7 +109,8 @@ extension FileOperationCoordinator {
     let alert = NSAlert()
     alert.messageText = "Delete \(entries.count) item(s)?"
     alert.informativeText =
-      "From: \(describe(first.location))\nThis deletes them from the server and cannot be undone."
+      "From: \(describe(first.location))\nThis deletes them from the server and cannot be undone. "
+      + "They will not go to your Mac’s Trash."
     alert.alertStyle = .warning
     alert.addButton(withTitle: "Delete")
     alert.addButton(withTitle: "Cancel")
