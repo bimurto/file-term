@@ -1,5 +1,5 @@
-import FileTermCore
 import Foundation
+import FileTermCore
 
 /// Spotlight (NSMetadataQuery) search for local folders, including file contents.
 @MainActor final class SpotlightSearch {

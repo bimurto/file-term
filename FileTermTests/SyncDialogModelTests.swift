@@ -47,6 +47,33 @@ struct SyncDialogModelTests {
     #expect(submitted.map(\.isChecked) == [true, false])
   }
 
+  @Test func conflictDirectionCanBeChosenAndIsSubmitted() async throws {
+    let (left, right) = try makeTrees()
+    let date = Date(timeIntervalSince1970: 1_000_000)
+    for (folder, text) in [(left, "longer"), (right, "x")] {
+      let file = folder.appendingPathComponent("clash.txt")
+      try text.write(to: file, atomically: true, encoding: .utf8)
+      try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: file.path)
+    }
+    var submitted: [SyncAction] = []
+    let model = SyncDialogModel(
+      left: Location(providerID: "local", path: left.path),
+      right: Location(providerID: "local", path: right.path), leftLabel: "", rightLabel: "",
+      registry: ProviderRegistry(providers: [LocalFileSystemProvider()]),
+      submit: { actions, _, _ in submitted = actions })
+    model.options.direction = .bothWays
+    model.options.updateWhenSizeDiffers = true
+    await waitUntilIdle(model)
+    #expect(model.actions.map(\.kind) == [.conflict] && !model.canSynchronize)
+    model.setConflictDirection("clash.txt", .left)
+    model.setChecked("clash.txt", true)
+    #expect(model.canSynchronize)
+    model.synchronize()
+    #expect(submitted.first?.towards == .left && submitted.first?.isChecked == true)
+    #expect(
+      submitted.first?.source?.location.path == right.appendingPathComponent("clash.txt").path)
+  }
+
   @Test func invalidRegexBlocksSynchronize() async throws {
     let (left, right) = try makeTrees()
     let model = SyncDialogModel(

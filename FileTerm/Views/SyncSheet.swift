@@ -73,8 +73,20 @@ struct SyncSheet: View {
           ).labelsHidden().disabled(!action.isRunnable)
         }.width(24)
         TableColumn("Action") { action in
-          Text(label(action)).foregroundStyle(action.kind == .delete ? .red : .primary)
-        }.width(110)
+          if action.kind == .conflict && action.isRunnable {
+            // A true conflict has no winner: the user picks the side that gets the copy.
+            Picker(
+              "Direction",
+              selection: Binding(
+                get: { action.towards }, set: { model.setConflictDirection(action.id, $0) })
+            ) {
+              Text("Conflict →").tag(SyncAction.Side.right)
+              Text("Conflict ←").tag(SyncAction.Side.left)
+            }.labelsHidden().accessibilityIdentifier("syncConflictDirection")
+          } else {
+            Text(label(action)).foregroundStyle(action.kind == .delete ? .red : .primary)
+          }
+        }.width(120)
         TableColumn("Path") { action in
           Text(action.relativePath + (action.isDirectory ? "/" : ""))
             .foregroundStyle(action.kind == .delete ? .red : .primary)
