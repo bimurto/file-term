@@ -39,7 +39,7 @@
 ### M09.08 Batch rename dialog
 - **Scope:** Opens when more than one item is selected and Rename or Return is pressed.
 - [x] Shows a two-column Original → New preview and the number of items affected.
-- [ ] Buttons: Cancel, Rename, Add to Favorites. *(Add to Favorites arrives in T4.)*
+- [x] Buttons: Cancel, Rename, Add to Favorites.
 
 ### M09.09 Rule engine & Apply to
 - [x] Ordered list of rules (add, remove, reorder).
@@ -59,8 +59,8 @@
 - [x] Insert text, or a date (file date or current date), at a chosen position and format.
 
 ### M09.14 Validation & rename presets
-- [ ] Shows a warning for duplicate target names, invalid characters and extension changes before Rename is enabled.
-- [ ] Rename presets are saved as favorites and appear in Quick Open (M03.03).
+- [x] Shows a warning for duplicate target names, invalid characters and extension changes before Rename is enabled.
+- [x] Rename presets are saved as favorites and appear in Quick Open (M03.03).
 
 ## Tickets
 
@@ -70,8 +70,8 @@ M09 ships in tickets, one commit each.
 |---|---|---|
 | T1 Sync analysis, dialog and queue jobs | M09.01–.06 | Done |
 | T2 Sync favorites | M09.07 | Done |
-| T3 Batch rename engine and dialog | M09.08–.13 | Done (Add to Favorites button in T4) |
-| T4 Rename validation and presets | M09.14 | Open |
+| T3 Batch rename engine and dialog | M09.08–.13 | Done |
+| T4 Rename validation and presets | M09.14 | Done |
 
 ## T1 notes
 
@@ -143,3 +143,22 @@ M09 ships in tickets, one commit each.
   reported as a partial failure. All items of a remote batch must be on the pane's connection.
 - A target that equals the name of an item that is *not* being renamed stops the job with
   "already exists" (earlier renames stay, and local ones can be undone). T4 warns before that.
+
+## T4 notes
+
+- The preview has a Warning column and a summary line. **Errors** keep Rename off: a duplicate
+  name (two items of one folder get the same name, ignoring case), an invalid name (empty, `.`,
+  `..`, over 255 bytes, or containing `/`, `:` or a null character), or a name already taken by an
+  item that is not being renamed. A name given up by another item of the same batch is free, so a
+  swap is allowed. An **extension change** on a file is a warning: tick Allow extension changes to
+  enable Rename.
+- "Already taken" is checked against the names in the pane's current folder only. Items from other
+  folders (search results) are still checked for duplicates, and the job stops with an
+  "already exists" error if a name is taken there.
+- Add to Favorites asks for a name and saves the rule list as a rename preset (Defaults key
+  `renamePresets`). The Presets menu in the dialog loads or deletes one.
+- Quick Open lists presets (kind "rename preset", via `QuickOpenExtensionPoints.renamePresets`).
+  Choosing one with several items selected opens Batch Rename with its rules loaded; with fewer
+  selected the entry is shown disabled.
+- Not done: UI tests for the two dialogs (they need an interactive desktop), and presets do not
+  yet appear in the Favorites manager (M11).

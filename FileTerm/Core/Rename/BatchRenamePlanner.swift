@@ -1,21 +1,89 @@
 import Foundation
 
+public enum RenameIssue: String, Hashable, Sendable {
+  /// Two items would get the same name in one folder (ignoring case).
+  case duplicateName
+  /// The new name is empty, `.`, `..`, too long, or contains `/`, `:` or a null character.
+  case invalidName
+  /// The new name is already taken by an item that is not being renamed.
+  case nameExists
+  /// A file would get a different extension, so it may open in another application.
+  case extensionChanged
+
+  /// Errors block Rename; a warning needs the user to allow it.
+  public var isError: Bool { self != .extensionChanged }
+
+  public var message: String {
+    switch self {
+    case .duplicateName: "Duplicate name"
+    case .invalidName: "Invalid name"
+    case .nameExists: "Name already exists"
+    case .extensionChanged: "Extension changes"
+    }
+  }
+}
+
 public struct RenameRow: Identifiable, Hashable, Sendable {
   public var id: Location { item.location }
   public let item: RenameItem
   public let proposed: String
+  public var issues: [RenameIssue] = []
   public var original: String { item.name }
   public var isChanged: Bool { proposed != item.name }
+  public var hasError: Bool { issues.contains { $0.isError } }
+  public var hasWarning: Bool { issues.contains { !$0.isError } }
 }
 
 public enum BatchRenamePlanner {
   /// The proposed names, in the order the items are given: sequence numbers follow that order.
+  /// `existingNames` maps a folder path to the names it holds, to catch names that are taken.
   public static func preview(
-    items: [RenameItem], rules: [RenameRule], now: Date = Date()
+    items: [RenameItem], rules: [RenameRule], now: Date = Date(),
+    existingNames: [String: Set<String>] = [:]
   ) -> [RenameRow] {
-    items.enumerated().map { index, item in
+    let rows = items.enumerated().map { index, item in
       let name = rules.reduce(item.name) { $1.apply(to: $0, item: item, index: index, now: now) }
       return RenameRow(item: item, proposed: name)
+    }
+    return validated(rows, existingNames: existingNames)
+  }
+
+  private static func folder(_ row: RenameRow) -> String {
+    (row.item.location.path as NSString).deletingLastPathComponent
+  }
+
+  private static func key(_ folder: String, _ name: String) -> String {
+    folder + "\u{0}" + name.lowercased()
+  }
+
+  private static func validated(_ rows: [RenameRow], existingNames: [String: Set<String>])
+    -> [RenameRow]
+  {
+    var holders: [String: Int] = [:]
+    for row in rows { holders[key(folder(row), row.proposed), default: 0] += 1 }
+    // Names the batch gives up: free for another item once the sequencer has moved it away.
+    let vacated = Set(rows.filter(\.isChanged).map { key(folder($0), $0.original) })
+    return rows.map { row in
+      guard row.isChanged else { return row }
+      var row = row
+      let name = row.proposed
+      let place = folder(row)
+      if name.isEmpty || name == "." || name == ".." || name.utf8.count > 255
+        || name.contains(where: { $0 == "/" || $0 == ":" || $0 == "\0" })
+      {
+        row.issues.append(.invalidName)
+      }
+      if holders[key(place, name), default: 0] > 1 { row.issues.append(.duplicateName) }
+      let taken = existingNames[place]?.contains { $0.lowercased() == name.lowercased() } == true
+      if taken && !vacated.contains(key(place, name)) && !row.issues.contains(.duplicateName) {
+        row.issues.append(.nameExists)
+      }
+      if !row.item.isDirectory,
+        (name as NSString).pathExtension != (row.original as NSString).pathExtension
+      {
+        row.issues.append(.extensionChanged)
+      }
+      return row
     }
   }
 }

@@ -53,6 +53,24 @@ struct BrowserView: View {
     .onChange(of: settings.transfers, initial: true) { _, value in
       transfers.preferences = value
     }
+    .onAppear {
+      extensionPoints.renamePresets = [
+        ClosureQuickOpenSource { [settings, browser] in
+          settings.renamePresets.map { preset in
+            let pane = browser.activePane
+            return QuickOpenItem(
+              id: "renamePreset:\(preset.id)", title: preset.name,
+              subtitle: pane.selection.count > 1
+                ? "Rename preset" : "Rename preset — select several items first",
+              kind: .renamePreset, isEnabled: pane.selection.count > 1,
+              perform: {
+                NotificationCenter.default.post(
+                  name: .fileTermRenamePreset, object: pane, userInfo: ["presetID": preset.id])
+              })
+          }
+        }
+      ]
+    }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermGoToFolder)) { notification in
       guard notification.object as? BrowserModel === browser else { return }
       goToFolder = GoToFolderModel(
@@ -502,6 +520,7 @@ extension Notification.Name {
   static let fileTermQuickSelect = Notification.Name("FileTerm.quickSelect")
   static let fileTermSync = Notification.Name("FileTerm.sync")
   static let fileTermBatchRename = Notification.Name("FileTerm.batchRename")
+  static let fileTermRenamePreset = Notification.Name("FileTerm.renamePreset")
   static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")
   static let fileTermFind = Notification.Name("FileTerm.find")
 }

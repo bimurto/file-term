@@ -115,6 +115,19 @@ import UniformTypeIdentifiers
         self.fileOperations.startRename(pane, window: controller.window)
       }
     }
+    NotificationCenter.default.addObserver(
+      forName: .fileTermRenamePreset, object: nil, queue: .main
+    ) { [weak self] notification in
+      guard let pane = notification.object as? PaneModel,
+        let id = notification.userInfo?["presetID"] as? UUID
+      else { return }
+      MainActor.assumeIsolated {
+        guard let self, pane.selection.count > 1,
+          let preset = self.settings.renamePresets.first(where: { $0.id == id })
+        else { return }
+        self.openBatchRename(pane, preset: preset)
+      }
+    }
     fileOperations.preferences = { [weak self] in self?.settings.transfers ?? TransferPreferences()
     }
     fileOperations.transfers.preferences = settings.transfers
@@ -918,7 +931,7 @@ import UniformTypeIdentifiers
       name: .fileTermSync, object: browser, userInfo: ["model": model])
   }
 
-  private func openBatchRename(_ pane: PaneModel) {
+  private func openBatchRename(_ pane: PaneModel, preset: RenamePreset? = nil) {
     guard
       let controller = windows.first(where: { controller in
         PaneID.allCases.contains { id in
@@ -934,10 +947,20 @@ import UniformTypeIdentifiers
         modifiedAt: $0.modifiedAt, createdAt: $0.createdAt)
     }
     let window = controller.window
-    let model = BatchRenameModel(items: items) { [weak self, weak pane] renames in
-      guard let pane else { return }
-      self?.fileOperations.submitBatchRename(renames, pane: pane, window: window)
-    }
+    var existing: [String: Set<String>] = [:]
+    if let folder = pane.location?.path { existing[folder] = Set(pane.entries.map(\.name)) }
+    let model = BatchRenameModel(
+      items: items, rules: preset?.rules ?? [RenameRule(kind: .replaceText)],
+      existingNames: existing, presets: settings.renamePresets,
+      savePreset: { [weak self] preset in
+        self?.settings.renamePresets.append(preset)
+        self?.menuCoordinator?.refreshEnabling()
+      },
+      deletePreset: { [weak self] id in self?.settings.renamePresets.removeAll { $0.id == id } },
+      submit: { [weak self, weak pane] renames in
+        guard let pane else { return }
+        self?.fileOperations.submitBatchRename(renames, pane: pane, window: window)
+      })
     NotificationCenter.default.post(
       name: .fileTermBatchRename, object: controller.browser, userInfo: ["model": model])
   }

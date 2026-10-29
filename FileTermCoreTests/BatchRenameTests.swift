@@ -177,4 +177,64 @@ struct BatchRenameTests {
     #expect(
       try String(contentsOf: dir.appendingPathComponent("taken.txt"), encoding: .utf8) == "keep")
   }
+
+  @Test func validationFlagsDuplicatesInvalidNamesTakenNamesAndExtensionChanges() {
+    func row(_ name: String, in folder: String = "/d") -> RenameItem {
+      RenameItem(location: Location(providerID: "local", path: folder + "/" + name), name: name)
+    }
+    var text = RenameRule(kind: .replaceText)
+    text.find = "a"
+    text.replacement = "x"
+    // a1 and A1 both become x1 (case-insensitive); "b.txt" -> "b.md" changes the extension.
+    let items = [row("a1"), row("A1"), row("b.txt")]
+    var rows = BatchRenamePlanner.preview(items: items, rules: [text])
+    #expect(rows[0].issues == [.duplicateName] && rows[1].issues == [.duplicateName])
+    #expect(rows[2].issues.isEmpty)
+    var ext = RenameRule(kind: .replaceText)
+    ext.find = "txt"
+    ext.replacement = "md"
+    ext.applyTo = .fullName
+    rows = BatchRenamePlanner.preview(items: items, rules: [ext])
+    #expect(rows[2].issues == [.extensionChanged] && rows[2].hasWarning && !rows[2].hasError)
+
+    var bad = RenameRule(kind: .replaceText)
+    bad.find = "b"
+    bad.replacement = "a/b:"
+    rows = BatchRenamePlanner.preview(items: [row("b.txt")], rules: [bad])
+    #expect(rows[0].issues == [.invalidName] && rows[0].hasError)
+    var empty = RenameRule(kind: .replaceText)
+    empty.find = "b.txt"
+    empty.applyTo = .fullName
+    rows = BatchRenamePlanner.preview(items: [row("b.txt")], rules: [empty])
+    #expect(rows[0].issues.contains(.invalidName))
+
+    var taken = RenameRule(kind: .replaceText)
+    taken.find = "one"
+    taken.replacement = "two"
+    let existing = ["/d": Set(["one", "Two", "three"])]
+    rows = BatchRenamePlanner.preview(items: [row("one")], rules: [taken], existingNames: existing)
+    #expect(rows[0].issues == [.nameExists])
+    // Swapping is fine: the name is given up by the other item in the same batch.
+    var swap = RenameRule(kind: .replaceText)
+    swap.find = "one"
+    swap.replacement = "Two"
+    rows = BatchRenamePlanner.preview(
+      items: [row("one"), row("Two")], rules: [swap], existingNames: existing)
+    #expect(rows[0].issues.isEmpty || rows[0].issues == [.duplicateName])
+    #expect(!rows[0].issues.contains(.nameExists))
+    // Unchanged rows never show issues, and other folders are separate namespaces.
+    rows = BatchRenamePlanner.preview(
+      items: [row("a1", in: "/d"), row("a1", in: "/e")], rules: [text])
+    #expect(rows.allSatisfy { $0.issues.isEmpty })
+  }
+
+  @Test func presetKeepsItsRulesThroughCoding() throws {
+    var rule = RenameRule(kind: .addSequence)
+    rule.padding = 3
+    rule.position = .end
+    let preset = RenamePreset(name: "Numbered", rules: [rule, RenameRule(kind: .changeCase)])
+    let decoded = try JSONDecoder().decode(
+      RenamePreset.self, from: JSONEncoder().encode(preset))
+    #expect(decoded == preset)
+  }
 }

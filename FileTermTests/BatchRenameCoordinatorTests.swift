@@ -71,4 +71,76 @@ import Testing
     #expect(
       try String(contentsOf: root.appendingPathComponent("b.txt"), encoding: .utf8) == "a.txt")
   }
+
+  private func item(_ name: String, folder: String = "/d") -> RenameItem {
+    RenameItem(location: Location(providerID: "local", path: folder + "/" + name), name: name)
+  }
+
+  @Test func errorsBlockRenameAndExtensionChangesNeedPermission() {
+    var replace = RenameRule(kind: .replaceText)
+    replace.find = "txt"
+    replace.replacement = "md"
+    replace.applyTo = .fullName
+    let model = BatchRenameModel(items: [item("a.txt")], rules: [replace]) { _ in }
+    #expect(model.changedCount == 1 && !model.canRename)
+    #expect(model.issueSummary == ["1 × extension changes"])
+    model.allowExtensionChanges = true
+    #expect(model.canRename)
+
+    let clash = BatchRenameModel(
+      items: [item("a.txt"), item("b.txt")],
+      rules: [
+        {
+          var rule = RenameRule(kind: .replaceText)
+          rule.find = "b"
+          rule.replacement = "a"
+          return rule
+        }()
+      ]
+    ) { _ in }
+    clash.allowExtensionChanges = true
+    #expect(clash.rows[1].hasError == true || clash.rows[1].issues.contains(.duplicateName))
+    #expect(!clash.canRename)
+
+    let taken = BatchRenameModel(
+      items: [item("a.txt")],
+      rules: [
+        {
+          var rule = RenameRule(kind: .replaceText)
+          rule.find = "a"
+          rule.replacement = "z"
+          return rule
+        }()
+      ], existingNames: ["/d": ["a.txt", "z.txt"]]
+    ) { _ in }
+    #expect(taken.rows[0].issues == [.nameExists] && !taken.canRename)
+  }
+
+  @Test func presetsSaveLoadDeleteAndPersist() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let settings = AppSettings(suite: suite)
+    #expect(settings.renamePresets.isEmpty)
+    var saved: [RenamePreset] = []
+    let model = BatchRenameModel(
+      items: [item("a.txt")], rules: [RenameRule(kind: .addSequence)],
+      savePreset: { saved.append($0) }, deletePreset: { id in saved.removeAll { $0.id == id } },
+      submit: { _ in })
+    model.presetName = "  "
+    model.saveAsPreset()
+    #expect(saved.isEmpty)
+    model.presetName = "Numbered"
+    model.saveAsPreset()
+    #expect(saved.map(\.name) == ["Numbered"] && model.presets.count == 1)
+    settings.renamePresets = saved
+    #expect(AppSettings(suite: suite).renamePresets == saved)
+
+    model.rules = []
+    model.load(model.presets[0])
+    #expect(model.rules.map(\.kind) == [.addSequence])
+    #expect(model.rules[0].id != saved[0].rules[0].id)
+    model.delete(model.presets[0])
+    #expect(model.presets.isEmpty && saved.isEmpty)
+  }
 }

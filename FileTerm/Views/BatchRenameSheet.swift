@@ -4,6 +4,7 @@ import SwiftUI
 struct BatchRenameSheet: View {
   let model: BatchRenameModel
   @Environment(\.dismiss) private var dismiss
+  @State private var namingPreset = false
 
   var body: some View {
     @Bindable var model = model
@@ -13,6 +14,19 @@ struct BatchRenameSheet: View {
       HStack {
         Text("Batch Rename").font(.headline)
         Spacer()
+        if !model.presets.isEmpty {
+          Menu("Presets") {
+            ForEach(model.presets) { preset in
+              Button(preset.name) { model.load(preset) }
+            }
+            Divider()
+            Menu("Delete Preset") {
+              ForEach(model.presets) { preset in
+                Button(preset.name, role: .destructive) { model.delete(preset) }
+              }
+            }
+          }.fixedSize().accessibilityIdentifier("renamePresets")
+        }
         Menu("Add Rule") {
           ForEach(RenameRule.Kind.allCases, id: \.self) { kind in
             Button(kind.title) { model.addRule(kind) }
@@ -37,14 +51,36 @@ struct BatchRenameSheet: View {
         TableColumn("Original") { Text($0.original).lineLimit(1).truncationMode(.middle) }
         TableColumn("New") { row in
           Text(row.proposed).lineLimit(1).truncationMode(.middle)
-            .foregroundStyle(row.isChanged ? Color.primary : Color.secondary)
+            .foregroundStyle(
+              row.hasError ? Color.red : row.isChanged ? Color.primary : Color.secondary
+            )
             .bold(row.isChanged)
         }
+        TableColumn("Warning") { row in
+          Text(row.issues.map(\.message).joined(separator: ", "))
+            .foregroundStyle(row.hasError ? Color.red : Color.orange).lineLimit(1)
+        }.width(170)
       }.frame(minHeight: 180).accessibilityIdentifier("renamePreview")
+      let summary = model.issueSummary
+      if !summary.isEmpty {
+        HStack {
+          Label(
+            summary.joined(separator: ", "), systemImage: "exclamationmark.triangle"
+          ).foregroundStyle(rows.contains(where: \.hasError) ? Color.red : Color.orange)
+            .accessibilityIdentifier("renameIssues")
+          Spacer()
+          if rows.contains(where: \.hasWarning) {
+            Toggle("Allow extension changes", isOn: $model.allowExtensionChanges)
+              .accessibilityIdentifier("renameAllowExtension")
+          }
+        }
+      }
       HStack {
         Text("\(changed) of \(rows.count) items will be renamed").foregroundStyle(.secondary)
           .accessibilityIdentifier("renameCount")
         Spacer()
+        Button("Add to Favorites") { namingPreset = true }
+          .disabled(model.rules.isEmpty).accessibilityIdentifier("renameAddFavorite")
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
         Button("Rename") {
           model.rename()
@@ -52,7 +88,14 @@ struct BatchRenameSheet: View {
         }.keyboardShortcut(.defaultAction).disabled(!model.canRename)
           .accessibilityIdentifier("renameRun")
       }
-    }.padding(20).frame(width: 720, height: 600)
+    }.padding(20).frame(width: 720, height: 640)
+      .alert("Rename Preset", isPresented: $namingPreset) {
+        TextField("Name", text: $model.presetName)
+        Button("Save") { model.saveAsPreset() }
+        Button("Cancel", role: .cancel) {}
+      } message: {
+        Text("Saves the rule list. Find it again in Presets or Quick Open.")
+      }
   }
 }
 
