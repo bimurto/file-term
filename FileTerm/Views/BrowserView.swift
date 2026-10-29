@@ -16,6 +16,7 @@ struct BrowserView: View {
   @State private var optionsSheet: BrowserOptionsSheet?
   @State private var quickSelectShown = false
   @State private var syncModel: SyncDialogModel?
+  @State private var batchRename: BatchRenameModel?
   @State private var quickOpenShown = false
   @State private var pendingQuickOpen: QuickOpenItem?
   @State private var searchQuery = SearchQuery()
@@ -79,6 +80,13 @@ struct BrowserView: View {
       else { return }
       syncModel = model
     }
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermBatchRename)) { notification in
+      guard notification.object as? BrowserModel === browser,
+        let model = notification.userInfo?["model"] as? BatchRenameModel
+      else { return }
+      batchRename = model
+    }
+    .sheet(item: $batchRename) { model in BatchRenameSheet(model: model) }
     .sheet(item: $syncModel, onDismiss: { syncModel?.cancel() }) { model in SyncSheet(model: model)
     }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermQuickOpen)) { notification in
@@ -493,6 +501,7 @@ extension Notification.Name {
   static let fileTermBrowserOptions = Notification.Name("FileTerm.browserOptions")
   static let fileTermQuickSelect = Notification.Name("FileTerm.quickSelect")
   static let fileTermSync = Notification.Name("FileTerm.sync")
+  static let fileTermBatchRename = Notification.Name("FileTerm.batchRename")
   static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")
   static let fileTermFind = Notification.Name("FileTerm.find")
 }

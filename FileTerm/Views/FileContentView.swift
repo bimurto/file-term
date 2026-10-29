@@ -80,6 +80,11 @@ struct FileContentView: View {
           showPackageContents: showPackageContents)
       }
     } primaryAction: { locations in
+      if locations.count > 1 {
+        // Return with several items selected opens Batch Rename.
+        NotificationCenter.default.post(name: .init("FileTerm.BeginRename"), object: pane)
+        return
+      }
       guard locations.count == 1, let location = locations.first,
         let entry = pane.visibleEntries.first(where: { $0.location == location })
       else { return }

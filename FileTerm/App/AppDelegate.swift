@@ -118,6 +118,7 @@ import UniformTypeIdentifiers
     fileOperations.preferences = { [weak self] in self?.settings.transfers ?? TransferPreferences()
     }
     fileOperations.transfers.preferences = settings.transfers
+    fileOperations.onBatchRename = { [weak self] pane in self?.openBatchRename(pane) }
     fileOperations.registry = providerRegistry
     fileOperations.describe = { [weak self] in self?.connections.describe($0) ?? $0.path }
     fileOperations.refresh = { [weak self] in
@@ -915,6 +916,30 @@ import UniformTypeIdentifiers
     )
     NotificationCenter.default.post(
       name: .fileTermSync, object: browser, userInfo: ["model": model])
+  }
+
+  private func openBatchRename(_ pane: PaneModel) {
+    guard
+      let controller = windows.first(where: { controller in
+        PaneID.allCases.contains { id in
+          controller.browser.tabs(id).tabs.contains { $0 === pane }
+        }
+      })
+    else { return }
+    // The order shown in the pane decides which item gets which sequence number.
+    let selected = pane.entryGroups.flatMap(\.entries).filter { pane.selection.contains($0.id) }
+    let items = selected.map {
+      RenameItem(
+        location: $0.location, name: $0.name, isDirectory: $0.kind == .directory,
+        modifiedAt: $0.modifiedAt, createdAt: $0.createdAt)
+    }
+    let window = controller.window
+    let model = BatchRenameModel(items: items) { [weak self, weak pane] renames in
+      guard let pane else { return }
+      self?.fileOperations.submitBatchRename(renames, pane: pane, window: window)
+    }
+    NotificationCenter.default.post(
+      name: .fileTermBatchRename, object: controller.browser, userInfo: ["model": model])
   }
 
   private func syncFavoriteCommands() -> [AppCommand] {

@@ -38,25 +38,25 @@
 
 ### M09.08 Batch rename dialog
 - **Scope:** Opens when more than one item is selected and Rename or Return is pressed.
-- [ ] Shows a two-column Original → New preview and the number of items affected.
-- [ ] Buttons: Cancel, Rename, Add to Favorites.
+- [x] Shows a two-column Original → New preview and the number of items affected.
+- [ ] Buttons: Cancel, Rename, Add to Favorites. *(Add to Favorites arrives in T4.)*
 
 ### M09.09 Rule engine & Apply to
-- [ ] Ordered list of rules (add, remove, reorder).
-- [ ] Apply to: name only, extension only, or full name.
+- [x] Ordered list of rules (add, remove, reorder).
+- [x] Apply to: name only, extension only, or full name.
 
 ### M09.10 Replace Text rule
-- [ ] Occurrences: first, last or all. Replacement text. Case-sensitive toggle.
+- [x] Occurrences: first, last or all. Replacement text. Case-sensitive toggle.
 
 ### M09.11 Change Case rule
-- [ ] lower, UPPER, Title, Sentence.
+- [x] lower, UPPER, Title, Sentence.
 
 ### M09.12 Add Sequence rule
-- [ ] Start with, Step value, Padding, Position, Prefix, Suffix.
-- [ ] Numbers follow the order shown in the dialog (e.g. `1sample-two.txt`, `2sample-one.txt`).
+- [x] Start with, Step value, Padding, Position, Prefix, Suffix.
+- [x] Numbers follow the order shown in the dialog (e.g. `1sample-two.txt`, `2sample-one.txt`).
 
 ### M09.13 Add Text & Add Date rules
-- [ ] Insert text, or a date (file date or current date), at a chosen position and format.
+- [x] Insert text, or a date (file date or current date), at a chosen position and format.
 
 ### M09.14 Validation & rename presets
 - [ ] Shows a warning for duplicate target names, invalid characters and extension changes before Rename is enabled.
@@ -70,7 +70,7 @@ M09 ships in tickets, one commit each.
 |---|---|---|
 | T1 Sync analysis, dialog and queue jobs | M09.01–.06 | Done |
 | T2 Sync favorites | M09.07 | Done |
-| T3 Batch rename engine and dialog | M09.08–.13 | Open |
+| T3 Batch rename engine and dialog | M09.08–.13 | Done (Add to Favorites button in T4) |
 | T4 Rename validation and presets | M09.14 | Open |
 
 ## T1 notes
@@ -118,3 +118,28 @@ M09 ships in tickets, one commit each.
   to connect first. Connection state is not restored across launches (M08), so the same applies
   after a restart.
 - Not done: renaming or reordering favorites outside the dialog; the Favorites manager is M11.
+
+## T3 notes
+
+- Rename (Commands › Rename, the context menu or **Return in the list view**) with more than one
+  item selected opens Batch Rename; with one item it still renames inline. Return in the icon and
+  column views is not wired; use Commands › Rename there.
+- Rules (`RenameRule`, core) are an ordered list: add from the Add Rule menu, remove, and move up
+  or down. Each rule has Apply to: name only, extension only or full name. Folders have no
+  extension, and a name like `.hidden` has none either. Extension-only Add Text on a file without
+  an extension adds one.
+- Replace Text: first, last or all occurrences, replacement text, Case sensitive (off by default,
+  so `OLD` matches `old`). Change Case: lower, UPPER, Title, Sentence. Add Sequence: Start with,
+  Step, Padding (digits), Prefix, Suffix and Position (start, end or at an index). Add Text and
+  Add Date use the same positions; Add Date takes the file's modified or created date, or the
+  current date, with a `DateFormatter` pattern such as `yyyy-MM-dd`. A file without that date is
+  left unchanged.
+- Sequence numbers follow the order shown in the pane (grouping included), so
+  `sample-two.txt`, `sample-one.txt` become `1sample-two.txt`, `2sample-one.txt`.
+- Rename runs as one `.rename` queue job. Local items use `LocalFileOperations.renameBatch`: one
+  undo step, and swaps (`a`↔`b`) or case-only changes go through temporary names
+  (`RenameSequencer`), so APFS's case-insensitivity does not block `a.txt` → `A.txt`. Remote items
+  use `ProviderItemOperations.rename` with the same ordering; a failure after the first success is
+  reported as a partial failure. All items of a remote batch must be on the pane's connection.
+- A target that equals the name of an item that is *not* being renamed stops the job with
+  "already exists" (earlier renames stay, and local ones can be undone). T4 warns before that.

@@ -40,6 +40,29 @@ extension FileOperationCoordinator {
     }
   }
 
+  /// All items belong to the pane's connection. Swaps go through temporary names like local ones.
+  func submitRemoteBatchRename(_ renames: [(location: Location, name: String)]) {
+    guard let providerID = renames.first?.location.providerID else { return }
+    let registry = registry
+    submitRemote(kind: .rename, locations: renames.map(\.location)) { control in
+      var done = 0
+      for step in RenameSequencer.steps(for: renames.map { ($0.location.path, $0.name) }) {
+        try await control.checkpoint()
+        do {
+          _ = try await ProviderItemOperations.rename(
+            Location(providerID: providerID, path: step.path), to: step.name, registry: registry)
+          done += 1
+        } catch is CancellationError {
+          throw CancellationError()
+        } catch {
+          if done > 0 { throw PartialTransferError(error.localizedDescription) }
+          throw error
+        }
+      }
+      return TransferSummary(succeeded: renames.count)
+    }
+  }
+
   func bindRemoteRename(_ pane: PaneModel) {
     pane.onRename = { [weak self, weak pane] location, name in
       guard let self, let pane else { return }

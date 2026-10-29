@@ -29,13 +29,16 @@
 		4140A5374DBB60C325FD3ACD /* FileOperationCoordinator+Sync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E927BE4B6695C6DE166344A /* FileOperationCoordinator+Sync.swift */; };
 		41D771B0B7C24997A820B367 /* FileTermCore in Frameworks */ = {isa = PBXBuildFile; productRef = BDA4D9562B8CDBBF78D85EBD /* FileTermCore */; };
 		4253CE8C8482A0FC4CF0B0E0 /* InlineFileName.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D6CB0E08251975EA3DF929 /* InlineFileName.swift */; };
+		43018735FF004DFD4FB47F11 /* BatchRenameModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE09C1630BCF23F151106E0 /* BatchRenameModel.swift */; };
 		44AA258F04AE63E5A48B3B0F /* PathBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76573E0579F8B61E01AC01FE /* PathBar.swift */; };
+		4B50336F990550E779F076CE /* BatchRenameCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 683F852FE7FFBC674221300B /* BatchRenameCoordinatorTests.swift */; };
 		4B837F4495758911733368BA /* SyncSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15266C4B6E11700326BB9AE5 /* SyncSheet.swift */; };
 		519405E20B5E742D2B7AD1F2 /* FileUtilityCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA026A229572C46FC23F25D /* FileUtilityCoordinator.swift */; };
 		552AB8EE9CD83AA27D525072 /* NavigationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F39962B92332D44523EA91 /* NavigationUITests.swift */; };
 		5541AB42821FCD706D96624C /* DeviceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A16FE2A26A749FBCA98E9A0 /* DeviceModel.swift */; };
 		5A800C4DE4F9D831A74FB9F4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1308A9BE29BEEC19841DAA4B /* PrivacyInfo.xcprivacy */; };
 		6ACB00332FDA81449303A2E8 /* TerminalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */; };
+		6E40BFCEEB543EF019876960 /* BatchRenameSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DCF4596403D71569EE5B325 /* BatchRenameSheet.swift */; };
 		6EA4CFBA7A1AAC1DB519B385 /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FE695F56A7B3922377D1EF /* SettingsTests.swift */; };
 		6F287E6896608CD327BD7FE4 /* BrowserOptionsSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 156380F619C9B0B761320BB4 /* BrowserOptionsSheets.swift */; };
 		7167DDB43AC70112BD7ECB9A /* TerminalWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFAE2CA84D542DEB0E1F9E /* TerminalWorkspace.swift */; };
@@ -118,6 +121,7 @@
 		15A6ED8996680BB41D7ACCC7 /* TransferPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferPanels.swift; sourceTree = "<group>"; };
 		1D814D37D4729797528F0363 /* ProviderCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCopyTests.swift; sourceTree = "<group>"; };
 		1DC62E29F72B0EF3670ED8BF /* ConnectionForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionForm.swift; sourceTree = "<group>"; };
+		1DE09C1630BCF23F151106E0 /* BatchRenameModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameModel.swift; sourceTree = "<group>"; };
 		21D5125609844EF3D285FEDE /* FileOperationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationCoordinatorTests.swift; sourceTree = "<group>"; };
 		252E1CD5E5C248D1EC458280 /* file-term */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "file-term"; path = .; sourceTree = SOURCE_ROOT; };
 		26623D2ABD49E2F4BECAA88A /* TerminalAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAppearance.swift; sourceTree = "<group>"; };
@@ -125,6 +129,7 @@
 		2BABF00EED1917EF1D260D5B /* TerminalAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAppearanceTests.swift; sourceTree = "<group>"; };
 		318F0B726DA72CF0222E29BE /* ThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyNotices.txt; sourceTree = "<group>"; };
 		33F39962B92332D44523EA91 /* NavigationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationUITests.swift; sourceTree = "<group>"; };
+		3DCF4596403D71569EE5B325 /* BatchRenameSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameSheet.swift; sourceTree = "<group>"; };
 		3E585BAF91DA75E7AD5FD9FC /* NavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationTests.swift; sourceTree = "<group>"; };
 		428D6D3D2B07B2292ADA3A7F /* TerminalUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalUITests.swift; sourceTree = "<group>"; };
 		45D98A92C51E28C5FD1E624D /* WorkspaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceUITests.swift; sourceTree = "<group>"; };
@@ -137,6 +142,7 @@
 		5FF9B1F7E8DB96991579FE85 /* TerminalPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalPanel.swift; sourceTree = "<group>"; };
 		6673A69D83102582AA752B6B /* FileTerm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FileTerm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6827571BFC5023EDC064B80A /* FileContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileContentView.swift; sourceTree = "<group>"; };
+		683F852FE7FFBC674221300B /* BatchRenameCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameCoordinatorTests.swift; sourceTree = "<group>"; };
 		6910FF54BD34578D38001063 /* ConnectionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionCoordinatorTests.swift; sourceTree = "<group>"; };
 		6BA026A229572C46FC23F25D /* FileUtilityCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilityCoordinator.swift; sourceTree = "<group>"; };
 		6C0D4372083B90963DAFBFA2 /* SyncDialogModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDialogModelTests.swift; sourceTree = "<group>"; };
@@ -255,6 +261,7 @@
 		A39D9A2CDA530F73FC43A0AF /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				3DCF4596403D71569EE5B325 /* BatchRenameSheet.swift */,
 				156380F619C9B0B761320BB4 /* BrowserOptionsSheets.swift */,
 				9ABBE0A5FF7F9D17EE0DB14E /* BrowserView.swift */,
 				1DC62E29F72B0EF3670ED8BF /* ConnectionForm.swift */,
@@ -337,6 +344,7 @@
 		E8DAA587CA471A2A3E32EE6B /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				1DE09C1630BCF23F151106E0 /* BatchRenameModel.swift */,
 				0742DF9483E8B43AD0089D7F /* ConnectionCoordinator.swift */,
 				C1DC0CE81A8B6F13514020EE /* CredentialStore.swift */,
 				E2B6D81AF101F9349284282D /* FileMetadataService.swift */,
@@ -355,6 +363,7 @@
 		FD2C5834FF37BD48DDB048D2 /* FileTermTests */ = {
 			isa = PBXGroup;
 			children = (
+				683F852FE7FFBC674221300B /* BatchRenameCoordinatorTests.swift */,
 				6910FF54BD34578D38001063 /* ConnectionCoordinatorTests.swift */,
 				9936DC26BDD617EEE1F745B5 /* FileMetadataTests.swift */,
 				21D5125609844EF3D285FEDE /* FileOperationCoordinatorTests.swift */,
@@ -519,6 +528,8 @@
 			files = (
 				764E8C59F1147F536837E1CA /* AppDelegate.swift in Sources */,
 				D6737E253E9C71DDCF0DCD50 /* AppSettings.swift in Sources */,
+				43018735FF004DFD4FB47F11 /* BatchRenameModel.swift in Sources */,
+				6E40BFCEEB543EF019876960 /* BatchRenameSheet.swift in Sources */,
 				6F287E6896608CD327BD7FE4 /* BrowserOptionsSheets.swift in Sources */,
 				33F7354786B5CB994A0F299F /* BrowserView.swift in Sources */,
 				0356AB9A1C1AD553168B0549 /* BrowserWindowController.swift in Sources */,
@@ -567,6 +578,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4B50336F990550E779F076CE /* BatchRenameCoordinatorTests.swift in Sources */,
 				AEEF5972612807D05EDA8807 /* ConnectionCoordinatorTests.swift in Sources */,
 				F82EBE669D7A4A2A5255A883 /* FileMetadataTests.swift in Sources */,
 				ED1408351CA759E4A39BF46C /* FileOperationCoordinatorTests.swift in Sources */,

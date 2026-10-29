@@ -243,6 +243,28 @@ public actor LocalFileOperations {
     return destination
   }
 
+  /// Renames several items as one undoable step. Swaps and case-only changes go through a
+  /// temporary name so an item never lands on a name another one still holds.
+  public func renameBatch(_ renames: [(source: URL, name: String)]) async throws -> [URL] {
+    try begin()
+    defer { busy = false }
+    for rename in renames {
+      try validate(rename.name)
+      try local(rename.source)
+    }
+    let pairs = renames.map { (path: canonical($0.source).path, name: $0.name) }
+    var transaction = Transaction()
+    defer { commit(transaction) }
+    for step in RenameSequencer.steps(for: pairs) {
+      let from = URL(fileURLWithPath: step.path)
+      try await recordMove(
+        from, from.deletingLastPathComponent().appendingPathComponent(step.name), in: &transaction)
+    }
+    return pairs.map {
+      URL(fileURLWithPath: $0.path).deletingLastPathComponent().appendingPathComponent($0.name)
+    }
+  }
+
   #if os(macOS)
     /// Uses the native Trash and records its actual resulting URLs for guarded restoration.
     /// Emptying Trash externally disables undo for those items; no private recovery copy is kept.

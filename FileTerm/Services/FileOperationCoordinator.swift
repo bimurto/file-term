@@ -17,6 +17,8 @@ import FileTermCore
   private(set) var undoReason = "Nothing to undo. Permanent and remote deletes cannot be undone."
   private(set) var redoReason = "Nothing to redo. Permanent and remote deletes cannot be undone."
   var refresh: (() async -> Void)?
+  /// Opens the Batch Rename dialog for a pane with several selected items.
+  var onBatchRename: ((PaneModel) -> Void)?
 
   var clipboardURLs: [URL] {
     (NSPasteboard.general.readObjects(
@@ -67,15 +69,24 @@ import FileTermCore
 
   func startRename(_ pane: PaneModel, window: NSWindow?) {
     guard pane.selection.count == 1 else {
-      let alert = NSAlert()
-      alert.messageText = "Batch Rename"
-      alert.informativeText =
-        "Renaming multiple items will be available in M09. Select one item to rename it now."
-      alert.runModal()
+      if pane.selection.count > 1 { onBatchRename?(pane) }
       return
     }
     bindRename(pane, window: window)
     pane.renamingLocation = pane.selection.first
+  }
+
+  /// Renames several items from the Batch Rename dialog as one queue job.
+  func submitBatchRename(
+    _ renames: [(location: Location, name: String)], pane: PaneModel, window: NSWindow?
+  ) {
+    let changing = renames.filter { ($0.location.path as NSString).lastPathComponent != $0.name }
+    guard !changing.isEmpty else { return }
+    if isRemote(pane) { return submitRemoteBatchRename(changing) }
+    let pairs = changing.map { (source: URL(fileURLWithPath: $0.location.path), name: $0.name) }
+    run(kind: .rename, sources: pairs.map(\.source), pane: pane, window: window) { operations in
+      try await operations.renameBatch(pairs)
+    }
   }
 
   func create(_ pane: PaneModel, directory: Bool, withSelection: Bool, window: NSWindow?) {
