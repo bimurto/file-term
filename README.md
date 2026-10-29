@@ -29,7 +29,9 @@ See [M09 tickets](docs/milestones/M09-sync-and-batch-rename.md). Selecting sever
 and saved rename presets that appear in Quick Open.
 
 M10 adds Commands › Compress, Compress With Options…, Extract and Extract to… (zip, tar, tar.gz, tar.bz2, tar.xz),
-and Settings › General archive options. See [M10 tickets](docs/milestones/M10-archives-deletion-comparison.md).
+Settings › General archive options and Treat archives as folders (read-only browsing and search
+inside zip/tar files), Delete… and Empty Trash…, an App Deleter that lists an app's related files, and
+Commands › Compare with FileMerge or another tool. See [M10 tickets](docs/milestones/M10-archives-deletion-comparison.md).
 
 ## Run
 

@@ -31,12 +31,12 @@
 - [x] Every related file is shown with a checkbox, and none is deleted without the user confirming.
 
 ### M10.07 Compare tool integration
-- [ ] Settings › General › Compare Tool (default FileMerge / Xcode).
-- [ ] Commands › Compare opens the two selected files, or one file from each pane, in that tool.
-- [ ] If the tool isn't installed, the command is disabled and says why.
+- [x] Settings › General › Compare Tool (default FileMerge / Xcode).
+- [x] Commands › Compare opens the two selected files, or one file from each pane, in that tool.
+- [x] If the tool isn't installed, the command is disabled and says why.
 
 ### M10.08 Command availability rules
-- [ ] Extract requires an archive. Compare requires two files and an installed tool. App cleanup requires a `.app`. Each case shows a disabled reason.
+- [x] Extract requires an archive. Compare requires two files and an installed tool. App cleanup requires a `.app`. Each case shows a disabled reason.
 
 ## Tickets
 
@@ -48,7 +48,7 @@ M10 ships in tickets, one commit each.
 | T2 Archives as folders | M10.03 | Done |
 | T3 Trash, Delete, Empty Trash | M10.04, .05 | Done |
 | T4 App Deleter | M10.06, App cleanup part of .08 | Done |
-| T5 Compare tool | M10.07, Compare part of .08 | Open |
+| T5 Compare tool | M10.07, Compare part of .08 | Done |
 
 ## T1 notes
 
@@ -125,3 +125,30 @@ M10 ships in tickets, one commit each.
   bundle identifier only gets the name matches.
 - Not covered: permanent Delete… of a `.app` does not offer the list (it is the Trash path that
   does); system-wide `/Library` leftovers are not searched; not driven by hand on the desktop.
+
+## T5 notes
+
+- Settings › General › Compare Tool: FileMerge (default), Kaleidoscope, BBEdit or Visual Studio Code.
+  Tools that are not installed are labelled "(not installed)".
+- A tool counts as installed when its app exists and its launcher does: FileMerge needs
+  `FileMerge.app` in the Xcode that `xcode-select -p` points at (or `/Applications/Xcode.app`) plus
+  `/usr/bin/opendiff`, because `opendiff` alone is only a stub when Xcode is missing. The others
+  use `ksdiff`, `bbdiff` and `code` in `/usr/local/bin`, `/opt/homebrew/bin` or the app bundle.
+- Commands › Compare opens two selected files, or one selected file from each pane (two in the
+  active pane win). Files must be local; folders are not compared. The tool is started and not
+  waited for.
+- Disabled reasons (shown in the menu tooltip, toolbar help and Quick Open): the tool is not
+  installed (with where to change it), or "Select two files, or one file in each pane.", "Compare
+  works on files, not folders.", "Compare works on local files only."
+
+## M10.08 summary
+
+| Command | Needs | Reason when disabled |
+|---|---|---|
+| Extract, Extract to… | every selected item is a local archive; Handle archives on | "Select an archive (.zip, .tar, .tar.gz, .7z…) in a local folder." or the Settings hint |
+| Compare | two files or one per pane; tool installed | see T5 |
+| Delete App and Related Files… | one local `.app` | "Select an application (.app) in a local folder…" |
+| Empty Trash… | a Trash that is not known to be empty | "The Trash is empty." |
+
+Not done in M10 overall: nothing was driven by hand on the desktop, and there are no UI tests for
+the new dialogs. Delete… of a `.app` does not offer the related-files list.

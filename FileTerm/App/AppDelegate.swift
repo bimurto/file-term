@@ -1181,6 +1181,39 @@ import UniformTypeIdentifiers
         guard let self else { return }
         fileOperations.trash(browser.activePane, window: browserWindow)
       })
+    let compareSelection: () -> CompareSelection = { [weak self] in
+      guard let self else { return .unavailable("") }
+      return CompareSelection.resolve(
+        active: browser.activePane.selectedEntries,
+        other: browser.targetPane?.selectedEntries ?? [])
+    }
+    result.append(
+      command(
+        "commands.compare", "Compare", selection: true, anyProvider: true,
+        condition: { [weak self] in
+          guard let self, settings.compareTool.isInstalled,
+            case .pair = compareSelection()
+          else { return false }
+          return true
+        },
+        reason: { [weak self] in
+          guard let self else { return "" }
+          if !settings.compareTool.isInstalled {
+            return "\(settings.compareTool.title) is not installed. "
+              + "Choose another tool in Settings › General › Compare Tool."
+          }
+          if case .unavailable(let reason) = compareSelection() { return reason }
+          return ""
+        }
+      ) { [weak self] in
+        guard let self, case .pair(let left, let right) = compareSelection() else { return }
+        do { try settings.compareTool.launch(left: left, right: right) } catch {
+          let alert = NSAlert()
+          alert.messageText = "Could not open \(settings.compareTool.title)"
+          alert.informativeText = error.localizedDescription
+          alert.runModal()
+        }
+      })
     result.append(
       command(
         "commands.appCleanup", "Delete App and Related Files…", selection: true,

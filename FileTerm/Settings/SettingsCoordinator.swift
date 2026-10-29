@@ -69,7 +69,7 @@ private struct SettingsCategoryView: View {
     .frame(
       width: 660,
       height: category == .terminal || category == .transfers
-        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 520 : 320)),
+        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 560 : 320)),
       alignment: .topLeading
     )
     .onAppear { settings.selectedCategory = category.rawValue }
@@ -214,6 +214,12 @@ private struct GeneralSettingsView: View {
         .accessibilityIdentifier("detectAppOnDelete")
       Text("Moving a .app to the Trash first lists its preferences, caches and support folders.")
         .font(.caption).foregroundStyle(.secondary)
+      Picker("Compare tool", selection: $settings.compareTool) {
+        ForEach(CompareTool.allCases, id: \.self) {
+          Text($0.isInstalled ? $0.title : $0.title + " (not installed)").tag($0)
+        }
+      }
+      .accessibilityIdentifier("compareTool")
       Text("Current: " + settings.workspace.startingDirectory).font(.caption).foregroundStyle(
         .secondary)
       if let error { Text(error).font(.caption).foregroundStyle(.red) }
