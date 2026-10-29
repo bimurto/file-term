@@ -253,3 +253,23 @@ private actor Log {
   var lines: [String] = []
   func add(_ line: String) { lines.append(line) }
 }
+
+struct SyncFavoriteTests {
+  @Test func favoriteKeepsRootsAndEveryOptionThroughCoding() throws {
+    var options = SyncOptions()
+    options.direction = .bothWays
+    options.hidden = true
+    options.skipEmptyFolders = true
+    options.updateWhenSizeDiffers = true
+    options.timeOffset = 2
+    options.offsetUnit = .hours
+    options.excludes = [SyncFilter(pattern: "*.log"), SyncFilter(pattern: "^tmp", isRegex: true)]
+    let favorite = SyncFavorite(
+      name: "Work", left: Location(providerID: "local", path: "/a"),
+      right: Location(providerID: "sftp.1", path: "/b"), options: options)
+    let decoded = try JSONDecoder().decode(
+      SyncFavorite.self, from: JSONEncoder().encode(favorite))
+    #expect(decoded == favorite)
+    #expect(decoded.options.deleteOrphans == false)
+  }
+}

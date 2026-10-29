@@ -67,7 +67,7 @@ import UniformTypeIdentifiers
   private lazy var registry = CommandRegistry(
     commands: makeCommands(),
     dynamicCommands: { [unowned self] in
-      recentCommands() + connectionCommands() + openWithCommands()
+      recentCommands() + connectionCommands() + syncFavoriteCommands() + openWithCommands()
     },
     shortcutOverrides: settings.shortcutOverrides,
     context: { [unowned self] in
@@ -887,18 +887,67 @@ import UniformTypeIdentifiers
 
   // MARK: Local file operations (M04)
 
-  private func openSync() {
-    guard browser.canCoordinatePanes, let left = browser.firstPane.location,
-      let right = browser.secondPane.location
+  private func openSync(favorite: SyncFavorite? = nil) {
+    guard let left = favorite?.left ?? browser.firstPane.location,
+      let right = favorite?.right ?? browser.secondPane.location,
+      favorite != nil || browser.canCoordinatePanes
     else { return }
     let model = SyncDialogModel(
       left: left, right: right, leftLabel: connections.describe(left),
-      rightLabel: connections.describe(right), registry: providerRegistry
-    ) { [weak self] actions, left, right in
-      self?.fileOperations.submitSync(actions, left: left, right: right)
-    }
+      rightLabel: connections.describe(right), options: favorite?.options ?? SyncOptions(),
+      favorite: favorite, registry: providerRegistry,
+      saveFavorite: { [weak self] favorite in
+        guard let self else { return }
+        if let index = settings.syncFavorites.firstIndex(where: { $0.id == favorite.id }) {
+          settings.syncFavorites[index] = favorite
+        } else {
+          settings.syncFavorites.append(favorite)
+        }
+        menuCoordinator?.refreshEnabling()
+      },
+      removeFavorite: { [weak self] id in
+        self?.settings.syncFavorites.removeAll { $0.id == id }
+        self?.menuCoordinator?.refreshEnabling()
+      },
+      submit: { [weak self] actions, left, right in
+        self?.fileOperations.submitSync(actions, left: left, right: right)
+      }
+    )
     NotificationCenter.default.post(
       name: .fileTermSync, object: browser, userInfo: ["model": model])
+  }
+
+  private func syncFavoriteCommands() -> [AppCommand] {
+    settings.syncFavorites.map { favorite in
+      AppCommand(
+        id: "commands.syncFavorite.\(favorite.id)", title: favorite.name,
+        menuPath: ["Commands", "Sync Favorites"], isEnabled: { $0.hasBrowserWindow },
+        disabledReason: { _ in "Open the browser window first." },
+        handler: { [weak self] in self?.runSyncFavorite(favorite) })
+    }
+  }
+
+  /// Shows both folders side by side, then always opens the analysis preview; it never syncs.
+  private func runSyncFavorite(_ favorite: SyncFavorite) {
+    let model = browser
+    guard
+      [favorite.left, favorite.right].allSatisfy({
+        providerRegistry.provider(for: $0.providerID) != nil
+      })
+    else {
+      model.notice = "Connect to the locations of “\(favorite.name)” first, then run it again."
+      return
+    }
+    if model.layout == .single { model.setLayout(model.lastDualLayout) }
+    Task {
+      let first = await model.navigate(to: favorite.left, in: .first)
+      let second = await model.navigate(to: favorite.right, in: .second)
+      guard first, second else {
+        model.notice = "“\(favorite.name)” could not open both folders."
+        return
+      }
+      openSync(favorite: favorite)
+    }
   }
 
   private func fileOperationCommands() -> [AppCommand] {

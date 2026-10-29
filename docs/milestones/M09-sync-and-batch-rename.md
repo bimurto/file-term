@@ -31,8 +31,8 @@
 - [x] Running the sync creates M07 queue jobs.
 
 ### M09.07 Sync favorites
-- [ ] Add to Favorites saves the roots and all options.
-- [ ] Running a saved sync always opens the analysis preview first.
+- [x] Add to Favorites saves the roots and all options.
+- [x] Running a saved sync always opens the analysis preview first.
 
 ## Part B — Batch rename
 
@@ -69,7 +69,7 @@ M09 ships in tickets, one commit each.
 | Ticket | Covers | Status |
 |---|---|---|
 | T1 Sync analysis, dialog and queue jobs | M09.01–.06 | Done |
-| T2 Sync favorites | M09.07 | Open |
+| T2 Sync favorites | M09.07 | Done |
 | T3 Batch rename engine and dialog | M09.08–.13 | Open |
 | T4 Rename validation and presets | M09.14 | Open |
 
@@ -104,3 +104,17 @@ M09 ships in tickets, one commit each.
 - A failure after at least one action succeeded ends the job as a partial failure (no Retry).
 - Not done: the dialog has not been driven by hand on the desktop; unit tests cover the engine,
   runner and dialog model. There is no UI test yet.
+
+## T2 notes
+
+- Add to Favorites (in the Sync dialog) asks for a name, then saves both roots and every option
+  (direction, scope, update and delete rules, offset, exclusions) in Defaults under `syncFavorites`.
+  Saved favorites contain no passwords.
+- Commands › Sync Favorites lists them (and Quick Open finds them). Choosing one shows both folders
+  side by side, then **opens the dialog and analyses**. Nothing is submitted until Synchronize.
+- A dialog opened from a favorite offers Update Favorite (overwrites it with the current options)
+  and Remove from Favorites.
+- A favorite on a remote connection needs that connection to be open: otherwise a notice asks you
+  to connect first. Connection state is not restored across launches (M08), so the same applies
+  after a restart.
+- Not done: renaming or reordering favorites outside the dialog; the Favorites manager is M11.

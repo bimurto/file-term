@@ -4,6 +4,7 @@ import SwiftUI
 struct SyncSheet: View {
   let model: SyncDialogModel
   @Environment(\.dismiss) private var dismiss
+  @State private var namingFavorite = false
 
   var body: some View {
     @Bindable var model = model
@@ -90,6 +91,13 @@ struct SyncSheet: View {
       HStack {
         status
         Spacer()
+        if model.favoriteID != nil {
+          Button("Remove from Favorites") { model.removeFromFavorites() }
+            .accessibilityIdentifier("syncRemoveFavorite")
+        }
+        Button(model.favoriteID == nil ? "Add to Favorites" : "Update Favorite") {
+          namingFavorite = true
+        }.accessibilityIdentifier("syncAddFavorite")
         Button("Cancel") {
           model.cancel()
           dismiss()
@@ -104,6 +112,13 @@ struct SyncSheet: View {
     }
     .padding(20).frame(width: 760, height: 640)
     .onAppear { model.analyze() }
+    .alert("Sync Favorite", isPresented: $namingFavorite) {
+      TextField("Name", text: $model.favoriteName)
+      Button("Save") { model.addToFavorites() }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("Saves both folders and every option. Running it always shows the analysis first.")
+    }
   }
 
   @ViewBuilder private var status: some View {

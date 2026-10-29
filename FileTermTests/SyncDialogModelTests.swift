@@ -59,3 +59,29 @@ struct SyncDialogModelTests {
     #expect(model.errorMessage != nil && !model.canSynchronize)
   }
 }
+
+@MainActor
+struct SyncFavoriteSettingsTests {
+  @Test func favoritesPersistAndTheDialogSavesThemWithAllOptions() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let settings = AppSettings(suite: suite)
+    #expect(settings.syncFavorites.isEmpty)
+    var saved: [SyncFavorite] = []
+    var submitted = false
+    let model = SyncDialogModel(
+      left: Location(providerID: "local", path: "/tmp/a"),
+      right: Location(providerID: "local", path: "/tmp/b"), leftLabel: "/tmp/a",
+      rightLabel: "/tmp/b", registry: ProviderRegistry(),
+      saveFavorite: { saved.append($0) }, removeFavorite: { _ in },
+      submit: { _, _, _ in submitted = true })
+    model.options.deleteOrphans = true
+    model.favoriteName = "Docs"
+    model.addToFavorites()
+    #expect(saved.count == 1 && saved[0].options.deleteOrphans && saved[0].name == "Docs")
+    #expect(model.favoriteID == saved[0].id && !submitted)
+    settings.syncFavorites = saved
+    #expect(AppSettings(suite: suite).syncFavorites == saved)
+  }
+}
