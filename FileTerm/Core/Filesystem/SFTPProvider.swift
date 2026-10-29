@@ -45,6 +45,7 @@ public actor SFTPProvider: ValidatingProvider {
   private let knownHosts: URL
   private let ssh: URL
 
+  private var encoding: String
   private var session: SFTPSession?
   private var isReady = false
   private var decoder = SFTPFrameDecoder()
@@ -57,9 +58,11 @@ public actor SFTPProvider: ValidatingProvider {
 
   public init(
     id: String, target: SSHTarget, password: String?,
+    textEncoding: String = "UTF-8",
     knownHosts: URL = HostKeyStore.defaultFileURL, ssh: URL = SSHCommand.executable
   ) {
     self.id = id
+    encoding = textEncoding
     self.target = target
     secret = password.flatMap { $0.isEmpty ? nil : $0 }
     self.knownHosts = knownHosts
@@ -69,6 +72,9 @@ public actor SFTPProvider: ValidatingProvider {
   }
 
   deinit { session?.terminate() }
+
+  /// Names on this server are read and sent in the given encoding from now on.
+  public func setTextEncoding(_ name: String) { encoding = name }
 
   /// Ends the ssh process. Later calls connect again.
   public func close() {
@@ -80,7 +86,7 @@ public actor SFTPProvider: ValidatingProvider {
   public func resolveRoot(_ requested: String) async throws -> String {
     let trimmed = requested.trimmingCharacters(in: .whitespacesAndNewlines)
     let reply = try await send {
-      SFTPPacket.path(.realpath, id: $0, trimmed.isEmpty ? "." : trimmed)
+      SFTPPacket.path(.realpath, id: $0, trimmed.isEmpty ? "." : trimmed, encoding: encoding)
     }
     guard case .names(let names) = reply, let first = names.first else {
       try requireOK(reply)
@@ -189,7 +195,9 @@ public actor SFTPProvider: ValidatingProvider {
     } catch {
       // Leave no half-written file behind; the file was created by this call.
       await closeHandle(handle)
-      _ = try? await send(cancellable: false) { SFTPPacket.path(.remove, id: $0, path) }
+      _ = try? await send(cancellable: false) {
+        SFTPPacket.path(.remove, id: $0, path, encoding: encoding)
+      }
       throw error
     }
   }
@@ -200,7 +208,8 @@ public actor SFTPProvider: ValidatingProvider {
       throw FileSystemError.destinationExists
     }
     let from = Self.normalized(source.path)
-    try requireOK(await send { SFTPPacket.rename(id: $0, from: from, to: target) })
+    try requireOK(
+      await send { SFTPPacket.rename(id: $0, from: from, to: target, encoding: encoding) })
   }
 
   public func createDirectory(_ location: Location) async throws {
@@ -208,7 +217,7 @@ public actor SFTPProvider: ValidatingProvider {
     if (try? await attributesOf(path, follow: false)) != nil {
       throw FileSystemError.destinationExists
     }
-    try requireOK(await send { SFTPPacket.makeDirectory(id: $0, path: path) })
+    try requireOK(await send { SFTPPacket.makeDirectory(id: $0, path: path, encoding: encoding) })
   }
 
   public func delete(_ location: Location) async throws {
@@ -217,20 +226,20 @@ public actor SFTPProvider: ValidatingProvider {
     // Not following links: deleting a link to a folder removes the link, never the folder's files.
     let attributes = try await attributesOf(path, follow: false)
     guard attributes.isDirectory else {
-      try requireOK(await send { SFTPPacket.path(.remove, id: $0, path) })
+      try requireOK(await send { SFTPPacket.path(.remove, id: $0, path, encoding: encoding) })
       return
     }
     for child in try await list(Location(providerID: id, path: path), includeHidden: true) {
       try await delete(child.location)
     }
-    try requireOK(await send { SFTPPacket.path(.rmdir, id: $0, path) })
+    try requireOK(await send { SFTPPacket.path(.rmdir, id: $0, path, encoding: encoding) })
   }
 
   // MARK: Requests
 
   private func attributesOf(_ path: String, follow: Bool) async throws -> SFTPAttributes {
     let reply = try await send {
-      SFTPPacket.path(follow ? .stat : .lstat, id: $0, path)
+      SFTPPacket.path(follow ? .stat : .lstat, id: $0, path, encoding: encoding)
     }
     guard case .attributes(let attributes) = reply else {
       try requireOK(reply)
@@ -244,7 +253,8 @@ public actor SFTPProvider: ValidatingProvider {
   {
     let reply = try await send {
       type == .open
-        ? SFTPPacket.open(id: $0, path: path, flags: flags) : SFTPPacket.path(type, id: $0, path)
+        ? SFTPPacket.open(id: $0, path: path, flags: flags, encoding: encoding)
+        : SFTPPacket.path(type, id: $0, path, encoding: encoding)
     }
     guard case .handle(let handle) = reply else {
       try requireOK(reply)
@@ -359,7 +369,7 @@ public actor SFTPProvider: ValidatingProvider {
     decoder.append(chunk)
     do {
       while let payload = try decoder.next() {
-        let (id, reply) = try SFTPPacket.decode(payload)
+        let (id, reply) = try SFTPPacket.decode(payload, encoding: encoding)
         pending.removeValue(forKey: id ?? 0)?.resume(returning: reply)
       }
     } catch {

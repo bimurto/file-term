@@ -164,11 +164,12 @@ struct LiveFTPTests {
   private func provider(
     secure: Bool = false, insecure: Bool = false, active: Bool = false,
     password: String = "testpass123",
-    port: Int = 2121
+    port: Int = 2121, textEncoding: String = "UTF-8"
   ) -> FTPProvider {
     FTPProvider(
       id: "ftp", host: "127.0.0.1", port: port, username: "tester", password: password,
-      secure: secure, activeMode: active, allowInvalidCertificate: insecure)
+      secure: secure, activeMode: active, allowInvalidCertificate: insecure,
+      textEncoding: textEncoding)
   }
 
   private func put(_ text: String, _ location: Location, in provider: FTPProvider) async throws {
@@ -220,6 +221,30 @@ struct LiveFTPTests {
   }
 
   @Test func plainFTPEdits() async throws { try await exercise(provider()) }
+
+  /// The server stores the Latin-1 bytes of "café.txt". Read as UTF-8 the name is garbled and
+  /// cannot be addressed; after switching to ISO-8859-1 it lists, reads, renames and deletes.
+  @Test func namesFollowTheTextEncoding() async throws {
+    let ftp = provider(textEncoding: "ISO-8859-1")
+    let root = Location(providerID: "ftp", path: "/t7-\(UUID().uuidString.prefix(8))")
+    try await ftp.createDirectory(root)
+    do {
+      let file = ProviderTransfer.child(root, "café.txt")
+      try await put("bonjour", file, in: ftp)
+      await ftp.setTextEncoding("UTF-8")
+      #expect(try await ftp.list(root).map(\.name) == ["caf\u{FFFD}.txt"])
+      await ftp.setTextEncoding("ISO-8859-1")
+      #expect(try await ftp.list(root).map(\.name) == ["café.txt"])
+      #expect(try await text(file, in: ftp) == "bonjour")
+      let renamed = ProviderTransfer.child(root, "résumé.txt")
+      try await ftp.move(file, to: renamed)
+      #expect(try await ftp.list(root).map(\.name) == ["résumé.txt"])
+    } catch {
+      try? await ftp.delete(root)
+      throw error
+    }
+    try await ftp.delete(root)
+  }
 
   @Test func explicitTLSNeedsTheInvalidCertificateOption() async throws {
     await #expect(throws: FTPError.certificate) {
@@ -273,15 +298,19 @@ struct LiveSFTPTests {
       "fileterm-live-\(UUID().uuidString)/known_hosts")
   }
 
-  private func provider(knownHosts: URL, password: String = "testpass123") -> SFTPProvider {
-    SFTPProvider(id: "sftp", target: target, password: password, knownHosts: knownHosts)
+  private func provider(
+    knownHosts: URL, password: String = "testpass123", textEncoding: String = "UTF-8"
+  ) -> SFTPProvider {
+    SFTPProvider(
+      id: "sftp", target: target, password: password, textEncoding: textEncoding,
+      knownHosts: knownHosts)
   }
 
-  private func trusted() async throws -> (SFTPProvider, URL) {
+  private func trusted(textEncoding: String = "UTF-8") async throws -> (SFTPProvider, URL) {
     let file = knownHosts()
     let store = HostKeyStore(fileURL: file)
     try store.trust(try await store.scan(target), for: target)
-    return (provider(knownHosts: file), file)
+    return (provider(knownHosts: file, textEncoding: textEncoding), file)
   }
 
   private func put(_ text: String, _ location: Location, in provider: SFTPProvider) async throws {
@@ -323,6 +352,31 @@ struct LiveSFTPTests {
     await #expect(throws: SFTPError.loginDenied) {
       try await self.provider(knownHosts: file, password: "wrong").validate(root: "/upload")
     }
+  }
+
+  /// The server stores the Latin-1 bytes of "café.txt". Read as UTF-8 the name is garbled and
+  /// cannot be addressed; after switching to ISO-8859-1 it lists, reads, renames and deletes.
+  @Test func namesFollowTheTextEncoding() async throws {
+    let (sftp, file) = try await trusted(textEncoding: "ISO-8859-1")
+    defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+    let root = Location(providerID: "sftp", path: "/upload/t7-\(UUID().uuidString.prefix(8))")
+    try await sftp.createDirectory(root)
+    do {
+      let item = ProviderTransfer.child(root, "café.txt")
+      try await put("bonjour", item, in: sftp)
+      await sftp.setTextEncoding("UTF-8")
+      #expect(try await sftp.list(root).map(\.name) == ["caf\u{FFFD}.txt"])
+      await sftp.setTextEncoding("ISO-8859-1")
+      #expect(try await sftp.list(root).map(\.name) == ["café.txt"])
+      #expect(try await text(item, in: sftp) == "bonjour")
+      let renamed = ProviderTransfer.child(root, "résumé.txt")
+      try await sftp.move(item, to: renamed)
+      #expect(try await sftp.list(root).map(\.name) == ["résumé.txt"])
+    } catch {
+      try? await sftp.delete(root)
+      throw error
+    }
+    try await sftp.delete(root)
   }
 
   @Test func editsOnTheServer() async throws {

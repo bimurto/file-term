@@ -153,6 +153,20 @@ import Observation
 
   // MARK: Refresh
 
+  /// After a connection's text encoding changed: the same server paths, read under the new one.
+  /// A path that cannot be rebuilt falls back to `fallback`. Call `refresh()` afterwards.
+  public func recodeLocations(providerID: String, fallback: String, _ recode: (String) -> String?)
+  {
+    func convert(_ location: Location) -> Location {
+      guard location.providerID == providerID else { return location }
+      return Location(providerID: providerID, path: recode(location.path) ?? fallback)
+    }
+    guard location?.providerID == providerID else { return }
+    history = history.map(convert)
+    location = location.map(convert)
+    selection = []
+  }
+
   /// Re-lists the current folder (e.g. after changes made by another app), keeping the selection
   /// for items that still exist.
   @discardableResult public func refresh() async -> Bool {

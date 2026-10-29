@@ -41,6 +41,28 @@ private actor FakeRemote: ValidatingProvider {
   func delete(_ location: Location) async throws {}
 }
 
+/// A remote whose file-name encoding can be switched; remembers the last one it was given.
+private actor SwitchableRemote: ValidatingProvider, TextEncodingSwitchable {
+  nonisolated let id: String
+  private(set) var encoding: String
+  init(id: String, encoding: String) {
+    self.id = id
+    self.encoding = encoding
+  }
+  func setTextEncoding(_ name: String) { encoding = name }
+  func validate(root: String) async throws {}
+  func list(_ location: Location) async throws -> [FileEntry] { [] }
+  func stat(_ location: Location) async throws -> FileEntry {
+    FileEntry(location: location, name: "x", kind: .directory)
+  }
+  func read(_ location: Location) async throws -> any FileByteReader {
+    throw FileSystemError.unsupportedOperation
+  }
+  func write(_ contents: any FileByteReader, to location: Location) async throws {}
+  func move(_ source: Location, to destination: Location) async throws {}
+  func delete(_ location: Location) async throws {}
+}
+
 /// Fails its first folder lookups with the given errors, then resolves "upload" to a home path.
 private actor ScriptedSFTP: ValidatingProvider {
   nonisolated let id: String
@@ -394,6 +416,45 @@ private actor ScriptedSFTP: ValidatingProvider {
     #expect(command.arguments.last == "cd '/home/tester/up load' && exec \"$SHELL\" -l")
     #expect(!command.arguments.contains { $0.contains("pw") })
     #expect(coordinator.sshSession(for: Location(providerID: "local", path: "/tmp")) == nil)
+  }
+
+  @Test func switchingTheTextEncodingRereadsTheOpenTabs() async throws {
+    let suite = try #require(UserDefaults(suiteName: "com.fileterm.tests.\(UUID().uuidString)"))
+    let registry = ProviderRegistry()
+    let remote = SwitchableRemote(id: "ftp.test", encoding: "ISO-8859-1")
+    let coordinator = ConnectionCoordinator(
+      settings: AppSettings(suite: suite), registry: registry, credentials: FakeCredentials(),
+      mounter: FakeMounter(), remoteFactory: { _, _ in remote })
+    var profile = ConnectionProfile(kind: .ftp)
+    profile.server = "ftp.local"
+    profile.textEncoding = "ISO-8859-1"
+    let browser = BrowserModel(registry: registry)
+    try await coordinator.connectAndReveal(profile, in: browser)
+    let root = Location(providerID: "ftp.test", path: "/")
+    #expect(coordinator.textEncoding(for: root) == "ISO-8859-1")
+
+    // The server holds UTF-8 "café" (C3 A9); read as ISO-8859-1 the folder showed as "cafÃ©".
+    await browser.navigate(to: Location(providerID: "ftp.test", path: "/cafÃ©"), in: .second)
+    await coordinator.setTextEncoding("UTF-8", for: root, in: browser)
+    #expect(await remote.encoding == "UTF-8")
+    #expect(coordinator.textEncoding(for: root) == "UTF-8")
+    #expect(coordinator.profiles.isEmpty)  // the switch is not saved
+    #expect(browser.secondPane.location == Location(providerID: "ftp.test", path: "/café"))
+
+    // A path the old reading lost (U+FFFD) cannot be rebuilt: the tab goes to the root.
+    await browser.navigate(to: Location(providerID: "ftp.test", path: "/caf\u{FFFD}"), in: .second)
+    await coordinator.setTextEncoding("ISO-8859-1", for: root, in: browser)
+    #expect(browser.secondPane.location == root)
+  }
+
+  @Test func textEncodingIsOnlyOfferedForFTPAndSFTPConnections() async throws {
+    let (coordinator, registry) = try makeRemote()
+    let browser = BrowserModel(registry: registry)
+    let profile = dav()
+    try await coordinator.connectAndReveal(profile, in: browser)
+    let location = Location(providerID: "webdav.\(profile.id.uuidString)", path: "/files")
+    #expect(coordinator.textEncoding(for: location) == nil)
+    #expect(coordinator.textEncoding(for: Location(providerID: "local", path: "/")) == nil)
   }
 
   @Test func sftpProviderIsBuiltFromTheProfile() throws {

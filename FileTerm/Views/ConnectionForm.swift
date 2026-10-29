@@ -60,9 +60,6 @@ struct ConnectionFormSheet: View {
   @Bindable var model: ConnectionFormModel
   @Environment(\.dismiss) private var dismiss
 
-  private static let encodings = [
-    "UTF-8", "ISO-8859-1", "Windows-1252", "Shift_JIS", "EUC-KR", "GB18030",
-  ]
   private static let colors = ["", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Gray"]
 
   private var kind: ConnectionKind { model.profile.kind }
@@ -158,7 +155,7 @@ struct ConnectionFormSheet: View {
     case .baseURL: TextField("Base URL", text: $model.profile.baseURL)
     case .textEncoding:
       Picker("Text Encoding", selection: $model.profile.textEncoding) {
-        ForEach(Self.encodings, id: \.self) { Text($0).tag($0) }
+        ForEach(TextEncoding.names, id: \.self) { Text($0).tag($0) }
       }
     case .ftpMode:
       Picker("Transfer Mode", selection: $model.profile.ftpActiveMode) {

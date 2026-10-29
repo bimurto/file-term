@@ -89,6 +89,28 @@ import Testing
     }
   }
 
+  @Test func pathsAreEncodedFromBytesInTheTextEncoding() throws {
+    #expect(
+      FTPProvider.url(scheme: "ftp", host: "h", port: nil, path: "/café", encoding: "ISO-8859-1")
+        == "ftp://h/caf%E9")
+    #expect(
+      FTPProvider.url(scheme: "ftp", host: "h", port: nil, path: "/café") == "ftp://h/caf%C3%A9")
+    let config = try FTPProvider.configuration(
+      host: "h", port: nil, path: "/é", username: nil, password: nil, secure: false,
+      encoding: "ISO-8859-1")
+    #expect(config.contains("url = \"ftp://h/%E9\""))
+  }
+
+  @Test func commandsGoInTheConfigAsRawBytesWithEscapedBackslashes() {
+    let latin1 = FTPProvider.quoteLines(["DELE é"], encoding: "ISO-8859-1")
+    #expect(latin1 == Data("quote = \"-DELE ".utf8) + Data([0xE9]) + Data("\"\n".utf8))
+    // 表 is 95 5C in Shift_JIS: the 5C must be doubled or curl reads it as an escape.
+    let shiftJIS = FTPProvider.quoteLines(["MKD 表"], encoding: "Shift_JIS")
+    #expect(shiftJIS == Data("quote = \"-MKD ".utf8) + Data([0x95, 0x5C, 0x5C]) + Data("\"\n".utf8))
+    #expect(
+      FTPProvider.quoteLines(["a\"b"], encoding: "UTF-8") == Data("quote = \"-a\\\"b\"\n".utf8))
+  }
+
   @Test func foldersKeepTheirTrailingSlashAndPathsAreRelative() throws {
     #expect(FTPProvider.folderPath("/") == "/")
     #expect(FTPProvider.folderPath("/a//b/") == "/a/b/")

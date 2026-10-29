@@ -303,6 +303,26 @@ import UniformTypeIdentifiers
     }
   }
 
+  /// View › Text Encoding: for the active pane's FTP or SFTP connection.
+  private func textEncodingCommands() -> [AppCommand] {
+    TextEncoding.names.map { name in
+      AppCommand(
+        id: "view.textEncoding.\(name)", title: name, menuPath: ["View", "Text Encoding"],
+        isEnabled: { [weak self] context in
+          context.sourceLocation.flatMap { self?.connections.textEncoding(for: $0) } != nil
+        },
+        disabledReason: { _ in "Only for FTP and SFTP connections." },
+        isChecked: { [weak self] context in
+          context.sourceLocation.flatMap { self?.connections.textEncoding(for: $0) } == name
+        },
+        handler: { [weak self] in
+          guard let self, let location = browser.activePane.location else { return }
+          let model = browser
+          Task { await self.connections.setTextEncoding(name, for: location, in: model) }
+        })
+    }
+  }
+
   private func connectionCommands() -> [AppCommand] {
     let path = ["Go", "Connections"]
     var commands: [AppCommand] = []
@@ -367,6 +387,7 @@ import UniformTypeIdentifiers
             }
           }))
     }
+    commands += textEncodingCommands()
     if commands.isEmpty {
       commands.append(
         AppCommand(

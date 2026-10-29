@@ -83,6 +83,36 @@ struct SFTPPacketTests {
     #expect(empty.reply == .attributes(SFTPAttributes()))
   }
 
+  @Test func decodesNamesInTheConnectionsTextEncoding() throws {
+    let latin1 = Data([0x63, 0x61, 0x66, 0xE9])  // café
+    let shiftJIS = Data([0x95, 0x5C, 0x2E, 0x74, 0x78, 0x74])  // 表.txt, 5C is a trail byte
+    let decoded = { (encoding: String) throws -> [String] in
+      let packet = self.reply(.name, id: 1) {
+        $0.uint32(2)
+        for name in [latin1, shiftJIS] {
+          $0.string(name)
+          $0.string("long line")
+          $0.uint32(0)
+        }
+      }
+      guard case .names(let entries) = try SFTPPacket.decode(packet, encoding: encoding).reply
+      else { return [] }
+      return entries.map(\.filename)
+    }
+    #expect(try decoded("ISO-8859-1").first == "café")
+    #expect(try decoded("Shift_JIS").last == "表.txt")
+    #expect(try decoded("UTF-8").first == "caf\u{FFFD}")
+  }
+
+  @Test func pathsAreSentInTheConnectionsTextEncoding() {
+    let latin1 = SFTPPacket.path(.stat, id: 1, "/café", encoding: "ISO-8859-1")
+    #expect(latin1.suffix(5) == Data([0x2F, 0x63, 0x61, 0x66, 0xE9]))
+    let utf8 = SFTPPacket.path(.stat, id: 1, "/café")
+    #expect(utf8.suffix(6) == Data([0x2F, 0x63, 0x61, 0x66, 0xC3, 0xA9]))
+    let moved = SFTPPacket.rename(id: 2, from: "é", to: "è", encoding: "ISO-8859-1")
+    #expect(moved.suffix(10) == Data([0, 0, 0, 1, 0xE9, 0, 0, 0, 1, 0xE8]))
+  }
+
   @Test func decodesNameListsAndKinds() throws {
     let decoded = try SFTPPacket.decode(
       reply(.name, id: 3) {

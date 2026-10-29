@@ -200,6 +200,18 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
     }
   }
 
+  /// Re-reads every tab on a connection whose text encoding changed.
+  public func recodeTabs(providerID: String, fallback: String, _ recode: (String) -> String?) async
+  {
+    invalidateMirror()
+    for id in PaneID.allCases {
+      for tab in tabs(id).tabs where tab.location?.providerID == providerID {
+        tab.recodeLocations(providerID: providerID, fallback: fallback, recode)
+        await tab.refresh()
+      }
+    }
+  }
+
   public func dismissNotice() { notice = nil }
 
   /// Applies the global "Show hidden" toggle and re-lists every open pane.

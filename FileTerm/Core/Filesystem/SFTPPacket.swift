@@ -93,7 +93,10 @@ struct SFTPWriter {
     bytes.append(data)
   }
 
-  mutating func string(_ text: String) { string(Data(text.utf8)) }
+  /// A file name or path in the connection's text encoding.
+  mutating func string(_ text: String, encoding: String = "UTF-8") {
+    string(TextEncoding.encodeName(text, using: encoding))
+  }
 }
 
 struct SFTPReader {
@@ -135,6 +138,11 @@ struct SFTPReader {
   }
 
   mutating func text() throws -> String { String(decoding: try string(), as: UTF8.self) }
+
+  /// A file name in the connection's text encoding.
+  mutating func name(encoding: String) throws -> String {
+    TextEncoding.decodeName(try string(), using: encoding)
+  }
 
   mutating func attributes() throws -> SFTPAttributes {
     let flags = try uint32()
@@ -184,17 +192,21 @@ enum SFTPPacket {
     }
   }
 
-  static func path(_ type: SFTPPacketType, id: UInt32, _ path: String) -> Data {
-    request(type, id: id) { $0.string(path) }
+  static func path(
+    _ type: SFTPPacketType, id: UInt32, _ path: String, encoding: String = "UTF-8"
+  ) -> Data {
+    request(type, id: id) { $0.string(path, encoding: encoding) }
   }
 
   static func handle(_ type: SFTPPacketType, id: UInt32, _ handle: Data) -> Data {
     request(type, id: id) { $0.string(handle) }
   }
 
-  static func open(id: UInt32, path: String, flags: SFTPOpenFlags) -> Data {
+  static func open(
+    id: UInt32, path: String, flags: SFTPOpenFlags, encoding: String = "UTF-8"
+  ) -> Data {
     request(.open, id: id) {
-      $0.string(path)
+      $0.string(path, encoding: encoding)
       $0.uint32(flags.rawValue)
       $0.uint32(0)  // no attributes: the server applies its umask
     }
@@ -216,22 +228,24 @@ enum SFTPPacket {
     }
   }
 
-  static func makeDirectory(id: UInt32, path: String) -> Data {
+  static func makeDirectory(id: UInt32, path: String, encoding: String = "UTF-8") -> Data {
     request(.mkdir, id: id) {
-      $0.string(path)
+      $0.string(path, encoding: encoding)
       $0.uint32(0)
     }
   }
 
-  static func rename(id: UInt32, from: String, to: String) -> Data {
+  static func rename(id: UInt32, from: String, to: String, encoding: String = "UTF-8") -> Data {
     request(.rename, id: id) {
-      $0.string(from)
-      $0.string(to)
+      $0.string(from, encoding: encoding)
+      $0.string(to, encoding: encoding)
     }
   }
 
   /// Decodes one frame's payload (the bytes after the length). VERSION has no request ID.
-  static func decode(_ payload: Data) throws -> (id: UInt32?, reply: SFTPReply) {
+  static func decode(_ payload: Data, encoding: String = "UTF-8") throws -> (
+    id: UInt32?, reply: SFTPReply
+  ) {
     var reader = SFTPReader(payload)
     guard let type = SFTPPacketType(rawValue: try reader.byte()) else {
       throw SFTPProtocolError(message: "Unexpected reply from the server.")
@@ -249,7 +263,7 @@ enum SFTPPacket {
     case .name:
       var entries: [SFTPNameEntry] = []
       for _ in 0..<(try reader.uint32()) {
-        let name = try reader.text()
+        let name = try reader.name(encoding: encoding)
         _ = try reader.string()  // long name, a pre-formatted `ls -l` line
         entries.append(SFTPNameEntry(filename: name, attributes: try reader.attributes()))
       }

@@ -61,7 +61,7 @@ struct NetFSMounter: VolumeMounter {
 }
 
 struct OpenConnection: Identifiable, Equatable {
-  let profile: ConnectionProfile
+  var profile: ConnectionProfile
   let root: Location
   /// Set for OS-mounted shares; remote providers have none.
   let mountURL: URL?
@@ -112,7 +112,7 @@ func makeRemoteProvider(
   if profile.kind.isSFTP {
     return SFTPProvider(
       id: "sftp.\(profile.id.uuidString)", target: try SSHTarget(profile: profile),
-      password: password, knownHosts: knownHosts)
+      password: password, textEncoding: profile.textEncoding, knownHosts: knownHosts)
   }
   if profile.kind.isWebDAV {
     return WebDAVProvider(
@@ -125,7 +125,7 @@ func makeRemoteProvider(
       id: "ftp.\(profile.id.uuidString)", host: endpoint.host, port: endpoint.port,
       username: user ?? "anonymous", password: user == nil ? "anonymous@" : password,
       secure: profile.kind == .ftps, activeMode: profile.ftpActiveMode,
-      allowInvalidCertificate: profile.allowInvalidCertificate)
+      allowInvalidCertificate: profile.allowInvalidCertificate, textEncoding: profile.textEncoding)
   }
   guard profile.kind.isObjectStore else { throw ConnectionProfileError.unsupportedURL }
   guard let user, let password, !password.isEmpty else {
@@ -324,6 +324,31 @@ func makeRemoteProvider(
       executable: SSHCommand.executable.path,
       arguments: SSHCommand.terminalArguments(
         target: target, knownHosts: hostKeys.fileURL, directory: location.path))
+  }
+
+  /// The Text Encoding in use on the open FTP or SFTP connection holding a location, else nil.
+  func textEncoding(for location: Location) -> String? {
+    guard
+      let connection = open.first(where: { $0.root.providerID == location.providerID }),
+      registry.provider(for: location.providerID) is any TextEncodingSwitchable
+    else { return nil }
+    return connection.profile.textEncoding
+  }
+
+  /// View › Text Encoding: reads and sends this connection's file names in another encoding and
+  /// re-reads its open tabs. Applies to the open connection only; the saved profile is unchanged.
+  func setTextEncoding(_ name: String, for location: Location, in browser: BrowserModel) async {
+    guard
+      let index = open.firstIndex(where: { $0.root.providerID == location.providerID }),
+      let provider = registry.provider(for: location.providerID) as? any TextEncodingSwitchable
+    else { return }
+    let old = open[index].profile.textEncoding
+    guard old != name else { return }
+    await provider.setTextEncoding(name)
+    open[index].profile.textEncoding = name
+    await browser.recodeTabs(
+      providerID: location.providerID, fallback: open[index].root.path
+    ) { TextEncoding.recode($0, from: old, to: name) }
   }
 
   /// "Connection name: /path" for remote locations, the plain path for local ones.

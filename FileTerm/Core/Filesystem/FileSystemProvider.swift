@@ -105,6 +105,14 @@ extension FileSystemProvider {
   }
 }
 
+/// A provider whose file names are raw bytes, read in a text encoding the user can change.
+public protocol TextEncodingSwitchable: FileSystemProvider {
+  func setTextEncoding(_ name: String) async
+}
+
+extension FTPProvider: TextEncodingSwitchable {}
+extension SFTPProvider: TextEncodingSwitchable {}
+
 /// A remote provider that can confirm the server speaks its protocol before it is registered.
 public protocol ValidatingProvider: FileSystemProvider {
   func validate(root: String) async throws

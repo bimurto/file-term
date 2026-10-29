@@ -48,13 +48,15 @@ public actor FTPProvider: ValidatingProvider {
   private let activeMode: Bool
   private let allowInvalidCertificate: Bool
   private let curl: URL
+  private var encoding: String
 
   public init(
     id: String, host: String, port: Int? = nil, username: String?, password: String?,
     secure: Bool = false, activeMode: Bool = false, allowInvalidCertificate: Bool = false,
-    curl: URL = URL(fileURLWithPath: "/usr/bin/curl")
+    textEncoding: String = "UTF-8", curl: URL = URL(fileURLWithPath: "/usr/bin/curl")
   ) {
     self.id = id
+    encoding = textEncoding
     self.host = host
     self.port = port
     self.username = username
@@ -66,6 +68,9 @@ public actor FTPProvider: ValidatingProvider {
     // A write to curl after it exited must fail with an error, not kill the app.
     signal(SIGPIPE, SIG_IGN)
   }
+
+  /// Names on this server are read and sent in the given encoding from now on.
+  public func setTextEncoding(_ name: String) { encoding = name }
 
   public func validate(root: String = "/") async throws {
     _ = try await list(Location(providerID: id, path: root), includeHidden: true)
@@ -83,11 +88,11 @@ public actor FTPProvider: ValidatingProvider {
     do {
       let data = try await collect(path: folder, options: ["-X", "MLSD"])
       entries = FTPListing.parseMLSD(
-        String(decoding: data, as: UTF8.self), in: location, providerID: id)
+        TextEncoding.decodeName(data, using: encoding), in: location, providerID: id)
     } catch let error as CurlFailure where Self.listFallbackStatuses.contains(error.status) {
       let data = try await mapping { try await collect(path: folder, options: []) }
       entries = FTPListing.parseList(
-        String(decoding: data, as: UTF8.self), in: location, providerID: id)
+        TextEncoding.decodeName(data, using: encoding), in: location, providerID: id)
     } catch let error as CurlFailure {
       throw error.mapped(host: host, port: port ?? defaultPort)
     }
@@ -182,13 +187,12 @@ public actor FTPProvider: ValidatingProvider {
 
   /// Sends FTP commands on a connection that transfers nothing.
   private func command(_ commands: [String]) async throws -> Data {
-    var options = ["--head"]
-    for command in commands { options += ["--quote", "-" + command] }
-    return try await mapping { try await collect(path: "/", options: options) }
+    try await mapping { try await collect(path: "/", options: ["--head"], quotes: commands) }
   }
 
-  private func collect(path: String, options: [String]) async throws -> Data {
-    let run = try makeRun(path: path, options: options)
+  private func collect(path: String, options: [String], quotes: [String] = []) async throws -> Data
+  {
+    let run = try makeRun(path: path, options: options, quotes: quotes)
     return try await withTaskCancellationHandler {
       try run.start()
       let result = await run.finish(readingOutput: true)
@@ -208,12 +212,18 @@ public actor FTPProvider: ValidatingProvider {
     }
   }
 
-  func makeRun(path: String, options: [String], feedsInput: Bool = false) throws -> CurlRun {
+  func makeRun(
+    path: String, options: [String], quotes: [String] = [], feedsInput: Bool = false
+  ) throws -> CurlRun {
     guard FileManager.default.isExecutableFile(atPath: curl.path) else {
       throw FTPError.curlMissing
     }
-    let configuration = try Self.configuration(
-      host: host, port: port, path: path, username: username, password: password, secure: secure)
+    let configuration =
+      Data(
+        try Self.configuration(
+          host: host, port: port, path: path, username: username, password: password,
+          secure: secure, encoding: encoding).utf8)
+      + Self.quoteLines(quotes, encoding: encoding)
     let arguments =
       Self.arguments(
         secure: secure, activeMode: activeMode, allowInvalidCertificate: allowInvalidCertificate)
@@ -238,23 +248,33 @@ public actor FTPProvider: ValidatingProvider {
   /// The curl config text. The credentials live here, not in the arguments, so `ps` never shows
   /// them.
   static func configuration(
-    host: String, port: Int?, path: String, username: String?, password: String?, secure: Bool
+    host: String, port: Int?, path: String, username: String?, password: String?, secure: Bool,
+    encoding: String = "UTF-8"
   ) throws -> String {
     for value in [host, path, username ?? "", password ?? ""]
     where value.contains("\n") || value.contains("\r") {
       throw FileSystemError.io("Names and credentials cannot contain line breaks.")
     }
     let scheme = secure && port == 990 ? "ftps" : "ftp"
-    var lines = ["url = \"\(quote(url(scheme: scheme, host: host, port: port, path: path)))\""]
+    let location = url(scheme: scheme, host: host, port: port, path: path, encoding: encoding)
+    var lines = ["url = \"\(quote(location))\""]
     if let username, !username.isEmpty {
       lines.append("user = \"\(quote(username + ":" + (password ?? "")))\"")
     }
     return lines.joined(separator: "\n") + "\n"
   }
 
-  static func url(scheme: String, host: String, port: Int?, path: String) -> String {
+  /// Each path part is percent-encoded from its bytes in the connection's text encoding.
+  static func url(
+    scheme: String, host: String, port: Int?, path: String, encoding: String = "UTF-8"
+  ) -> String {
     let encoded = normalized(path).split(separator: "/", omittingEmptySubsequences: true)
-      .map { String($0).addingPercentEncoding(withAllowedCharacters: pathAllowed) ?? String($0) }
+      .map { part in
+        TextEncoding.encodeName(String(part), using: encoding).map { byte in
+          pathAllowed.contains(Unicode.Scalar(byte))
+            ? String(UnicodeScalar(byte)) : String(format: "%%%02X", byte)
+        }.joined()
+      }
       .joined(separator: "/")
     let trailing = path.hasSuffix("/") && !encoded.isEmpty ? "/" : ""
     return "\(scheme)://\(host)\(port.map { ":\($0)" } ?? "")/\(encoded)\(trailing)"
@@ -262,6 +282,23 @@ public actor FTPProvider: ValidatingProvider {
 
   private static let pathAllowed = CharacterSet(
     charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
+  /// `quote = "-<command>"` config lines. The commands go in the config, not the arguments,
+  /// because arguments can only carry UTF-8 and names may be in another encoding. Backslash and
+  /// quote are escaped on the encoded bytes: in Shift_JIS 0x5C can be the second byte of a
+  /// character, and curl would otherwise read it as an escape.
+  static func quoteLines(_ commands: [String], encoding: String) -> Data {
+    var lines = Data()
+    for command in commands {
+      lines.append(Data("quote = \"-".utf8))
+      for byte in TextEncoding.encodeName(command, using: encoding) {
+        if byte == 0x5C || byte == 0x22 { lines.append(0x5C) }
+        lines.append(byte)
+      }
+      lines.append(Data("\"\n".utf8))
+    }
+    return lines
+  }
 
   private static func quote(_ text: String) -> String {
     text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
@@ -328,12 +365,12 @@ final class CurlRun: @unchecked Sendable {
   private let queue = DispatchQueue(label: "fileterm.ftp.io")
   private let exited = DispatchSemaphore(value: 0)
 
-  init(executable: URL, arguments: [String], configuration: String, feedsInput: Bool) throws {
+  init(executable: URL, arguments: [String], configuration: Data, feedsInput: Bool) throws {
     configurationURL = FileManager.default.temporaryDirectory
       .appendingPathComponent("fileterm-ftp-\(UUID().uuidString).conf")
     guard
       FileManager.default.createFile(
-        atPath: configurationURL.path, contents: Data(configuration.utf8),
+        atPath: configurationURL.path, contents: configuration,
         attributes: [.posixPermissions: 0o600])
     else { throw FileSystemError.io("Could not prepare the FTP request.") }
     input = feedsInput ? Pipe() : nil

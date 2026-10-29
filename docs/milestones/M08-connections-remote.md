@@ -48,7 +48,7 @@
 - [x] Settings › General › Open remote connections in (default: Right Pane) is applied.
 
 ### M08.12 Text encoding
-- [ ] View › Text Encoding re-decodes remote file names on the fly.
+- [x] View › Text Encoding re-decodes remote file names on the fly.
 
 ### M08.13 Multiple connections & server-to-server copy *(vendor-documented)*
 - [x] Several connections can be open at the same time, in different panes and tabs.
@@ -71,7 +71,7 @@ form; pressing Connect names the ticket that adds them.
 | T4 Amazon S3 & Backblaze B2 | M08.06 | Done |
 | T5 FTP & FTP-TLS | M08.04 | Done |
 | T6 SFTP, host-key prompt, SSH terminal | M08.03 | Done |
-| T7 Text encoding | M08.12 | Open |
+| T7 Text encoding | M08.12 | Done |
 | T8 Rackspace Cloud Files | M08.08 | Open |
 | T9 Google Drive, OneDrive, Dropbox | M08.07 | Open |
 
@@ -160,7 +160,7 @@ form; pressing Connect names the ticket that adds them.
   `LIST` carry no zone and are read as UTC.
 - FTP cannot refuse an overwrite itself, so a write first checks the destination; another client
   could still create it in between.
-- File names are read as UTF-8 until T7 (text encoding).
+- File names follow the connection's Text Encoding (T7); UTF-8 by default.
 - Live checks: `FILETERM_LIVE=1 swift test --disable-sandbox --filter LiveFTPTests` against the
   `ftp` service in `dev/docker-compose.yml` (about 80 seconds; that image takes two seconds per
   login). Active mode is expected to fail inside Docker.
@@ -222,3 +222,28 @@ form; pressing Connect names the ticket that adds them.
   login needs an authorized key mounted into that container and was not exercised live.
 - Not covered: keyboard-interactive or two-factor prompts beyond a single answer, ssh
   `ProxyJump` passwords, connection state across launches.
+
+## T7 notes
+
+- Scope: FTP, FTP-TLS and SFTP, the kinds that show the Text Encoding field. WebDAV and S3 names
+  are UTF-8 in URLs by specification. The encodings are `TextEncoding.names` (UTF-8, ISO-8859-1,
+  Windows-1252, Shift_JIS, EUC-KR, GB18030), mapped through
+  `CFStringConvertIANACharSetNameToEncoding`.
+- The form's value is the starting encoding. View › Text Encoding (enabled when the active pane
+  is on an FTP or SFTP connection) switches the open connection without reconnecting: the provider
+  changes encoding, every tab on that connection has its current path and history re-read from the
+  same server bytes, and the tab is re-listed. The switch is not saved to the favorite.
+- A path the old encoding had already lost (it contains U+FFFD) cannot be rebuilt; that tab moves
+  to the connection's root.
+- Decoding falls back to lossy UTF-8 when the bytes are not valid in the chosen encoding, and
+  encoding falls back to UTF-8 for characters the encoding cannot hold. A name that is invalid in
+  the chosen encoding therefore shows `�` and cannot be addressed until another encoding fits.
+- FTP: URLs percent-encode each path part from its bytes in the chosen encoding. FTP commands
+  (`RNFR`, `RNTO`, `MKD`, `DELE`, `RMD`) moved from curl arguments, which can only carry UTF-8,
+  into the private 0600 curl config as raw bytes. Backslash and quote are escaped on the encoded
+  bytes: in Shift_JIS `0x5C` can be the second byte of a character.
+- SFTP: only names and paths use the encoding. Status messages and ssh/curl error text stay UTF-8.
+- Tests: `TextEncodingTests`, `SFTPPacketTests`, `FTPProviderTests` and
+  `ConnectionCoordinatorTests` cover the byte handling and the live switch. APFS cannot hold a
+  non-UTF-8 name, so the end-to-end check is `namesFollowTheTextEncoding` in `LiveFTPTests` and
+  `LiveSFTPTests`. It needs Docker, which was off, so it has not been run.
