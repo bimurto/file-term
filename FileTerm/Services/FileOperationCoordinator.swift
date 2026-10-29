@@ -22,6 +22,8 @@ import FileTermCore
   /// Opens the Batch Rename dialog for a pane with several selected items.
   var onBatchRename: ((PaneModel) -> Void)?
   /// What opening an archive does (Settings › General › Handle archives / Treat as folders).
+  /// Settings › General › Detect application when deleting.
+  var detectsAppOnDelete: () -> Bool = { false }
   var archiveOpenBehavior: () -> ArchiveOpenBehavior = { .system }
 
   var clipboardURLs: [URL] {
@@ -274,10 +276,15 @@ import FileTermCore
     }
   }
 
-  func trash(_ pane: PaneModel, window: NSWindow?) {
+  func trash(_ pane: PaneModel, window: NSWindow?, appCleanup: Bool = false) {
     if rejectsArchiveEdit(pane) { return }
     if isRemote(pane) { return deleteRemote(pane) }
-    let sources = localURLs(pane)
+    var sources = localURLs(pane)
+    let apps = sources.filter(Self.isApplication)
+    if !apps.isEmpty, appCleanup || detectsAppOnDelete() {
+      guard let related = chooseAppCleanup(apps) else { return }
+      sources += related.filter { !sources.contains($0) }
+    }
     run(kind: .delete, sources: sources, pane: pane, window: window) { operations in
       _ = try await operations.trash(sources: sources)
       return []

@@ -34,6 +34,7 @@ import Testing
     initial.autoRefresh = true
     initial.handleArchives = false
     initial.archivesAsFolders = true
+    initial.detectAppOnDelete = false
     initial.searchEngine = .spotlight
     initial.searchIncludeSubfolders = false
     initial.shortcutOverrides["select.quick"] = ShortcutOverride(
@@ -45,6 +46,9 @@ import Testing
     #expect(restored.searchEngine == .spotlight)
     #expect(!restored.handleArchives)
     #expect(restored.archivesAsFolders)
+    #expect(!restored.detectAppOnDelete)
+    let fresh = UserDefaults(suiteName: "com.fileterm.tests.\(UUID())")!
+    #expect(AppSettings(suite: fresh).detectAppOnDelete)
     #expect(!restored.searchIncludeSubfolders)
     #expect(restored.shortcutOverrides["select.quick"]?.shortcut?.display == "⌘J")
   }

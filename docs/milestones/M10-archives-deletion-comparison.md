@@ -27,8 +27,8 @@
 - [x] For remote items, the dialog says they will not go to the Mac's Trash.
 
 ### M10.06 App Deleter
-- [ ] When Settings › General › Detect application when deleting is on, deleting a `.app` shows a list of related files (prefs, caches, support folders).
-- [ ] Every related file is shown with a checkbox, and none is deleted without the user confirming.
+- [x] When Settings › General › Detect application when deleting is on, deleting a `.app` shows a list of related files (prefs, caches, support folders).
+- [x] Every related file is shown with a checkbox, and none is deleted without the user confirming.
 
 ### M10.07 Compare tool integration
 - [ ] Settings › General › Compare Tool (default FileMerge / Xcode).
@@ -47,7 +47,7 @@ M10 ships in tickets, one commit each.
 | T1 Compress, Extract, archive settings | M10.01, .02, first item of .03, Extract part of .08 | Done |
 | T2 Archives as folders | M10.03 | Done |
 | T3 Trash, Delete, Empty Trash | M10.04, .05 | Done |
-| T4 App Deleter | M10.06, App cleanup part of .08 | Open |
+| T4 App Deleter | M10.06, App cleanup part of .08 | Done |
 | T5 Compare tool | M10.07, Compare part of .08 | Open |
 
 ## T1 notes
@@ -109,3 +109,19 @@ M10 ships in tickets, one commit each.
 - Not done: Empty Trash and the delete dialogs have not been driven by hand on the desktop (the
   Finder prompt needs an interactive session); unit tests cover the permanent delete engine and the
   toolbar default.
+
+## T4 notes
+
+- Settings › General › Detect application when deleting (on by default). With it on, Move to Trash
+  on a selection that includes a `.app` first shows the App Deleter: each app, then its related
+  files with a checkbox, and a Select all box. **Nothing is ticked at first**, and only ticked
+  files are moved to the Trash with the app, in the same undoable job. Cancel moves nothing.
+- Commands › Delete App and Related Files… opens the same list for one selected `.app`, whatever the
+  setting says. It is disabled with "Select an application (.app) in a local folder…" otherwise.
+- Related files (`AppLeftovers`, core) are matched by bundle identifier in `~/Library`: Preferences
+  (and ByHost), Caches, Application Support, Containers, Group Containers, HTTPStorages, WebKit,
+  Logs, Cookies, Saved Application State and LaunchAgents. The app's name is also tried in
+  Application Support, Caches and Logs. Only items that exist are listed. An app without a usable
+  bundle identifier only gets the name matches.
+- Not covered: permanent Delete… of a `.app` does not offer the list (it is the Trash path that
+  does); system-wide `/Library` leftovers are not searched; not driven by hand on the desktop.

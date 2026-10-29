@@ -121,6 +121,9 @@ enum BrowserChrome: String, CaseIterable {
   var archivesAsFolders: Bool {
     didSet { Defaults[archivesAsFoldersKey] = archivesAsFolders }
   }
+  var detectAppOnDelete: Bool {
+    didSet { Defaults[detectAppOnDeleteKey] = detectAppOnDelete }
+  }
   var searchEngine: SearchEngine {
     didSet { Defaults[searchEngineKey] = searchEngine.rawValue }
   }
@@ -134,6 +137,7 @@ enum BrowserChrome: String, CaseIterable {
   @ObservationIgnored private let autoRefreshKey: Defaults.Key<Bool>
   @ObservationIgnored private let handleArchivesKey: Defaults.Key<Bool>
   @ObservationIgnored private let archivesAsFoldersKey: Defaults.Key<Bool>
+  @ObservationIgnored private let detectAppOnDeleteKey: Defaults.Key<Bool>
   @ObservationIgnored private let searchEngineKey: Defaults.Key<String>
   @ObservationIgnored private let subfoldersKey: Defaults.Key<Bool>
   @ObservationIgnored private let shortcutsKey: Defaults.Key<Data>
@@ -185,6 +189,7 @@ enum BrowserChrome: String, CaseIterable {
     autoRefreshKey = Defaults.Key("autoRefresh", default: false, suite: suite)
     handleArchivesKey = Defaults.Key("handleArchives", default: true, suite: suite)
     archivesAsFoldersKey = Defaults.Key("archivesAsFolders", default: false, suite: suite)
+    detectAppOnDeleteKey = Defaults.Key("detectAppOnDelete", default: true, suite: suite)
     searchEngineKey = Defaults.Key(
       "searchEngine", default: SearchEngine.builtIn.rawValue, suite: suite)
     subfoldersKey = Defaults.Key("searchSubfolders", default: true, suite: suite)
@@ -193,6 +198,7 @@ enum BrowserChrome: String, CaseIterable {
     autoRefresh = Defaults[autoRefreshKey]
     handleArchives = Defaults[handleArchivesKey]
     archivesAsFolders = Defaults[archivesAsFoldersKey]
+    detectAppOnDelete = Defaults[detectAppOnDeleteKey]
     searchEngine = SearchEngine(rawValue: Defaults[searchEngineKey]) ?? .builtIn
     searchIncludeSubfolders = Defaults[subfoldersKey]
     shortcutOverrides =

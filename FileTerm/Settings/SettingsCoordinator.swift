@@ -69,7 +69,7 @@ private struct SettingsCategoryView: View {
     .frame(
       width: 660,
       height: category == .terminal || category == .transfers
-        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 440 : 320)),
+        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 520 : 320)),
       alignment: .topLeading
     )
     .onAppear { settings.selectedCategory = category.rawValue }
@@ -209,6 +209,10 @@ private struct GeneralSettingsView: View {
         .disabled(!settings.handleArchives)
         .accessibilityIdentifier("archivesAsFolders")
       Text("Double-clicking an archive extracts it next to the archive, or opens it as a folder.")
+        .font(.caption).foregroundStyle(.secondary)
+      Toggle("Detect application when deleting", isOn: $settings.detectAppOnDelete)
+        .accessibilityIdentifier("detectAppOnDelete")
+      Text("Moving a .app to the Trash first lists its preferences, caches and support folders.")
         .font(.caption).foregroundStyle(.secondary)
       Text("Current: " + settings.workspace.startingDirectory).font(.caption).foregroundStyle(
         .secondary)

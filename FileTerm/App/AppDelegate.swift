@@ -132,6 +132,7 @@ import UniformTypeIdentifiers
     }
     fileOperations.transfers.preferences = settings.transfers
     fileOperations.onBatchRename = { [weak self] pane in self?.openBatchRename(pane) }
+    fileOperations.detectsAppOnDelete = { [weak self] in self?.settings.detectAppOnDelete == true }
     fileOperations.archiveOpenBehavior = { [weak self] in
       guard let self, settings.handleArchives else { return .system }
       return settings.archivesAsFolders ? .browse : .extract
@@ -1179,6 +1180,20 @@ import UniformTypeIdentifiers
       ) { [weak self] in
         guard let self else { return }
         fileOperations.trash(browser.activePane, window: browserWindow)
+      })
+    result.append(
+      command(
+        "commands.appCleanup", "Delete App and Related Files…", selection: true,
+        condition: { [weak self] in
+          self?.browser.activePane.selectedEntries.count == 1
+            && self?.browser.activePane.selectedEntries.first.map {
+              FileOperationCoordinator.isApplication(URL(fileURLWithPath: $0.location.path))
+            } == true
+        },
+        reason: { "Select an application (.app) in a local folder to find its related files." }
+      ) { [weak self] in
+        guard let self else { return }
+        fileOperations.trash(browser.activePane, window: browserWindow, appCleanup: true)
       })
     result.append(
       command(
