@@ -454,6 +454,11 @@ import UniformTypeIdentifiers
         isChecked: { [weak self] _ in self?.browser.syncBrowsing == true },
         handler: { [weak self] in self?.browser.syncBrowsing.toggle() }),
       AppCommand(
+        id: "commands.sync", title: "Sync to…", menuPath: ["Commands"],
+        isEnabled: { $0.hasBrowserWindow && $0.canCoordinatePanes },
+        disabledReason: { _ in "Open two panes side by side and wait for navigation to finish." },
+        handler: { [weak self] in self?.openSync() }),
+      AppCommand(
         id: "go.connect", title: "Connect…", menuPath: ["Go"],
         isEnabled: { $0.hasBrowserWindow },
         disabledReason: { _ in "Open the browser window first." },
@@ -881,6 +886,20 @@ import UniformTypeIdentifiers
   }
 
   // MARK: Local file operations (M04)
+
+  private func openSync() {
+    guard browser.canCoordinatePanes, let left = browser.firstPane.location,
+      let right = browser.secondPane.location
+    else { return }
+    let model = SyncDialogModel(
+      left: left, right: right, leftLabel: connections.describe(left),
+      rightLabel: connections.describe(right), registry: providerRegistry
+    ) { [weak self] actions, left, right in
+      self?.fileOperations.submitSync(actions, left: left, right: right)
+    }
+    NotificationCenter.default.post(
+      name: .fileTermSync, object: browser, userInfo: ["model": model])
+  }
 
   private func fileOperationCommands() -> [AppCommand] {
     func command(

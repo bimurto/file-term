@@ -8,7 +8,8 @@ struct WorkspacePreferences: Codable, Equatable {
   var toolbarItems = [
     "go.back", "go.forward", "go.enclosingFolder", "go.connect", "view.single", "view.vertical",
     "view.horizontal",
-    "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing", "go.toFolder",
+    "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing", "commands.sync",
+    "go.toFolder",
     "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
   ]
   var sidebarOrder = ["devices", "recents"]
@@ -38,6 +39,7 @@ enum ToolbarSymbols {
     case "view.asList": "list.bullet"
     case "view.asColumns": "rectangle.split.3x1"
     case "go.syncBrowsing": "link"
+    case "commands.sync": "arrow.triangle.2.circlepath"
     case "go.toFolder": "folder.badge.gearshape"
     case "go.connect": "network"
     case "view.preview": "sidebar.right"

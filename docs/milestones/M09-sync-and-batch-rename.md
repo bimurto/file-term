@@ -7,28 +7,28 @@
 
 ### M09.01 Sync dialog & analysis
 - **Scope:** Commands › Sync to and a toolbar button. Requires dual-pane mode.
-- [ ] The dialog shows both root paths. Synchronize stays disabled until the analysis has finished.
+- [x] The dialog shows both root paths. Synchronize stays disabled until the analysis has finished.
 
 ### M09.02 Direction
-- [ ] Left→Right, Right→Left and Both ways.
-- [ ] Both ways decides which side wins using modification time, and shows true conflicts to the user.
+- [x] Left→Right, Right→Left and Both ways.
+- [x] Both ways decides which side wins using modification time, and shows true conflicts to the user.
 
 ### M09.03 Scope options
-- [ ] Options: Synchronize subfolders, Synchronize hidden items, Add items, Don't add empty folders.
-- [ ] Changing any option re-runs the analysis.
+- [x] Options: Synchronize subfolders, Synchronize hidden items, Add items, Don't add empty folders.
+- [x] Changing any option re-runs the analysis.
 
 ### M09.04 Update & delete rules
-- [ ] Update items when: the modification date is older, or the size differs.
-- [ ] Delete orphaned items is **off by default** and highlighted in red in the preview.
-- [ ] The UI says that the comparison is not byte-by-byte.
+- [x] Update items when: the modification date is older, or the size differs.
+- [x] Delete orphaned items is **off by default** and highlighted in red in the preview.
+- [x] The UI says that the comparison is not byte-by-byte.
 
 ### M09.05 Time offset & exclusions
-- [ ] Time offset correction setting, in seconds or hours.
-- [ ] Exclude items using glob or regex filters.
+- [x] Time offset correction setting, in seconds or hours.
+- [x] Exclude items using glob or regex filters.
 
 ### M09.06 Proposed action list
-- [ ] A table of add, update and delete actions for each file. Actions can be unchecked one by one before Synchronize.
-- [ ] Running the sync creates M07 queue jobs.
+- [x] A table of add, update and delete actions for each file. Actions can be unchecked one by one before Synchronize.
+- [x] Running the sync creates M07 queue jobs.
 
 ### M09.07 Sync favorites
 - [ ] Add to Favorites saves the roots and all options.
@@ -61,3 +61,46 @@
 ### M09.14 Validation & rename presets
 - [ ] Shows a warning for duplicate target names, invalid characters and extension changes before Rename is enabled.
 - [ ] Rename presets are saved as favorites and appear in Quick Open (M03.03).
+
+## Tickets
+
+M09 ships in tickets, one commit each.
+
+| Ticket | Covers | Status |
+|---|---|---|
+| T1 Sync analysis, dialog and queue jobs | M09.01–.06 | Done |
+| T2 Sync favorites | M09.07 | Open |
+| T3 Batch rename engine and dialog | M09.08–.13 | Open |
+| T4 Rename validation and presets | M09.14 | Open |
+
+## T1 notes
+
+- Commands › Sync to… (and a toolbar button, `commands.sync`) needs two panes side by side. The
+  left pane is the first pane, the right pane the second. The dialog lists both roots, analyses,
+  and keeps Synchronize off until the analysis has finished. Every option change re-runs it after
+  a short delay (so typing a filter does not scan on each key).
+- Analysis (`SyncAnalyzer`, core) lists both trees through the provider layer and compares by
+  relative path using modification date and size only, never file contents. Dates within 2 seconds
+  count as equal. Symbolic links and special files are skipped, as in copies.
+- Time offset is added to the **right** side's dates before comparing (seconds or hours).
+- Exclusions: a glob without `/` matches an item's name; a glob with `/` matches the relative path;
+  a regex is searched in the relative path. All ignore case. An excluded folder is not entered.
+  An invalid regex is reported in the dialog and blocks Synchronize.
+- One-way: add what is missing (Add items), update when the target is older and/or the size
+  differs, and delete orphans only when that option is on (default off, shown in red). Orphaned
+  folders appear as one delete row. A file against a folder is listed as a conflict that cannot be run.
+- Both ways: missing items are added to the other side, and the newer side wins. Same time but a
+  different size is a true conflict: it is unchecked, and ticking it copies in the shown direction.
+  Delete orphaned does nothing here, because without a sync history a deletion cannot be told from
+  a new item.
+- Synchronize with subfolders off ignores folders entirely and works on the root's files.
+- Running creates one queue job per side that changes (so Both ways can make two). Folders are
+  created first, then files, then deletes (deepest first). Local to local copies use
+  `LocalFileOperations` and keep modification dates; the replaced file is kept for undo storage,
+  but sync jobs are not added to Undo history. Local orphans go to the Trash. Remote orphans are
+  deleted permanently after one confirmation. Any remote side copies through `ProviderTransfer`,
+  which does not preserve modification dates: the dialog warns, and "Size differs" is the
+  reliable rule there.
+- A failure after at least one action succeeded ends the job as a partial failure (no Retry).
+- Not done: the dialog has not been driven by hand on the desktop; unit tests cover the engine,
+  runner and dialog model. There is no UI test yet.

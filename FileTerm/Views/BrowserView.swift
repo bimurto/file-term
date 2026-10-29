@@ -15,6 +15,7 @@ struct BrowserView: View {
   @State private var goToFolder: GoToFolderModel?
   @State private var optionsSheet: BrowserOptionsSheet?
   @State private var quickSelectShown = false
+  @State private var syncModel: SyncDialogModel?
   @State private var quickOpenShown = false
   @State private var pendingQuickOpen: QuickOpenItem?
   @State private var searchQuery = SearchQuery()
@@ -72,6 +73,14 @@ struct BrowserView: View {
       quickSelectShown = true
     }
     .sheet(isPresented: $quickSelectShown) { QuickSelectSheet(pane: browser.activePane) }
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermSync)) { notification in
+      guard notification.object as? BrowserModel === browser,
+        let model = notification.userInfo?["model"] as? SyncDialogModel
+      else { return }
+      syncModel = model
+    }
+    .sheet(item: $syncModel, onDismiss: { syncModel?.cancel() }) { model in SyncSheet(model: model)
+    }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermQuickOpen)) { notification in
       guard notification.object as? BrowserModel === browser else { return }
       browser.isQuickOpenOpen = true
@@ -483,6 +492,7 @@ extension Notification.Name {
   static let fileTermConnect = Notification.Name("FileTerm.connect")
   static let fileTermBrowserOptions = Notification.Name("FileTerm.browserOptions")
   static let fileTermQuickSelect = Notification.Name("FileTerm.quickSelect")
+  static let fileTermSync = Notification.Name("FileTerm.sync")
   static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")
   static let fileTermFind = Notification.Name("FileTerm.find")
 }

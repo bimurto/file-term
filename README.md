@@ -22,6 +22,10 @@ mounts, a VNC handoff, remote pane placement, Base URLs for Copy/Open URL and Go
 Copy to… streams between local and remote locations through the transfer queue.
 Remaining protocols ship in follow-up tickets; see [M08 tickets](docs/milestones/M08-connections-remote.md).
 
+M09 adds Commands › Sync to… for two panes: an analysis preview with direction, scope, update,
+delete, time-offset and exclusion options, and a checkable action list that runs as queue jobs.
+See [M09 tickets](docs/milestones/M09-sync-and-batch-rename.md). Batch rename follows in later tickets.
+
 ## Run
 
 Requires macOS 14+ and Xcode 16+ with Swift 6.
