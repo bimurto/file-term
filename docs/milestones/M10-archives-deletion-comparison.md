@@ -15,8 +15,8 @@
 
 ### M10.03 Archive handling settings
 - [x] Settings › General: Handle archives with ForkLift (default on), Treat archives as folders (default off).
-- [ ] When "treat as folders" is on, archives open as browsable folders, locally and remotely *(remote browsing is vendor-documented)*.
-- [ ] Search and filter work inside an archive opened as a folder.
+- [x] When "treat as folders" is on, archives open as browsable folders, locally and remotely *(remote browsing is vendor-documented)*.
+- [x] Search and filter work inside an archive opened as a folder.
 
 ### M10.04 Move to Trash
 - [ ] Commands › Move to Trash and the Delete toolbar button move local items to the system Trash, and the action can be undone.
@@ -45,7 +45,7 @@ M10 ships in tickets, one commit each.
 | Ticket | Covers | Status |
 |---|---|---|
 | T1 Compress, Extract, archive settings | M10.01, .02, first item of .03, Extract part of .08 | Done |
-| T2 Archives as folders | M10.03 | Open |
+| T2 Archives as folders | M10.03 | Done |
 | T3 Trash, Delete, Empty Trash | M10.04, .05 | Open |
 | T4 App Deleter | M10.06, App cleanup part of .08 | Open |
 | T5 Compare tool | M10.07, Compare part of .08 | Open |
@@ -67,7 +67,28 @@ M10 ships in tickets, one commit each.
   (this folder, the other pane when it is a local folder, or Choose…).
 - Double-clicking an archive, or Open, extracts it next to the archive when Handle archives is on.
 - Jobs run in the queue as `compress` and `extract`. They are not in Undo history.
-- Settings added: `handleArchives` (on) and `archivesAsFolders` (off, takes effect in T2). They are
+- Settings added: `handleArchives` (on) and `archivesAsFolders` (off, see T2). They are
   stored as separate Defaults keys.
 - Not done: the dialogs have not been driven by hand on the desktop; unit tests cover the engine and
   the settings. There is no UI test.
+
+## T2 notes
+
+- With Settings › Treat archives as folders on (and Handle archives on), double-click, Return or
+  Commands › Open on an archive opens it in the pane as a read-only folder. Go Up at the archive
+  root returns to the folder that holds the archive; Back and Forward work as usual.
+- `ArchiveProvider` (core) is a read-only `FileSystemProvider`. It reads the table of contents once
+  with `bsdtar -tv` and extracts a file only when it is read, into a temporary folder that is
+  deleted when the read ends. Because it is a provider, Find (name and contents), Quick Select,
+  Open and Copy to… work inside an archive through the same code as remote panes.
+- Finder's `__MACOSX` folders and `._` files are not listed. Dates are as precise as `bsdtar -tv`
+  prints them (minutes; recent items have no year, so the latest non-future year is assumed).
+- Remote: an archive on a server (or inside another archive) is downloaded in full as an `open`
+  queue job, then browsed. The copy is deleted when no tab shows the archive, or at quit.
+- Rename, New Folder, Move to Trash, and Copy or Move into an archive show "This archive is
+  read-only". Moving out of an archive is refused too, because it would delete the source.
+- A closed archive is detected when a navigation happens (`onVisit`) or a window closes. Pane
+  history that still points at a closed archive shows an error when you go Back to it. A restored
+  session cannot reopen an archive; that tab falls back as for any missing provider.
+- Not done: the path bar shows the path inside the archive, not the archive's name; large remote
+  archives are downloaded completely before they open; not driven by hand on the desktop.

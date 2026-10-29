@@ -12,6 +12,8 @@ import FileTermCore
   private var undoHistory: [LocalFileOperations] = []
   private var redoHistory: [LocalFileOperations] = []
   var isBusy: Bool { transfers.hasPendingWork }
+  /// Archive providers being registered, which no tab shows yet.
+  var openingArchives: Set<String> = []
   private(set) var canUndo = false
   private(set) var canRedo = false
   private(set) var undoReason = "Nothing to undo. Permanent and remote deletes cannot be undone."
@@ -19,8 +21,8 @@ import FileTermCore
   var refresh: (() async -> Void)?
   /// Opens the Batch Rename dialog for a pane with several selected items.
   var onBatchRename: ((PaneModel) -> Void)?
-  /// True when opening an archive should extract it (Settings › General › Handle archives).
-  var extractsArchivesOnOpen: () -> Bool = { false }
+  /// What opening an archive does (Settings › General › Handle archives / Treat as folders).
+  var archiveOpenBehavior: () -> ArchiveOpenBehavior = { .system }
 
   var clipboardURLs: [URL] {
     (NSPasteboard.general.readObjects(
@@ -70,6 +72,7 @@ import FileTermCore
   }
 
   func startRename(_ pane: PaneModel, window: NSWindow?) {
+    if rejectsArchiveEdit(pane) { return }
     guard pane.selection.count == 1 else {
       if pane.selection.count > 1 { onBatchRename?(pane) }
       return
@@ -83,7 +86,7 @@ import FileTermCore
     _ renames: [(location: Location, name: String)], pane: PaneModel, window: NSWindow?
   ) {
     let changing = renames.filter { ($0.location.path as NSString).lastPathComponent != $0.name }
-    guard !changing.isEmpty else { return }
+    guard !changing.isEmpty, !rejectsArchiveEdit(pane) else { return }
     if isRemote(pane) { return submitRemoteBatchRename(changing) }
     let pairs = changing.map { (source: URL(fileURLWithPath: $0.location.path), name: $0.name) }
     run(kind: .rename, sources: pairs.map(\.source), pane: pane, window: window) { operations in
@@ -92,7 +95,7 @@ import FileTermCore
   }
 
   func create(_ pane: PaneModel, directory: Bool, withSelection: Bool, window: NSWindow?) {
-    guard let location = pane.location else { return }
+    guard let location = pane.location, !rejectsArchiveEdit(pane) else { return }
     if isRemote(pane) { return createRemoteFolder(pane) }
     let destination = URL(fileURLWithPath: location.path)
     let sources = withSelection ? localURLs(pane) : []
@@ -119,6 +122,11 @@ import FileTermCore
     asNewName: Bool = false, window: NSWindow?
   ) {
     let pane = browser.activePane
+    if rejectsArchiveEdit(clipboard ? pane : (browser.targetPane ?? pane))
+      || (move && rejectsArchiveEdit(pane))
+    {
+      return
+    }
     if clipboard, let location = pane.location, location.providerID != "local" {
       let sources = clipboardURLs.map { Location(providerID: "local", path: $0.path) }
       submitProviderCopy(sources: sources, to: location, move: move, window: window)
@@ -267,6 +275,7 @@ import FileTermCore
   }
 
   func trash(_ pane: PaneModel, window: NSWindow?) {
+    if rejectsArchiveEdit(pane) { return }
     if isRemote(pane) { return deleteRemote(pane) }
     let sources = localURLs(pane)
     run(kind: .delete, sources: sources, pane: pane, window: window) { operations in
@@ -462,8 +471,7 @@ import FileTermCore
     for entry in entries {
       let url = URL(fileURLWithPath: entry.location.path)
       let package = (try? url.resourceValues(forKeys: [.isPackageKey]).isPackage) == true
-      if application == nil, isArchive(entry), extractsArchivesOnOpen() {
-        extract(browser, choose: false, window: nil)
+      if application == nil, openArchive(entry, in: browser) {
         break
       } else if application == nil, entry.kind == .directory, !package || packageContents {
         Task { await browser.enterFolder(entry.location, in: paneID) }

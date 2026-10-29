@@ -91,3 +91,94 @@ struct ArchiveTests {
     #expect(names == ["bad.zip"])
   }
 }
+
+struct ArchiveProviderTests {
+  private func makeArchive() async throws -> (root: URL, archive: URL) {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let tree = root.appendingPathComponent("pkg")
+    try FileManager.default.createDirectory(
+      at: tree.appendingPathComponent("sub dir/deep"), withIntermediateDirectories: true)
+    try Data("top".utf8).write(to: tree.appendingPathComponent("readme.txt"))
+    try Data("needle inside".utf8).write(to: tree.appendingPathComponent("sub dir/deep/é[1].txt"))
+    try Data("hidden".utf8).write(to: tree.appendingPathComponent(".secret"))
+    let archive = root.appendingPathComponent("pkg.zip")
+    try await ArchiveTool.compress(sources: [tree], format: .zip, destination: archive)
+    return (root, archive)
+  }
+
+  @Test func listsNestedFoldersAndHidesHiddenItemsOnRequest() async throws {
+    let (root, archive) = try await makeArchive()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let provider = ArchiveProvider(archive: archive)
+    try await provider.load()
+    let top = try await provider.list(Location(providerID: provider.id, path: "/"))
+    #expect(top.map(\.name) == ["pkg"])
+    #expect(top[0].kind == .directory)
+    let pkg = Location(providerID: provider.id, path: "/pkg")
+    let visible = try await provider.list(pkg, includeHidden: false)
+    #expect(visible.map(\.name) == ["readme.txt", "sub dir"])
+    #expect(try await provider.list(pkg).map(\.name).contains(".secret"))
+    let readme = try await provider.stat(Location(providerID: provider.id, path: "/pkg/readme.txt"))
+    #expect(readme.size == 3)
+    #expect(readme.modifiedAt != nil)
+  }
+
+  @Test func readsAMemberWithSpecialCharactersInItsName() async throws {
+    let (root, archive) = try await makeArchive()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let provider = ArchiveProvider(archive: archive)
+    try await provider.load()
+    let location = Location(providerID: provider.id, path: "/pkg/sub dir/deep/é[1].txt")
+    let reader = try await provider.read(location)
+    var data = Data()
+    while let chunk = try await reader.next() { data.append(chunk) }
+    #expect(String(decoding: data, as: UTF8.self) == "needle inside")
+  }
+
+  @Test func isReadOnlyAndRejectsFolderReads() async throws {
+    let (root, archive) = try await makeArchive()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let provider = ArchiveProvider(archive: archive)
+    try await provider.load()
+    let location = Location(providerID: provider.id, path: "/pkg/readme.txt")
+    await #expect(throws: FileSystemError.unsupportedOperation) {
+      try await provider.delete(location)
+    }
+    await #expect(throws: FileSystemError.unsupportedOperation) {
+      try await provider.createDirectory(Location(providerID: provider.id, path: "/new"))
+    }
+    await #expect(throws: FileSystemError.unsupportedOperation) {
+      _ = try await provider.read(Location(providerID: provider.id, path: "/pkg"))
+    }
+    await #expect(throws: FileSystemError.notFound) {
+      _ = try await provider.stat(Location(providerID: provider.id, path: "/missing"))
+    }
+  }
+
+  @Test func searchFindsFilesInsideAnArchive() async throws {
+    let (root, archive) = try await makeArchive()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let provider = ArchiveProvider(archive: archive)
+    try await provider.load()
+    let query = SearchQuery(text: "needle", matchContents: true)
+    let results = try await BuiltInSearch.run(
+      query, in: Location(providerID: provider.id, path: "/"), provider: provider)
+    #expect(results.map(\.name) == ["é[1].txt"])
+  }
+
+  @Test func goUpFromTheArchiveRootLeadsToTheContainingFolder() async throws {
+    let (root, archive) = try await makeArchive()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let provider = ArchiveProvider(archive: archive)
+    try await provider.load()
+    let registry = ProviderRegistry(providers: [provider])
+    let container = Location(providerID: "local", path: root.path)
+    registry.setContainer(container, for: provider.id)
+    let pane = await PaneModel(registry: registry)
+    await pane.navigate(to: Location(providerID: provider.id, path: "/"))
+    #expect(await pane.parentLocation == container)
+    #expect(await pane.canGoUp)
+    registry.unregister(id: provider.id)
+    #expect(registry.container(of: provider.id) == nil)
+  }
+}

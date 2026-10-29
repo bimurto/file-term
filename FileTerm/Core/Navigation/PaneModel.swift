@@ -113,7 +113,13 @@ import Observation
 
   public var canGoBack: Bool { historyIndex > 0 }
   public var canGoForward: Bool { historyIndex + 1 < history.count }
-  public var canGoUp: Bool { location?.parent != nil }
+  /// The folder above this one. At the root of an archive opened as a folder it is the folder that
+  /// holds the archive.
+  public var parentLocation: Location? {
+    guard let location else { return nil }
+    return location.parent ?? registry.container(of: location.providerID)
+  }
+  public var canGoUp: Bool { parentLocation != nil }
   public var selectedEntries: [FileEntry] { visibleEntries.filter { selection.contains($0.id) } }
   public var selectedBytes: Int64 { selectedEntries.compactMap(\.size).reduce(0, +) }
   public var hasUnknownSelectedSizes: Bool { selectedEntries.contains { $0.size == nil } }

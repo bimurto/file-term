@@ -18,7 +18,7 @@ extension FileOperationCoordinator {
 
   /// Queues a remote edit under the server's resource key and refreshes the panes afterwards.
   @discardableResult
-  private func submitRemote(
+  func submitRemote(
     kind: TransferJobKind, locations: [Location], destination: Location? = nil,
     direction: TransferDirection = .local, totalBytes: Int64? = nil,
     action: @escaping @MainActor (TransferControl) async throws -> TransferSummary
@@ -144,34 +144,43 @@ extension FileOperationCoordinator {
     }
     let registry = registry
     for entry in entries where entry.kind == .file {
+      if openArchive(entry, in: browser) { continue }
       submitRemote(
         kind: .open, locations: [entry.location], direction: .download, totalBytes: entry.size
       ) { control in
         guard let provider = registry.provider(for: entry.location.providerID) else {
           throw FileSystemError.unsupportedOperation
         }
-        let folder = Self.downloadsFolder.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let file = folder.appendingPathComponent(entry.name)
-        FileManager.default.createFile(atPath: file.path, contents: nil)
-        let handle = try FileHandle(forWritingTo: file)
-        do {
-          let reader = try await provider.read(entry.location)
-          while let chunk = try await reader.next() {
-            try await control.advance(bytes: Int64(chunk.count))
-            try handle.write(contentsOf: chunk)
-          }
-          try handle.close()
-        } catch {
-          try? handle.close()
-          try? FileManager.default.removeItem(at: folder)
-          throw error
-        }
+        let file = try await Self.download(entry, provider: provider, control: control)
         if !NSWorkspace.shared.open(file) {
           throw FileSystemError.io("No application could open \(entry.name).")
         }
         return TransferSummary(succeeded: 1)
       }
     }
+  }
+
+  /// Copies a remote file into a fresh temporary folder and returns the copy.
+  static func download(
+    _ entry: FileEntry, provider: any FileSystemProvider, control: TransferControl
+  ) async throws -> URL {
+    let folder = downloadsFolder.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let file = folder.appendingPathComponent(entry.name)
+    FileManager.default.createFile(atPath: file.path, contents: nil)
+    let handle = try FileHandle(forWritingTo: file)
+    do {
+      let reader = try await provider.read(entry.location)
+      while let chunk = try await reader.next() {
+        try await control.advance(bytes: Int64(chunk.count))
+        try handle.write(contentsOf: chunk)
+      }
+      try handle.close()
+    } catch {
+      try? handle.close()
+      try? FileManager.default.removeItem(at: folder)
+      throw error
+    }
+    return file
   }
 }

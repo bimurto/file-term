@@ -1,10 +1,98 @@
 import AppKit
 import FileTermCore
 
+enum ArchiveOpenBehavior {
+  /// Hand the archive to the default application.
+  case system
+  /// Extract next to the archive.
+  case extract
+  /// Browse it as a folder.
+  case browse
+}
+
 extension FileOperationCoordinator {
   func isArchive(_ entry: FileEntry) -> Bool {
     entry.location.providerID == "local" && entry.kind != .directory
       && ArchiveFormat.isArchive(name: entry.name)
+  }
+
+  /// Applies Settings › General to an archive the user opened. Returns false to open it normally.
+  func openArchive(_ entry: FileEntry, in browser: BrowserModel) -> Bool {
+    guard entry.kind != .directory, ArchiveFormat.isArchive(name: entry.name) else { return false }
+    switch archiveOpenBehavior() {
+    case .system:
+      return false
+    case .extract:
+      guard isArchive(entry) else { return false }
+      browser.activePane.selection = [entry.id]
+      extract(browser, choose: false, window: nil)
+      return true
+    case .browse:
+      browseArchive(entry, in: browser)
+      return true
+    }
+  }
+
+  /// Opens an archive as a read-only folder in the active pane. An archive on a server (or inside
+  /// another archive) is downloaded first, as a queue job.
+  func browseArchive(_ entry: FileEntry, in browser: BrowserModel) {
+    let paneID = browser.activePaneID
+    let registry = registry
+    let container = entry.location.parent
+    func show(_ provider: ArchiveProvider) async {
+      do {
+        try await provider.load()
+        openingArchives.insert(provider.id)
+        defer { openingArchives.remove(provider.id) }
+        registry.register(provider)
+        if let container { registry.setContainer(container, for: provider.id) }
+        await browser.navigate(
+          to: Location(providerID: provider.id, path: "/"), in: paneID)
+      } catch {
+        await provider.close()
+        let alert = NSAlert()
+        alert.messageText = "Could not open \(entry.name) as a folder"
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
+      }
+    }
+    if entry.location.providerID == "local" {
+      let provider = ArchiveProvider(archive: URL(fileURLWithPath: entry.location.path))
+      Task { await show(provider) }
+      return
+    }
+    submitRemote(
+      kind: .open, locations: [entry.location], direction: .download, totalBytes: entry.size
+    ) { control in
+      guard let source = registry.provider(for: entry.location.providerID) else {
+        throw FileSystemError.unsupportedOperation
+      }
+      let file = try await Self.download(entry, provider: source, control: control)
+      await show(
+        ArchiveProvider(archive: file, temporaryFolder: file.deletingLastPathComponent()))
+      return TransferSummary(succeeded: 1)
+    }
+  }
+
+  /// Closes archives no tab shows any more, and deletes the copies downloaded for them.
+  func pruneArchives(inUse: Set<String>) {
+    for id in registry.providerIDs(withPrefix: "archive:")
+    where !inUse.contains(id) && !openingArchives.contains(id) {
+      let provider = registry.provider(for: id) as? ArchiveProvider
+      registry.unregister(id: id)
+      if let provider { Task { await provider.close() } }
+    }
+  }
+
+  /// Archives opened as folders are read-only; tell the user instead of failing mid-job.
+  func rejectsArchiveEdit(_ pane: PaneModel) -> Bool {
+    guard pane.location?.providerID.hasPrefix("archive:") == true else { return false }
+    let alert = NSAlert()
+    alert.messageText = "This archive is read-only"
+    alert.informativeText =
+      "Items inside an archive opened as a folder cannot be changed. Extract it first."
+    alert.runModal()
+    return true
   }
 
   /// Commands › Compress (zip with default settings) and Compress With Options….

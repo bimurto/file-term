@@ -132,7 +132,10 @@ import UniformTypeIdentifiers
     }
     fileOperations.transfers.preferences = settings.transfers
     fileOperations.onBatchRename = { [weak self] pane in self?.openBatchRename(pane) }
-    fileOperations.extractsArchivesOnOpen = { [weak self] in self?.settings.handleArchives == true }
+    fileOperations.archiveOpenBehavior = { [weak self] in
+      guard let self, settings.handleArchives else { return .system }
+      return settings.archivesAsFolders ? .browse : .extract
+    }
     fileOperations.registry = providerRegistry
     fileOperations.describe = { [weak self] in self?.connections.describe($0) ?? $0.path }
     fileOperations.refresh = { [weak self] in
@@ -205,6 +208,12 @@ import UniformTypeIdentifiers
     }
   }
 
+  /// Closes archives opened as folders once no tab in any window shows them.
+  private func pruneArchives() {
+    fileOperations.pruneArchives(
+      inUse: windows.reduce(into: Set<String>()) { $0.formUnion($1.browser.openProviderIDs) })
+  }
+
   private func newWindow(restoring snapshot: WindowSnapshot? = nil) async {
     let model = BrowserModel(
       registry: providerRegistry, viewPreferences: settings.viewPreferences)
@@ -218,6 +227,7 @@ import UniformTypeIdentifiers
       self?.settings.recordVisit(location)
       self?.syncWatcher()
       self?.menuCoordinator?.refreshEnabling()
+      self?.pruneArchives()
       if let model {
         for id in PaneID.allCases {
           for pane in model.tabs(id).tabs {
@@ -226,9 +236,14 @@ import UniformTypeIdentifiers
         }
       }
     }
+    model.onOpenFile = { [weak self, weak model] entry in
+      guard let self, let model else { return false }
+      return fileOperations.openArchive(entry, in: model)
+    }
     controller.onClose = { [weak self, weak controller] in
       guard let self, let controller else { return }
       windows.removeAll { $0 === controller }
+      pruneArchives()
       syncWatcher()
       if lastBrowser === controller { lastBrowser = windows.last }
       menuCoordinator?.refreshEnabling()

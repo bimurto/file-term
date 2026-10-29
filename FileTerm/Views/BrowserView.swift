@@ -474,17 +474,8 @@ private struct BrowserPaneView: View {
   }
 
   private var fileList: some View {
-    FileContentView(
-      pane: pane, paneID: paneID, browser: browser, provider: localProvider,
-      openFile: { entry in
-        guard settings.handleArchives, entry.location.providerID == "local",
-          ArchiveFormat.isArchive(name: entry.name)
-        else { return false }
-        pane.selection = [entry.id]
-        return registry.execute("commands.extract")
-      }
-    )
-    .id(pane.id)
+    FileContentView(pane: pane, paneID: paneID, browser: browser, provider: localProvider)
+      .id(pane.id)
   }
 }
 

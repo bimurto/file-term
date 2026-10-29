@@ -28,6 +28,19 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
   /// True while the Quick Open sheet is up, so key-window gating can treat it as part of the browser.
   @ObservationIgnored public var isQuickOpenOpen = false
   @ObservationIgnored public var onVisit: ((Location) -> Void)?
+  /// Gives the app first refusal on a file the user opens, e.g. to extract or browse an archive.
+  /// Returns true when it handled the file.
+  @ObservationIgnored public var onOpenFile: ((FileEntry) -> Bool)?
+  /// Every provider a tab in this browser is showing.
+  public var openProviderIDs: Set<String> {
+    var ids = Set<String>()
+    for id in PaneID.allCases {
+      for tab in tabs(id).tabs {
+        if let location = tab.location { ids.insert(location.providerID) }
+      }
+    }
+    return ids
+  }
   @ObservationIgnored private var coordinationID = UUID()
   @ObservationIgnored private var pendingMirror: PaneModel?
 
@@ -160,7 +173,7 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
   }
 
   public func goUp(in id: PaneID) async {
-    guard let parent = pane(id).location?.parent else { return }
+    guard let parent = pane(id).parentLocation else { return }
     await relativeNavigation(to: parent, in: id, child: nil)
   }
 

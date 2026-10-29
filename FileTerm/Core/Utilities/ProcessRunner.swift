@@ -49,7 +49,9 @@ public enum ProcessRunner {
   /// Returns standard output. A nonzero exit throws `Failure` carrying the tool's standard error.
   /// Cancelling the calling task terminates the process.
   @discardableResult
-  public static func run(_ executable: String, _ arguments: [String]) async throws -> Data {
+  public static func run(
+    _ executable: String, _ arguments: [String], environment: [String: String] = [:]
+  ) async throws -> Data {
     let handle = Handle()
     return try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
@@ -62,6 +64,9 @@ public enum ProcessRunner {
           process.standardOutput = output
           process.standardError = errors
           process.standardInput = FileHandle.nullDevice
+          if !environment.isEmpty {
+            process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
+          }
           do { try process.run() } catch {
             continuation.resume(throwing: error)
             return
