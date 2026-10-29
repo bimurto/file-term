@@ -19,6 +19,8 @@ import FileTermCore
   var refresh: (() async -> Void)?
   /// Opens the Batch Rename dialog for a pane with several selected items.
   var onBatchRename: ((PaneModel) -> Void)?
+  /// True when opening an archive should extract it (Settings › General › Handle archives).
+  var extractsArchivesOnOpen: () -> Bool = { false }
 
   var clipboardURLs: [URL] {
     (NSPasteboard.general.readObjects(
@@ -307,7 +309,7 @@ import FileTermCore
     redoReason = redo?.redoReason ?? "Nothing to redo."
   }
 
-  private func run(
+  func run(
     kind: TransferJobKind, sources: [URL] = [], destination: URL? = nil,
     pane: PaneModel, window: NSWindow?, renameResult: Bool = false,
     action: @escaping @MainActor (LocalFileOperations) async throws -> [URL]
@@ -460,7 +462,10 @@ import FileTermCore
     for entry in entries {
       let url = URL(fileURLWithPath: entry.location.path)
       let package = (try? url.resourceValues(forKeys: [.isPackageKey]).isPackage) == true
-      if application == nil, entry.kind == .directory, !package || packageContents {
+      if application == nil, isArchive(entry), extractsArchivesOnOpen() {
+        extract(browser, choose: false, window: nil)
+        break
+      } else if application == nil, entry.kind == .directory, !package || packageContents {
         Task { await browser.enterFolder(entry.location, in: paneID) }
         break
       } else if let application {

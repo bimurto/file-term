@@ -7,6 +7,8 @@ struct FileContentView: View {
   let paneID: PaneID
   let browser: BrowserModel
   let provider: LocalFileSystemProvider
+  /// Handles a file the user opens before it goes to the system, e.g. extracting an archive.
+  var openFile: (FileEntry) -> Bool = { _ in false }
   @State private var anchor: Location?
 
   var body: some View {
@@ -191,6 +193,8 @@ struct FileContentView: View {
     guard pane.renamingLocation != entry.location else { return }
     if entry.kind == .directory && !isPackage(entry, provider: provider) {
       Task { await browser.enterFolder(entry.location, in: paneID) }
+    } else if openFile(entry) {
+      return
     } else if let url = try? provider.url(for: entry.location) {
       NSWorkspace.shared.open(url)
     }

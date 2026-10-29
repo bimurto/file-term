@@ -132,6 +132,7 @@ import UniformTypeIdentifiers
     }
     fileOperations.transfers.preferences = settings.transfers
     fileOperations.onBatchRename = { [weak self] pane in self?.openBatchRename(pane) }
+    fileOperations.extractsArchivesOnOpen = { [weak self] in self?.settings.handleArchives == true }
     fileOperations.registry = providerRegistry
     fileOperations.describe = { [weak self] in self?.connections.describe($0) ?? $0.path }
     fileOperations.refresh = { [weak self] in
@@ -1109,6 +1110,47 @@ import UniformTypeIdentifiers
         guard let self else { return }
         fileOperations.startRename(browser.activePane, window: browserWindow)
       })
+    let archiveReason: () -> String = { [weak self] in
+      self?.settings.handleArchives == false
+        ? "Turn on Settings › General › Handle archives with FileTerm."
+        : "Select an archive (.zip, .tar, .tar.gz, .7z…) in a local folder."
+    }
+    let compressReason: () -> String = { [weak self] in
+      self?.settings.handleArchives == false
+        ? "Turn on Settings › General › Handle archives with FileTerm."
+        : "Select one or more items in a local folder."
+    }
+    for (id, title, options) in [
+      ("commands.compress", "Compress", false),
+      ("commands.compressOptions", "Compress With Options…", true),
+    ] {
+      result.append(
+        command(
+          id, title, selection: true,
+          condition: { [weak self] in self?.settings.handleArchives == true },
+          reason: compressReason
+        ) { [weak self] in
+          guard let self else { return }
+          fileOperations.compress(browser, withOptions: options, window: browserWindow)
+        })
+    }
+    for (id, title, choose) in [
+      ("commands.extract", "Extract", false),
+      ("commands.extractTo", "Extract to…", true),
+    ] {
+      result.append(
+        command(
+          id, title, selection: true,
+          condition: { [weak self] in
+            guard let self, settings.handleArchives else { return false }
+            let entries = browser.activePane.selectedEntries
+            return !entries.isEmpty && entries.allSatisfy(fileOperations.isArchive)
+          }, reason: archiveReason
+        ) { [weak self] in
+          guard let self else { return }
+          fileOperations.extract(browser, choose: choose, window: browserWindow)
+        })
+    }
     result.append(
       command(
         "file.trash", "Move to Trash", menu: ["File"],

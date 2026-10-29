@@ -32,6 +32,8 @@ import Testing
     #expect(initial.shortcutOverrides.isEmpty)
     initial.showHidden = true
     initial.autoRefresh = true
+    initial.handleArchives = false
+    initial.archivesAsFolders = true
     initial.searchEngine = .spotlight
     initial.searchIncludeSubfolders = false
     initial.shortcutOverrides["select.quick"] = ShortcutOverride(
@@ -41,6 +43,8 @@ import Testing
     #expect(restored.viewPreferences.showHidden)
     #expect(restored.autoRefresh)
     #expect(restored.searchEngine == .spotlight)
+    #expect(!restored.handleArchives)
+    #expect(restored.archivesAsFolders)
     #expect(!restored.searchIncludeSubfolders)
     #expect(restored.shortcutOverrides["select.quick"]?.shortcut?.display == "⌘J")
   }

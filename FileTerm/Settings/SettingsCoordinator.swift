@@ -69,7 +69,7 @@ private struct SettingsCategoryView: View {
     .frame(
       width: 660,
       height: category == .terminal || category == .transfers
-        ? 640 : (category == .shortcuts ? 480 : 320),
+        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 440 : 320)),
       alignment: .topLeading
     )
     .onAppear { settings.selectedCategory = category.rawValue }
@@ -202,6 +202,14 @@ private struct GeneralSettingsView: View {
         ForEach(RemotePanePlacement.allCases, id: \.self) { Text($0.title).tag($0) }
       }
       .accessibilityIdentifier("remotePlacement")
+      Text("Archives").font(.headline)
+      Toggle("Handle archives with FileTerm", isOn: $settings.handleArchives)
+        .accessibilityIdentifier("handleArchives")
+      Toggle("Treat archives as folders", isOn: $settings.archivesAsFolders)
+        .disabled(!settings.handleArchives)
+        .accessibilityIdentifier("archivesAsFolders")
+      Text("Double-clicking an archive extracts it next to the archive, or opens it as a folder.")
+        .font(.caption).foregroundStyle(.secondary)
       Text("Current: " + settings.workspace.startingDirectory).font(.caption).foregroundStyle(
         .secondary)
       if let error { Text(error).font(.caption).foregroundStyle(.red) }

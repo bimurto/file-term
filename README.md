@@ -28,6 +28,9 @@ See [M09 tickets](docs/milestones/M09-sync-and-batch-rename.md). Selecting sever
 (Replace Text, Change Case, Add Sequence, Add Text, Add Date) with a live Original → New preview, warnings for duplicate or invalid names and extension changes,
 and saved rename presets that appear in Quick Open.
 
+M10 adds Commands › Compress, Compress With Options…, Extract and Extract to… (zip, tar, tar.gz, tar.bz2, tar.xz),
+and Settings › General archive options. See [M10 tickets](docs/milestones/M10-archives-deletion-comparison.md).
+
 ## Run
 
 Requires macOS 14+ and Xcode 16+ with Swift 6.

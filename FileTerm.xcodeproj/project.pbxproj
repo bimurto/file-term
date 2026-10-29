@@ -15,6 +15,7 @@
 		0ADE56F5828DAB4C06FFB391 /* TerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAC7EA62B360BBB0ACC872D4 /* TerminalSession.swift */; };
 		113103D4001DF21BBAFFCB20 /* FilePreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD263E41E833AB5F62AAF16 /* FilePreviewTests.swift */; };
 		1C34AD5694162051175CABBC /* SettingsCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0122B8F895C5A9B0D118027A /* SettingsCoordinator.swift */; };
+		1D8E69565519D69D208A668F /* FileOperationCoordinator+Archive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50FB4E30DB9AB84C96291389 /* FileOperationCoordinator+Archive.swift */; };
 		1E52A1D9E47C6454425C80CE /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 81E91E9836F1A4F5108406A0 /* SwiftTerm */; };
 		22A886D65BD71701A76AB3F7 /* NavigationDestinations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F492528D3BBB620AF0027AE /* NavigationDestinations.swift */; };
 		2AC4CAEEF8BC9C4643C14BF4 /* WorkspaceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D98A92C51E28C5FD1E624D /* WorkspaceUITests.swift */; };
@@ -135,6 +136,7 @@
 		45D98A92C51E28C5FD1E624D /* WorkspaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceUITests.swift; sourceTree = "<group>"; };
 		4C6CBA69BBC5D272647D9C74 /* TerminalSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSettingsTests.swift; sourceTree = "<group>"; };
 		4D483E6A7975E0538C696081 /* FolderWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderWatcher.swift; sourceTree = "<group>"; };
+		50FB4E30DB9AB84C96291389 /* FileOperationCoordinator+Archive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+Archive.swift"; sourceTree = "<group>"; };
 		55A79DEB4A1BB4855A9BB6CF /* TerminalWorkspaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalWorkspaceTests.swift; sourceTree = "<group>"; };
 		5A16FE2A26A749FBCA98E9A0 /* DeviceModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceModel.swift; sourceTree = "<group>"; };
 		5CBF3DED2BF5ED2BA7E37C1F /* WorkspaceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSettingsTests.swift; sourceTree = "<group>"; };
@@ -349,6 +351,7 @@
 				C1DC0CE81A8B6F13514020EE /* CredentialStore.swift */,
 				E2B6D81AF101F9349284282D /* FileMetadataService.swift */,
 				06E54F3B1A88E09053B58B87 /* FileOperationCoordinator.swift */,
+				50FB4E30DB9AB84C96291389 /* FileOperationCoordinator+Archive.swift */,
 				A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */,
 				5E927BE4B6695C6DE166344A /* FileOperationCoordinator+Sync.swift */,
 				0DBF840FFE04CC5F96F1814A /* FilePreviewCoordinator.swift */,
@@ -539,6 +542,7 @@
 				5541AB42821FCD706D96624C /* DeviceModel.swift in Sources */,
 				DD35E4153C841353CCDE3C50 /* FileContentView.swift in Sources */,
 				8C8CF6975EA756CA2BC30F24 /* FileMetadataService.swift in Sources */,
+				1D8E69565519D69D208A668F /* FileOperationCoordinator+Archive.swift in Sources */,
 				C189AE31558133FD53A0ED7B /* FileOperationCoordinator+Remote.swift in Sources */,
 				4140A5374DBB60C325FD3ACD /* FileOperationCoordinator+Sync.swift in Sources */,
 				E14D880CAAED820ABA416AC9 /* FileOperationCoordinator.swift in Sources */,
