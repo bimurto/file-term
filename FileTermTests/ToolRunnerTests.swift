@@ -66,6 +66,24 @@ import Testing
     #expect(written == expected)
   }
 
+  @Test func aToolsLoggedCommandLeavesOutItsSecretsButStillRunsWithThem() async throws {
+    let root = try folder()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let coordinator = FileOperationCoordinator()
+    let runner = ToolRunner(fileOperations: coordinator)
+    let tool = UserTool(name: "Deploy", command: "API_TOKEN=hunter2 sh -c 'echo $API_TOKEN > out'")
+
+    let id = runner.run(
+      tool, context: .init(sourcePath: root.path, sourceSelection: []),
+      source: Location(providerID: "local", path: root.path))
+    _ = await finish(coordinator, id)
+
+    #expect(!coordinator.transfers.exportedLogs.contains("hunter2"))
+    #expect(messages(coordinator, id).contains { $0.hasPrefix("$ API_TOKEN=") })
+    let written = try String(contentsOf: root.appendingPathComponent("out"), encoding: .utf8)
+    #expect(written == "hunter2\n")
+  }
+
   @Test func aNonzeroExitFailsTheJobAndIsLogged() async throws {
     let root = try folder()
     defer { try? FileManager.default.removeItem(at: root) }

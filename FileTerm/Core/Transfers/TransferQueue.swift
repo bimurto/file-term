@@ -110,10 +110,14 @@ public struct TransferLogEntry: Identifiable, Sendable {
     guard let job = jobs.first(where: { $0.id == id }) else { return }
     logs.append(
       TransferLogEntry(
-        jobID: id, source: job.sourceLabels.joined(separator: ", "),
-        destination: job.destinationLabel ?? "", message: message))
+        jobID: id, source: LogRedactor.redact(job.sourceLabels.joined(separator: ", ")),
+        destination: LogRedactor.redact(job.destinationLabel ?? ""),
+        message: LogRedactor.redact(message)))
   }
   public var exportedLogs: String { logs.map(\.text).joined(separator: "\n") }
+  public func exportedLogs(hidingPersonalPaths: Bool) -> String {
+    hidingPersonalPaths ? LogRedactor.hidingPersonalPaths(exportedLogs) : exportedLogs
+  }
 
   public func setTotalBytes(_ id: UUID, _ bytes: Int64?) {
     guard let i = index(id) else { return }

@@ -120,15 +120,20 @@ private struct TransferJobRow: View {
 struct TransferLogsPanel: View {
   let queue: TransferQueue
   @State private var exportError: String?
+  @State private var hidePersonalPaths = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack {
         Label("Logs", systemImage: "list.bullet.rectangle").font(.headline)
         Spacer()
+        Toggle("Hide Personal Paths", isOn: $hidePersonalPaths)
+          .help("Copy All and Export replace home folders with ~.")
+          .accessibilityIdentifier("hidePersonalPaths")
         Button("Copy All") {
           NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(queue.exportedLogs, forType: .string)
+          NSPasteboard.general.setString(
+            queue.exportedLogs(hidingPersonalPaths: hidePersonalPaths), forType: .string)
         }.accessibilityIdentifier("copyTransferLogs").disabled(queue.logs.isEmpty)
         Button("Export…") { export() }
           .accessibilityIdentifier("exportTransferLogs").disabled(queue.logs.isEmpty)
@@ -163,10 +168,11 @@ struct TransferLogsPanel: View {
     panel.nameFieldStringValue = "FileTerm-transfers.txt"
     panel.allowedContentTypes = [.plainText]
     panel.canCreateDirectories = true
+    let text = queue.exportedLogs(hidingPersonalPaths: hidePersonalPaths)
     panel.begin { response in
       guard response == .OK, let url = panel.url else { return }
       do {
-        try queue.exportedLogs.write(to: url, atomically: true, encoding: .utf8)
+        try text.write(to: url, atomically: true, encoding: .utf8)
         exportError = nil
       } catch {
         exportError = "Could not export logs: \(error.localizedDescription)"

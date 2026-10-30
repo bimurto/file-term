@@ -60,7 +60,9 @@
 ## Part C — Hardening
 
 ### M14.11 Privacy review
-- [ ] Logs and crash reports leave out credentials, tokens and (optionally) personal paths.
+- [x] Logs and crash reports leave out credentials, tokens and (optionally) personal paths.
+  - Every transfer log line passes through `LogRedactor`, which matches common credential shapes, so it can't promise to catch every secret. Hide Personal Paths applies to Copy All and Export.
+  - FileTerm has no crash reporter and writes no log file. Logs stay in memory until someone copies or exports them.
 
 ### M14.12 Performance
 - [ ] A folder with 100k entries lists in an acceptable time. Large transfers don't freeze the UI.
