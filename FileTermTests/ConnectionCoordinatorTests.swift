@@ -4,6 +4,61 @@ import Testing
 
 @testable import FileTerm
 
+/// M14.10 for SMB, which goes through the OS mount rather than a provider. Needs the `samba` service
+/// in dev/docker-compose.yml. Skipped unless the test host gets FILETERM_LIVE=1, which xcodebuild
+/// passes on from TEST_RUNNER_FILETERM_LIVE=1.
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["FILETERM_LIVE"] == "1"), .serialized)
+struct MountedShareSmokeTests {
+  @Test func smb() async throws {
+    let share = try #require(URL(string: "smb://tester@127.0.0.1:1445/share"))
+    let mount = try await NetFSMounter().mount(share, user: "tester", password: "testpass123")
+    defer {
+      let unmount = Process()
+      unmount.executableURL = URL(fileURLWithPath: "/sbin/umount")
+      unmount.arguments = [mount.path]
+      try? unmount.run()
+      unmount.waitUntilExit()
+    }
+    let localProvider = LocalFileSystemProvider()
+    // The protocol type, as the app uses: on the actor, `await` picks the throwing default method.
+    let provider: any FileSystemProvider = localProvider
+    _ = try await provider.list(localProvider.location(for: mount))
+
+    let folder = mount.appendingPathComponent("m14-\(UUID().uuidString.prefix(8))")
+    let root = localProvider.location(for: folder)
+    let child = { (name: String) in
+      localProvider.location(for: folder.appendingPathComponent(name))
+    }
+    try await provider.createDirectory(root)
+    do {
+      let contents = "smoke test \(UUID().uuidString)"
+      let local = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      try contents.write(to: local, atomically: true, encoding: .utf8)
+      defer { try? FileManager.default.removeItem(at: local) }
+      let file = child("upload.txt")
+      try await provider.write(
+        try await provider.read(localProvider.location(for: local)), to: file)
+      #expect(try await provider.list(root).map(\.name) == ["upload.txt"])
+
+      var data = Data()
+      let reader = try await provider.read(file)
+      while let chunk = try await reader.next() { data.append(chunk) }
+      #expect(String(decoding: data, as: UTF8.self) == contents)
+
+      let renamed = child("renamed.txt")
+      try await provider.move(file, to: renamed)
+      #expect(try await provider.list(root).map(\.name) == ["renamed.txt"])
+
+      try await provider.delete(renamed)
+      #expect(try await provider.list(root).isEmpty)
+    } catch {
+      try? await provider.delete(root)
+      throw error
+    }
+    try await provider.delete(root)
+  }
+}
+
 private final class FakeCredentials: CredentialStore {
   var passwords: [UUID: String] = [:]
   func password(for id: UUID) -> String? { passwords[id] }
