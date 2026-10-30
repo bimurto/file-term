@@ -33,13 +33,13 @@
 ## Part B — Acceptance scenarios (end-to-end tests)
 
 ### M14.07 Copy practice scenario
-- [ ] Create two disposable folders, open one in each pane, then Copy to. The file exists at the destination **and** is still in the source.
+- [x] Create two disposable folders, open one in each pane, then Copy to. The file exists at the destination **and** is still in the source.
 
 ### M14.08 Rename practice scenario
-- [ ] Two disposable files. Add a Sequence rule, check the preview, Cancel. The files are unchanged.
+- [x] Two disposable files. Add a Sequence rule, check the preview, Cancel. The files are unchanged.
 
 ### M14.09 Sync practice scenario
-- [ ] Two small folder trees. One-way sync with deletion off. Check the proposed add/update list, Cancel. Nothing changes.
+- [x] Two small folder trees. One-way sync with deletion off. Check the proposed add/update list, Cancel. Nothing changes.
 
 ### M14.10 Remote smoke tests
 - [ ] For each protocol in M08, run connect, list, upload, download, rename and delete against test servers (docker-based where possible).
