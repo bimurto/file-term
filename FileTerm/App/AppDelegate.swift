@@ -32,6 +32,7 @@ import UniformTypeIdentifiers
   private let filePreviews = FilePreviewCoordinator()
   private let fileUtilities = FileUtilityCoordinator()
   private lazy var toolRunner = ToolRunner(fileOperations: fileOperations)
+  private lazy var remoteEdits = RemoteEditCoordinator(fileOperations: fileOperations)
 
   /// The browser window is in front with no dialog on top (Quick Open counts as part of the browser).
   private var browserIsFront: Bool {
@@ -1075,13 +1076,14 @@ import UniformTypeIdentifiers
     }
   }
 
-  /// Edit needs exactly one regular file. Remote files arrive with remote editing.
+  /// Edit needs exactly one regular file, local or on a connection.
   private func editDisabledReason() -> String? {
     let entries = browser.activePane.selectedEntries
     guard entries.count == 1, let entry = entries.first, entry.kind == .file else {
       return "Select one file to edit."
     }
-    return entry.location.providerID == "local" ? nil : "Remote files cannot be edited yet."
+    return entry.location.providerID.hasPrefix("archive:")
+      ? "Files inside an archive cannot be edited." : nil
   }
 
   private func toolDisabledReason(_ tool: UserTool) -> String? {
@@ -1198,6 +1200,10 @@ import UniformTypeIdentifiers
         guard let self, let entry = browser.activePane.selectedEntries.first else { return }
         let model = browser
         let editors = settings.editors
+        guard entry.location.providerID == "local" else {
+          remoteEdits.edit(entry, editors: editors) { model.notice = $0 }
+          return
+        }
         let url = URL(fileURLWithPath: entry.location.path)
         Task { @MainActor in
           if let message = await self.fileOperations.openInEditor(url, editors: editors) {

@@ -7,7 +7,8 @@ extension FileOperationCoordinator {
   static let downloadsFolder = FileManager.default.temporaryDirectory
     .appendingPathComponent("FileTerm-remote")
 
-  /// Opened remote files are temporary copies; edits are not uploaded back.
+  /// Opened remote files are temporary copies. Only files opened with Commands › Edit are uploaded
+  /// again, by `RemoteEditCoordinator`.
   static func removeTemporaryDownloads() {
     try? FileManager.default.removeItem(at: downloadsFolder)
   }

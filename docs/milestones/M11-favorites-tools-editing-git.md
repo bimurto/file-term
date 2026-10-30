@@ -33,8 +33,8 @@
 - [x] Commands › Edit opens the file in the editor mapped to its extension.
 
 ### M11.08 Remote editing *(vendor-documented)*
-- [ ] Downloads the remote file to a temp folder and watches it for saves. Each save uploads the file and logs the upload.
-- [ ] Before the first upload, the user confirms the target account and path.
+- [x] Downloads the remote file to a temp folder and watches it for saves. Each save uploads the file and logs the upload.
+- [x] Before the first upload, the user confirms the target account and path.
 
 ### M11.09 Terminal integration
 - [ ] File › Open in Terminal and a toolbar button open the current local folder in the terminal app chosen in Settings › General › Terminal Application (Terminal, iTerm, etc.).
@@ -55,7 +55,7 @@ M11 ships in tickets, one commit each.
 | T3 Tool model, placeholders, editor | M11.04, M11.05 | Done |
 | T4 Tool execution, output, toolbar | M11.06 | Done |
 | T5 External editors and Edit | M11.07 | Done |
-| T6 Remote editing | M11.08 | Open |
+| T6 Remote editing | M11.08 | Done |
 | T7 Open in Terminal | M11.09 | Open |
 | T8 Source control | M11.10 | Open |
 
@@ -136,8 +136,35 @@ M11 ships in tickets, one commit each.
   `gitignore` matches `.gitignore`, while `swift` does not match `x.notswift`.
 - With no matching row Edit opens the file in its default application. If the mapped application is
   missing, the file opens in the default application and a notice says so.
-- Edit needs exactly one regular file. Remote files are refused for now, with the reason in the
-  tooltip; T6 turns that into download, edit and upload.
+- Edit needs exactly one regular file. Remote files are handled by T6.
 - `FileOperationCoordinator.openInEditor(_:editors:)` is what T6 reuses for the downloaded copy.
 - Not done: opening through `NSWorkspace` has not been driven by hand. Unit tests cover the matching
   rules, the extension parser and persistence.
+
+## T6 notes
+
+- Commands › Edit on a file in a connection downloads it (an `open` job) to a temporary folder, opens
+  it in the editor mapped in Settings › Editing, and watches that folder. Editing the same remote file
+  again reopens the existing copy instead of downloading over unsaved work.
+- The first save asks: "Upload your changes to “name”?" with the account and path (for example
+  `Office NAS: /docs/note.txt`). **Upload** confirms for that file until FileTerm quits or the
+  connection closes. **Stop Watching** ends the session, keeps the local copy and uploads nothing.
+  Nothing is uploaded before this answer.
+- Each later save is an `upload` job in the queue (Activities, Logs). The log reads
+  `Uploaded note.txt to Office NAS: /docs/note.txt`, and a failure logs `Upload of … failed: …`. The file on the
+  server is replaced through a hidden temporary name, as in Copy to…. A save made while the
+  question is open goes into the first upload.
+- Saves are found by watching the temporary folder, so editors that save by writing a sibling file
+  and renaming it are covered. A save is uploaded when its modification time or size differs from
+  the last attempt, so a failed upload is retried by saving again, not in a loop.
+- If the connection is closed, the session ends with a notice instead of uploading.
+- Bug found by the tests and fixed: FSEvents reports `/private/var/...` for the temporary folder, and
+  `FolderWatcher` matches paths as text, so no save would ever have been noticed. The folder is now
+  handed to the watcher through `realpath`. `FolderWatcher` itself is unchanged and still has this
+  limit for any other symlinked folder (the same applies to pane folders).
+- Second bug found by a flaky test and fixed: `URL.resourceValues` caches inside the URL, so it kept
+  reporting the old size after a save and a real save looked unchanged. The change check now reads
+  `FileManager.attributesOfItem`. Twelve repeated runs of the suite pass.
+- Not done: the confirmation dialog and a real editor have not been driven by hand; the tests use an
+  in-memory server, an injected confirmation and a no-op editor launch, plus one real file-system
+  event test.
