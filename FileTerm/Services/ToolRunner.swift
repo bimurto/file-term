@@ -57,7 +57,9 @@ import SwiftUI
       var summary = TransferSummary()
       for line in lines {
         try await control.checkpoint()
-        let output = try await ProcessRunner.capture("/bin/sh", ["-c", line], directory: directory)
+        let output = try await ProcessRunner.capture(
+          "/bin/sh", ["-c", line], directory: directory,
+          environment: LoginShellPath.environment())
         results.append(
           ToolRunResult(
             command: line, status: output.status, stdout: output.stdout, stderr: output.stderr))

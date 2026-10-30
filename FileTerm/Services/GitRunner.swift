@@ -28,7 +28,8 @@ import FileTermCore
       let output: ProcessRunner.Output
       do {
         output = try await ProcessRunner.capture(
-          GitCommand.executable, command.arguments(root: root), environment: GitCommand.environment)
+          GitCommand.executable, command.arguments(root: root),
+          environment: GitCommand.environment.merging(LoginShellPath.environment()) { $1 })
       } catch {
         if let id = reference.id {
           queue.log(id, "Could not start git: \(error.localizedDescription)")

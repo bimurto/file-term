@@ -1,4 +1,5 @@
 import AppKit
+import FileTermCore
 import SwiftTerm
 import XCTest
 
@@ -15,6 +16,15 @@ private final class CapturingTerminalView: LocalProcessTerminalView {
 }
 
 final class ShellIntegrationTests: XCTestCase {
+  func testSessionsInheritTheLoginShellPath() async throws {
+    let path = await LoginShellPath.environment()["PATH"]
+    let expected = try XCTUnwrap(path)
+    let integration = try ShellIntegration(
+      shell: "/bin/zsh", login: false, interactive: true, enabled: false)
+    defer { integration.cleanup() }
+    XCTAssertTrue(integration.environment.contains("PATH=\(expected)"))
+  }
+
   func testOSCParserAcrossEveryByteAndBothTerminators() {
     var parser = ShellOSCParser()
     let stream =

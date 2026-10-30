@@ -101,6 +101,7 @@ import UniformTypeIdentifiers
   )
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    LoginShellPath.prepare()
     NSWindow.allowsAutomaticWindowTabbing = false
     ThemeLibrary.apply(settings.theme)
     NSApp.registerServicesMenuSendTypes(ServiceTypes.files + [.string], returnTypes: [])
@@ -1459,10 +1460,13 @@ import UniformTypeIdentifiers
         else { return }
         let model = browser
         let name = settings.terminalApplication.title
+        // macOS ignores this environment when the terminal app is already running.
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.environment = LoginShellPath.loadedEnvironment
         NSWorkspace.shared.open(
           [URL(fileURLWithPath: folder.path, isDirectory: true)],
           withApplicationAt: URL(fileURLWithPath: path),
-          configuration: NSWorkspace.OpenConfiguration()
+          configuration: configuration
         ) { _, error in
           guard let error else { return }
           Task { @MainActor in

@@ -90,7 +90,9 @@ final class ShellIntegration {
 
   init(
     shell: String, login: Bool, interactive: Bool, enabled: Bool,
-    environment base: [String: String] = ProcessInfo.processInfo.environment
+    environment base: [String: String] = ProcessInfo.processInfo.environment.merging(
+      LoginShellPath.loadedEnvironment
+    ) { $1 }
   ) throws {
     executable = shell
     let kind = URL(fileURLWithPath: shell).lastPathComponent

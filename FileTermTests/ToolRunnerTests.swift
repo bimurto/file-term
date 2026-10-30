@@ -49,6 +49,23 @@ import Testing
     #expect(messages(coordinator, id).contains("Exit code 0"))
   }
 
+  @Test func aToolInheritsTheLoginShellPath() async throws {
+    let root = try folder()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let expected = try #require(await LoginShellPath.environment()["PATH"])
+    let coordinator = FileOperationCoordinator()
+    let runner = ToolRunner(fileOperations: coordinator)
+    let tool = UserTool(name: "Path", command: "printf %s \"$PATH\" > path.txt")
+
+    let id = runner.run(
+      tool, context: .init(sourcePath: root.path, sourceSelection: []),
+      source: Location(providerID: "local", path: root.path))
+    _ = await finish(coordinator, id)
+
+    let written = try String(contentsOf: root.appendingPathComponent("path.txt"), encoding: .utf8)
+    #expect(written == expected)
+  }
+
   @Test func aNonzeroExitFailsTheJobAndIsLogged() async throws {
     let root = try folder()
     defer { try? FileManager.default.removeItem(at: root) }

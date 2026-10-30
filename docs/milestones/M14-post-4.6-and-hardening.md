@@ -9,7 +9,9 @@
 - [ ] New rename rule that inserts EXIF, ID3 or file metadata fields (extends M09).
 
 ### M14.02 Shell PATH inheritance (4.7.1)
-- [ ] Tools, the external terminal launch and built-in terminal sessions (M06) inherit the user's login-shell PATH.
+- [x] Tools, the external terminal launch and built-in terminal sessions (M06) inherit the user's login-shell PATH.
+  - Git commands get it too. macOS ignores the launch environment when the external terminal app is already running.
+  - A built-in session opened before the lookup finishes starts with the inherited PATH. With Login Shell on, its own startup files still set PATH.
 
 ### M14.03 Icon view file-size info (4.7.2)
 - [ ] Optional size label under icons.
