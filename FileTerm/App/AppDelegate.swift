@@ -1876,6 +1876,14 @@ import UniformTypeIdentifiers
         isChecked: { [weak self] _ in self?.browser.activePane.isPinned == true },
         handler: { [weak self] in self?.browser.activePane.isPinned.toggle() }),
       AppCommand(
+        id: "window.moveTabToOtherPane", title: "Move Tab to Other Pane", menuPath: ["Window"],
+        isEnabled: { $0.hasBrowserWindow && !$0.isLoading && $0.sourceLocation != nil },
+        disabledReason: { _ in "Open a folder and wait for navigation to finish." },
+        handler: { [weak self] in
+          guard let self else { return }
+          browser.moveTabToOtherPane(from: browser.activePaneID)
+        }),
+      AppCommand(
         id: "window.bringAll", title: "Bring All to Front", menuPath: ["Window"],
         isEnabled: { [weak self] _ in self?.windows.isEmpty == false }, disabledReason: noWindow,
         handler: { NSApp.arrangeInFront(nil) }),

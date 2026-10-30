@@ -42,6 +42,21 @@ final class WorkspaceUITests: XCTestCase {
     capture(app, name: "M02 sortable list")
   }
 
+  @MainActor func testMoveTabToOtherPaneShowsThePaneAndKeepsATabBehind() throws {
+    let fixture = try WorkspaceFixture()
+    defer { fixture.remove() }
+    let app = fixture.launch()
+    defer { app.terminate() }
+    XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
+    menu("Window", command: "Move Tab to Other Pane", app: app)
+    XCTAssertTrue(app.descendants(matching: .any)["pane.second"].waitForExistence(timeout: 5))
+    let tabs = { (pane: String) in
+      app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tab.\(pane).")).count
+    }
+    XCTAssertEqual(tabs("first"), 1)
+    XCTAssertEqual(tabs("second"), 2)
+  }
+
   @MainActor func testPinnedTabsMultipleWindowsAndNativeWindowMenu() throws {
     let fixture = try WorkspaceFixture()
     defer { fixture.remove() }

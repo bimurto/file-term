@@ -64,6 +64,22 @@ public struct BrowserSnapshot: Codable, Sendable {
     return true
   }
 
+  /// Takes the active tab out without ending its navigation, because it lives on in another pane.
+  /// An only tab leaves a new tab at the same folder, since a pane always has one.
+  func detachActive() -> PaneModel {
+    let detached = active
+    if tabs.count == 1 { newTab(inheritingView: true) }
+    let index = tabs.firstIndex { $0 === detached } ?? 0
+    tabs.remove(at: index)
+    if detached.id == selectedID { selectedID = tabs[min(index, tabs.count - 1)].id }
+    return detached
+  }
+
+  func adopt(_ pane: PaneModel) {
+    tabs.append(pane)
+    selectedID = pane.id
+  }
+
   public func closeOthers() {
     let current = active
     for pane in tabs where pane !== current { pane.cancelPendingNavigation() }

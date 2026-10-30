@@ -82,6 +82,13 @@ public enum PaneLayout: String, CaseIterable, Codable, Sendable {
     tabs(id).closeOthers()
   }
 
+  public func moveTabToOtherPane(from id: PaneID) {
+    if layout == .single { setLayout(lastDualLayout) }
+    invalidateMirror()
+    tabs(id.opposite).adopt(tabs(id).detachActive())
+    activePaneID = id.opposite
+  }
+
   public func snapshot() -> BrowserSnapshot {
     BrowserSnapshot(
       first: firstTabs.tabs.compactMap { $0.snapshot() },

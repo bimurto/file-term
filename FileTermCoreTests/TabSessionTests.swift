@@ -46,6 +46,57 @@ import Testing
     #expect(!browser.closeTab(in: .first))
   }
 
+  @Test func movingATabKeepsItsModelAndMakesItActiveInTheOtherPane() async {
+    let provider = LocalFileSystemProvider()
+    let browser = BrowserModel(providers: [provider])
+    let root = provider.location(for: FileManager.default.temporaryDirectory)
+    await browser.navigate(to: root, in: .first)
+    await browser.navigate(to: root, in: .second)
+    browser.setLayout(.vertical)
+    let stays = browser.firstPane
+    browser.newTab(in: .first)
+    await browser.navigate(to: Location(providerID: "local", path: "/"), in: .first)
+    let moved = browser.firstPane
+    moved.isPinned = true
+    browser.moveTabToOtherPane(from: .first)
+    #expect(browser.firstTabs.tabs.count == 1)
+    #expect(browser.firstPane === stays)
+    #expect(browser.secondTabs.tabs.count == 2)
+    #expect(browser.secondPane === moved)
+    #expect(browser.activePaneID == .second)
+    #expect(moved.isPinned)
+    #expect(moved.canGoBack)
+  }
+
+  @Test func movingTheOnlyTabLeavesANewTabAtTheSameFolder() async {
+    let provider = LocalFileSystemProvider()
+    let browser = BrowserModel(providers: [provider])
+    let root = provider.location(for: FileManager.default.temporaryDirectory)
+    await browser.navigate(to: root, in: .first)
+    await browser.navigate(to: Location(providerID: "local", path: "/"), in: .second)
+    browser.setLayout(.vertical)
+    let moved = browser.firstPane
+    browser.moveTabToOtherPane(from: .first)
+    #expect(browser.firstTabs.tabs.count == 1)
+    #expect(browser.firstPane !== moved)
+    #expect(browser.firstPane.location == root)
+    #expect(browser.secondPane === moved)
+  }
+
+  @Test func movingATabInSinglePaneLayoutShowsTheOtherPane() async {
+    let provider = LocalFileSystemProvider()
+    let browser = BrowserModel(providers: [provider])
+    let root = provider.location(for: FileManager.default.temporaryDirectory)
+    await browser.navigate(to: root, in: .first)
+    await browser.navigate(to: root, in: .second)
+    browser.setLayout(.horizontal)
+    browser.setLayout(.single)
+    let moved = browser.firstPane
+    browser.moveTabToOtherPane(from: .first)
+    #expect(browser.layout == .horizontal)
+    #expect(browser.secondPane === moved)
+  }
+
   @Test func sessionsRoundTripLocationsLayoutsTabsHistoryAndViewOptions() async throws {
     let provider = LocalFileSystemProvider()
     let browser = BrowserModel(providers: [provider])

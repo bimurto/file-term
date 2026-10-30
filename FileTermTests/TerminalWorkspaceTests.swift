@@ -55,6 +55,22 @@ import Testing
     }
   }
 
+  @Test func movingATabToTheOtherPaneKeepsItsRunningSession() async throws {
+    let fixture = try await Fixture.make()
+    defer { fixture.cleanup() }
+    let browser = fixture.browser
+    let workspace = fixture.workspace
+    browser.setLayout(.vertical)
+    workspace.toggleVisibility()
+    let session = try #require(workspace.currentSession)
+    try await wait { session.canSendDirectory }
+
+    browser.moveTabToOtherPane(from: .first)
+    try await wait { workspace.linkedPaneTitle == "Second pane · Tab 2" }
+    #expect(workspace.currentSession === session)
+    #expect(session.terminalView.process.running)
+  }
+
   @Test func closingAnInactiveTabTerminatesOnlyItsOwnedSession() async throws {
     let fixture = try await Fixture.make()
     defer { fixture.cleanup() }

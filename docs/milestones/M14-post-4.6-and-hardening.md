@@ -18,7 +18,7 @@
 - [ ] Arrow keys move through the grid, type-to-select works, and rubber-band selection works.
 
 ### M14.05 Move tab to other pane (4.7.6)
-- [ ] Window menu command that moves the current tab to the opposite pane.
+- [x] Window menu command that moves the current tab to the opposite pane.
 
 ### M14.06 Go to Folder history & extra tool placeholders
 - [ ] Go to Folder keeps a history and autocompletes from it.
