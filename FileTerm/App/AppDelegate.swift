@@ -33,6 +33,8 @@ import UniformTypeIdentifiers
   private let fileUtilities = FileUtilityCoordinator()
   private lazy var toolRunner = ToolRunner(fileOperations: fileOperations)
   private lazy var remoteEdits = RemoteEditCoordinator(fileOperations: fileOperations)
+  private let updates = UpdateChecker()
+  private let onboarding = OnboardingCoordinator()
 
   /// The browser window is in front with no dialog on top (Quick Open counts as part of the browser).
   private var browserIsFront: Bool {
@@ -90,6 +92,8 @@ import UniformTypeIdentifiers
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSWindow.allowsAutomaticWindowTabbing = false
+    ThemeLibrary.apply(settings.theme)
+    NSApp.registerServicesMenuSendTypes(ServiceTypes.files + [.string], returnTypes: [])
     let center = NSWorkspace.shared.notificationCenter
     for name in [
       NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification,
@@ -116,6 +120,28 @@ import UniformTypeIdentifiers
           })
         else { return }
         self.fileOperations.startRename(pane, window: controller.window)
+      }
+    }
+    NotificationCenter.default.addObserver(
+      forName: .fileTermDropFiles, object: nil, queue: .main
+    ) { [weak self] notification in
+      guard let pane = notification.object as? PaneModel,
+        let urls = notification.userInfo?["urls"] as? [URL],
+        let optionPressed = notification.userInfo?["optionPressed"] as? Bool
+      else { return }
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        let controller = self.windows.first { controller in
+          PaneID.allCases.contains { id in
+            controller.browser.tabs(id).tabs.contains { $0 === pane }
+          }
+        }
+        let confirm = self.settings.askBeforeDrag
+        Task {
+          await self.fileOperations.drop(
+            urls, onto: pane, confirm: confirm, optionPressed: optionPressed,
+            window: controller?.window)
+        }
       }
     }
     NotificationCenter.default.addObserver(
@@ -177,6 +203,13 @@ import UniformTypeIdentifiers
       } else {
         for snapshot in saved { await newWindow(restoring: snapshot) }
       }
+      if OnboardingCoordinator.shouldShow(
+        alreadyShown: settings.onboardingShown, environment: ProcessInfo.processInfo.environment)
+      {
+        settings.onboardingShown = true
+        onboarding.show()
+      }
+      if settings.automaticUpdateChecks { await updates.check(reportsUpToDate: false) }
     }
   }
 
@@ -591,6 +624,14 @@ import UniformTypeIdentifiers
         }
       ),
       AppCommand(
+        id: "app.checkForUpdates", title: "Check for Updates…", menuPath: ["FileTerm"],
+        isEnabled: { _ in true }, disabledReason: { _ in "" },
+        handler: { [weak self] in
+          guard let self else { return }
+          Task { await self.updates.check(reportsUpToDate: true) }
+        }
+      ),
+      AppCommand(
         id: "app.settings", title: "Settings…", menuPath: ["FileTerm"], shortcut: ",",
         isEnabled: { _ in true }, disabledReason: { _ in "" },
         handler: { [weak self] in
@@ -830,6 +871,11 @@ import UniformTypeIdentifiers
       command("file.getInfo", "Get Info", key: "i") { [weak self] in
         guard let self else { return }
         filePreviews.showInfo(selectedLocalURLs)
+      },
+      command("file.share", "Share…") { [weak self] in
+        guard let self, let view = browserWindow?.contentView else { return }
+        NSSharingServicePicker(items: selectedLocalURLs)
+          .show(relativeTo: .zero, of: view, preferredEdge: .minY)
       },
       command("file.tags", "Tags…") { [weak self] in
         guard let self else { return }

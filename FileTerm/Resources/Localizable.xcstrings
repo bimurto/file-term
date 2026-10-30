@@ -1,0 +1,1202 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "" : {
+
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ (%u)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$u)"
+          }
+        }
+      }
+    },
+    "%@ arrives with M08 %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ arrives with M08 %2$@."
+          }
+        }
+      }
+    },
+    "%@ bytes per second" : {
+
+    },
+    "%lld active" : {
+
+    },
+    "%lld items" : {
+
+    },
+    "%lld of %lld actions selected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld actions selected"
+          }
+        }
+      }
+    },
+    "%lld of %lld folders calculated" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld folders calculated"
+          }
+        }
+      }
+    },
+    "%lld of %lld items will be renamed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld items will be renamed"
+          }
+        }
+      }
+    },
+    "%lld of %lld items will be selected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld items will be selected"
+          }
+        }
+      }
+    },
+    "%lld succeeded · %lld skipped · %lld failed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld succeeded · %2$lld skipped · %3$lld failed"
+          }
+        }
+      }
+    },
+    "0" : {
+
+    },
+    "Absolute folder path" : {
+
+    },
+    "Action" : {
+
+    },
+    "Active" : {
+
+    },
+    "Activities" : {
+
+    },
+    "Add" : {
+
+    },
+    "Add Path" : {
+
+    },
+    "Add Rule" : {
+
+    },
+    "Add a rule to build the new names." : {
+
+    },
+    "Add filter" : {
+
+    },
+    "Add items" : {
+
+    },
+    "Add to Favorites" : {
+
+    },
+    "Added" : {
+
+    },
+    "Agent and default keys" : {
+
+    },
+    "Algorithm" : {
+
+    },
+    "All" : {
+
+    },
+    "Allow Notifications" : {
+
+    },
+    "Allow extension changes" : {
+
+    },
+    "Allow invalid certificate" : {
+
+    },
+    "Allow notifications so FileTerm can tell you when long transfers finish." : {
+
+    },
+    "Analyzing…" : {
+
+    },
+    "Appearance" : {
+
+    },
+    "Application" : {
+
+    },
+    "Applies to this tab across folders." : {
+
+    },
+    "Apply" : {
+
+    },
+    "Apply Change" : {
+
+    },
+    "Apply Comment" : {
+
+    },
+    "Apply Group…" : {
+
+    },
+    "Apply Owner…" : {
+
+    },
+    "Apply Permissions…" : {
+
+    },
+    "Apply Tags" : {
+
+    },
+    "Apply security change?" : {
+
+    },
+    "Apply to" : {
+
+    },
+    "Apply to This File" : {
+
+    },
+    "Archives" : {
+
+    },
+    "Ask for confirmation for drag operations" : {
+
+    },
+    "At index" : {
+
+    },
+    "Automatically check for updates" : {
+
+    },
+    "Automatically retry temporary failures" : {
+
+    },
+    "Available Commands" : {
+
+    },
+    "Bandwidth" : {
+
+    },
+    "Base URL" : {
+
+    },
+    "Batch Rename" : {
+
+    },
+    "Both ways" : {
+
+    },
+    "Both ways never deletes: without a sync history, a deletion cannot be told from a new item." : {
+
+    },
+    "Bucket / Prefix" : {
+
+    },
+    "Bytes/s" : {
+
+    },
+    "Calculate" : {
+
+    },
+    "Calculate All Folder Sizes" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Case" : {
+
+    },
+    "Case sensitive" : {
+
+    },
+    "Change All" : {
+
+    },
+    "Change All…" : {
+
+    },
+    "Change the default application for all files of this type?" : {
+
+    },
+    "Changes apply only to this item, not its contents. Permissions or ownership changes can remove your access. ACLs are not changed; macOS may refuse changes without authorization." : {
+
+    },
+    "Check for Updates Now" : {
+
+    },
+    "Checksum" : {
+
+    },
+    "Checksum progress" : {
+
+    },
+    "Choose application" : {
+
+    },
+    "Choose registry commands and arrange the selected items. Changes save immediately." : {
+
+    },
+    "Choose visible sections and their order. Changes save immediately." : {
+
+    },
+    "Choose which pane’s selected tab is shown" : {
+
+    },
+    "Choose…" : {
+
+    },
+    "Clear" : {
+
+    },
+    "Clear Terminal" : {
+
+    },
+    "Click the field, then press the new key combination." : {
+
+    },
+    "Close" : {
+
+    },
+    "Close Search" : {
+
+    },
+    "Close tab %@" : {
+
+    },
+    "Close terminal" : {
+
+    },
+    "Close terminal and terminate its sessions" : {
+
+    },
+    "Color" : {
+
+    },
+    "Color Label" : {
+
+    },
+    "Command" : {
+
+    },
+    "Commands › Edit opens a file in the application listed for its extension." : {
+
+    },
+    "Comments" : {
+
+    },
+    "Compare tool" : {
+
+    },
+    "Concurrent operations: %lld" : {
+
+    },
+    "Conflict ←" : {
+
+    },
+    "Conflict →" : {
+
+    },
+    "Conflicts" : {
+
+    },
+    "Connect" : {
+
+    },
+    "Connect to Server" : {
+
+    },
+    "Connection" : {
+
+    },
+    "Copies to remote locations do not keep modification dates, so use “Size differs” there." : {
+
+    },
+    "Copy All" : {
+
+    },
+    "Copy Checksum" : {
+
+    },
+    "Created" : {
+
+    },
+    "Current Toolbar" : {
+
+    },
+    "Current date" : {
+
+    },
+    "Cursor" : {
+
+    },
+    "Customize Toolbar" : {
+
+    },
+    "Date" : {
+
+    },
+    "Defaults apply to new tabs and folders without saved settings." : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete Group" : {
+
+    },
+    "Delete Preset" : {
+
+    },
+    "Delete orphaned items" : {
+
+    },
+    "Delete this group and the favorites in it?" : {
+
+    },
+    "Descending Order" : {
+
+    },
+    "Detect application when deleting" : {
+
+    },
+    "Device" : {
+
+    },
+    "Devices" : {
+
+    },
+    "Direction" : {
+
+    },
+    "Dismiss" : {
+
+    },
+    "Dock" : {
+
+    },
+    "Done" : {
+
+    },
+    "Don’t add empty folders" : {
+
+    },
+    "Double-clicking an archive extracts it next to the archive, or opens it as a folder." : {
+
+    },
+    "Drag a favorite onto a group to file it there. Changes save immediately." : {
+
+    },
+    "Dropping items on a pane asks whether to copy or move them." : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edited" : {
+
+    },
+    "Editor" : {
+
+    },
+    "Enable for remote files" : {
+
+    },
+    "Enable shell integration" : {
+
+    },
+    "End" : {
+
+    },
+    "Engine" : {
+
+    },
+    "Exclude items" : {
+
+    },
+    "Existing tag colors are preserved. Use Finder to choose colors; commas separate tag names here." : {
+
+    },
+    "Exit code %d" : {
+
+    },
+    "Exit code 0" : {
+
+    },
+    "Expected checksum (optional)" : {
+
+    },
+    "Export…" : {
+
+    },
+    "Extension" : {
+
+    },
+    "Extension only" : {
+
+    },
+    "Extensions" : {
+
+    },
+    "Extensions (for example swift, md, txt)" : {
+
+    },
+    "Favorite" : {
+
+    },
+    "Favorite Group" : {
+
+    },
+    "Favorites" : {
+
+    },
+    "File Checksum" : {
+
+    },
+    "File contents" : {
+
+    },
+    "File created" : {
+
+    },
+    "File modified" : {
+
+    },
+    "File size" : {
+
+    },
+    "File text" : {
+
+    },
+    "Find" : {
+
+    },
+    "Find in Terminal" : {
+
+    },
+    "Finder comment" : {
+
+    },
+    "First" : {
+
+    },
+    "Folder" : {
+
+    },
+    "Folder Synchronization" : {
+
+    },
+    "Folder path" : {
+
+    },
+    "Folder size progress" : {
+
+    },
+    "Follow" : {
+
+    },
+    "Follows the system appearance" : {
+
+    },
+    "Font name" : {
+
+    },
+    "Font size: %.0f pt" : {
+
+    },
+    "Format, e.g. yyyy-MM-dd" : {
+
+    },
+    "From: %@" : {
+
+    },
+    "Full Disk Access" : {
+
+    },
+    "Full name" : {
+
+    },
+    "Glob" : {
+
+    },
+    "Glob, e.g. *.log" : {
+
+    },
+    "Go" : {
+
+    },
+    "Go to Folder" : {
+
+    },
+    "Group" : {
+
+    },
+    "Group by" : {
+
+    },
+    "Handle archives with FileTerm" : {
+
+    },
+    "Hidden" : {
+
+    },
+    "Inactive" : {
+
+    },
+    "Include hidden items" : {
+
+    },
+    "Include subfolders" : {
+
+    },
+    "Index" : {
+
+    },
+    "Insert" : {
+
+    },
+    "Insert Selected Paths" : {
+
+    },
+    "Insert at the end of the command. Paths are quoted for the shell automatically." : {
+
+    },
+    "Interactive shell" : {
+
+    },
+    "Items are compared by modification date and size, not byte by byte." : {
+
+    },
+    "Kind" : {
+
+    },
+    "Last" : {
+
+    },
+    "Last Opened" : {
+
+    },
+    "Leave empty to keep the saved password" : {
+
+    },
+    "Left" : {
+
+    },
+    "Left → Right" : {
+
+    },
+    "Limit %@" : {
+
+    },
+    "Link Terminal" : {
+
+    },
+    "Link terminal" : {
+
+    },
+    "Link terminal to pane" : {
+
+    },
+    "Loading metadata…" : {
+
+    },
+    "Local Path" : {
+
+    },
+    "Locked" : {
+
+    },
+    "Login shell" : {
+
+    },
+    "Logs" : {
+
+    },
+    "MD5 and SHA-1 are compatibility checksums, not secure authentication methods." : {
+
+    },
+    "Match" : {
+
+    },
+    "Maximum retries: %lld" : {
+
+    },
+    "Mode" : {
+
+    },
+    "Modification date is older" : {
+
+    },
+    "Modified" : {
+
+    },
+    "Move Out" : {
+
+    },
+    "Move earlier" : {
+
+    },
+    "Move later" : {
+
+    },
+    "Move rule down" : {
+
+    },
+    "Move rule up" : {
+
+    },
+    "Moving a .app to the Trash first lists its preferences, caches and support folders." : {
+
+    },
+    "Name" : {
+
+    },
+    "Name only" : {
+
+    },
+    "New" : {
+
+    },
+    "New Favorite" : {
+
+    },
+    "New Favorite Group" : {
+
+    },
+    "New Tab" : {
+
+    },
+    "No activities yet. File operations will appear here." : {
+
+    },
+    "No administrator elevation or recursive changes. Read access is required to edit metadata safely." : {
+
+    },
+    "No folder open" : {
+
+    },
+    "No logs yet. Operation details will appear here." : {
+
+    },
+    "No matches" : {
+
+    },
+    "No output" : {
+
+    },
+    "No results" : {
+
+    },
+    "None" : {
+
+    },
+    "Not a valid regular expression" : {
+
+    },
+    "Note" : {
+
+    },
+    "Notifications" : {
+
+    },
+    "Notifications are allowed." : {
+
+    },
+    "Notifications are off. You can change this in System Settings." : {
+
+    },
+    "OK" : {
+
+    },
+    "Occurrences" : {
+
+    },
+    "Octal mode" : {
+
+    },
+    "Octal supports special bits (setuid, setgid, sticky). Checkboxes edit only rwx bits. ACLs may grant additional access." : {
+
+    },
+    "Open" : {
+
+    },
+    "Open Full Disk Access Settings" : {
+
+    },
+    "Open SSH Session" : {
+
+    },
+    "Open System Settings" : {
+
+    },
+    "Open remote connections in" : {
+
+    },
+    "Open the terminal to start a shell." : {
+
+    },
+    "Open with" : {
+
+    },
+    "Original" : {
+
+    },
+    "Other…" : {
+
+    },
+    "Owner" : {
+
+    },
+    "Padding" : {
+
+    },
+    "Passive" : {
+
+    },
+    "Password or key passphrase" : {
+
+    },
+    "Path" : {
+
+    },
+    "Pause and resume work in this session. Resuming partial files after restarting is not supported." : {
+
+    },
+    "Permissions" : {
+
+    },
+    "Port" : {
+
+    },
+    "Position" : {
+
+    },
+    "Prefix" : {
+
+    },
+    "Presets" : {
+
+    },
+    "Preview" : {
+
+    },
+    "Preview unavailable" : {
+
+    },
+    "Private Key" : {
+
+    },
+    "Protocol" : {
+
+    },
+    "Quick Select" : {
+
+    },
+    "Reassign" : {
+
+    },
+    "Recent Folders" : {
+
+    },
+    "Refresh metadata" : {
+
+    },
+    "Regex" : {
+
+    },
+    "Region" : {
+
+    },
+    "Regular expression" : {
+
+    },
+    "Reliability" : {
+
+    },
+    "Remote items are passed as their remote paths. Nothing is downloaded." : {
+
+    },
+    "Remove" : {
+
+    },
+    "Remove filter" : {
+
+    },
+    "Remove from Favorites" : {
+
+    },
+    "Remove rule" : {
+
+    },
+    "Rename" : {
+
+    },
+    "Rename Preset" : {
+
+    },
+    "Replace with" : {
+
+    },
+    "Restore Default" : {
+
+    },
+    "Restore Default Toolbar" : {
+
+    },
+    "Restore Defaults" : {
+
+    },
+    "Restore windows and tabs on startup" : {
+
+    },
+    "Reveal Directory in Pane" : {
+
+    },
+    "Reverse Sync" : {
+
+    },
+    "Right" : {
+
+    },
+    "Right → Left" : {
+
+    },
+    "Run for every selected file" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save View Settings as Defaults" : {
+
+    },
+    "Saved for this folder, shared by tabs using This Folder scope." : {
+
+    },
+    "Saved paths. Choosing one connects and opens it. With none, the connection's own folder opens." : {
+
+    },
+    "Saves both folders and every option. Running it always shows the analysis first." : {
+
+    },
+    "Saves the rule list. Find it again in Presets or Quick Open." : {
+
+    },
+    "Scrollback: %lld lines" : {
+
+    },
+    "Search" : {
+
+    },
+    "Search Criteria" : {
+
+    },
+    "Search commands or shortcuts" : {
+
+    },
+    "Search criteria" : {
+
+    },
+    "Select" : {
+
+    },
+    "Select a local item to inspect its metadata and preview its contents." : {
+
+    },
+    "Selected" : {
+
+    },
+    "Sentence" : {
+
+    },
+    "Set Starting Directory" : {
+
+    },
+    "Sharing & Permissions" : {
+
+    },
+    "Shell" : {
+
+    },
+    "Shell changes apply to new terminal sessions." : {
+
+    },
+    "Shell path" : {
+
+    },
+    "Shortcut for “%@”:" : {
+
+    },
+    "Shortcut recorder" : {
+
+    },
+    "Show Advanced" : {
+
+    },
+    "Show Package Contents" : {
+
+    },
+    "Show hidden" : {
+
+    },
+    "Show in Toolbar" : {
+
+    },
+    "Show output" : {
+
+    },
+    "Shown" : {
+
+    },
+    "Sidebar Editor" : {
+
+    },
+    "Size" : {
+
+    },
+    "Size differs" : {
+
+    },
+    "Sizes include folder contents. Symbolic links are not followed. Completed results remain visible if cancelled." : {
+
+    },
+    "Sort by" : {
+
+    },
+    "Start" : {
+
+    },
+    "Start with" : {
+
+    },
+    "Starting Directory" : {
+
+    },
+    "Step" : {
+
+    },
+    "Suffix" : {
+
+    },
+    "Symbolic link: metadata describes the link itself. Editing and embedded preview are disabled; inspect its target separately." : {
+
+    },
+    "Sync" : {
+
+    },
+    "Sync Favorite" : {
+
+    },
+    "Sync Favorites to iCloud" : {
+
+    },
+    "Sync terminal now" : {
+
+    },
+    "Sync to pane directory when the shell is idle and input is empty" : {
+
+    },
+    "Synchronization requires shell integration. Unlinked terminals do not follow a pane." : {
+
+    },
+    "Synchronize" : {
+
+    },
+    "Synchronize hidden items" : {
+
+    },
+    "Synchronize subfolders" : {
+
+    },
+    "Tag" : {
+
+    },
+    "Tag name" : {
+
+    },
+    "Tags" : {
+
+    },
+    "Tags separated by commas" : {
+
+    },
+    "Terminal" : {
+
+    },
+    "Terminal application" : {
+
+    },
+    "Terminal options" : {
+
+    },
+    "Text" : {
+
+    },
+    "Text Encoding" : {
+
+    },
+    "These tags appear in the sidebar. Removing one here leaves it on your files." : {
+
+    },
+    "This File changes only this item. Change All changes the default for its content type." : {
+
+    },
+    "This changes the system-wide default for the item’s content type, not just its filename extension. macOS may ask for consent." : {
+
+    },
+    "This folder is empty" : {
+
+    },
+    "Time offset" : {
+
+    },
+    "Title" : {
+
+    },
+    "To: %@" : {
+
+    },
+    "Tool" : {
+
+    },
+    "Tools run a shell command on the selected items. They appear in Commands › Tools." : {
+
+    },
+    "Transfer Mode" : {
+
+    },
+    "Transfer progress" : {
+
+    },
+    "Transfer size unknown" : {
+
+    },
+    "Treat archives as folders" : {
+
+    },
+    "Type" : {
+
+    },
+    "Type a command or folder" : {
+
+    },
+    "UPPER" : {
+
+    },
+    "Unit" : {
+
+    },
+    "Unlink Terminal" : {
+
+    },
+    "Unlink terminal" : {
+
+    },
+    "Unlink terminal from pane" : {
+
+    },
+    "Update Favorite" : {
+
+    },
+    "Update browser when the shell changes directory" : {
+
+    },
+    "Update items when" : {
+
+    },
+    "Updates" : {
+
+    },
+    "Upload and download limits apply to directional transfers. Local copies are not rate-limited." : {
+
+    },
+    "Used by File › Open in Terminal. The built-in terminal panel is separate." : {
+
+    },
+    "Used by new windows and when session restoration is off." : {
+
+    },
+    "Verify copies" : {
+
+    },
+    "View" : {
+
+    },
+    "View Options" : {
+
+    },
+    "Warning" : {
+
+    },
+    "Welcome to FileTerm" : {
+
+    },
+    "added to the right side’s dates" : {
+
+    },
+    "hours" : {
+
+    },
+    "iCloud Drive" : {
+
+    },
+    "in %@" : {
+
+    },
+    "lower" : {
+
+    },
+    "macOS protects some folders, such as Mail and other apps' data. Give FileTerm Full Disk Access if you want to browse them. You can skip this and still use your other folders." : {
+
+    },
+    "s3.amazonaws.com (default)" : {
+
+    },
+    "seconds" : {
+
+    },
+    "↩ run · ↑↓ choose · esc close" : {
+
+    }
+  },
+  "version" : "1.0"
+}

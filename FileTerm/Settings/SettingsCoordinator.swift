@@ -44,7 +44,7 @@ private struct SettingsCategoryView: View {
     switch category {
     case .general: 700
     case .terminal, .transfers: 640
-    case .shortcuts, .tools, .editing: 480
+    case .shortcuts, .tools, .editing, .tags, .themes: 480
     default: 320
     }
   }
@@ -61,7 +61,7 @@ private struct SettingsCategoryView: View {
       }
       Text(category.rawValue).font(.title2).fontWeight(.semibold)
       if category == .general {
-        GeneralSettingsView(settings: settings)
+        GeneralSettingsView(settings: settings, registry: registry())
       } else if category == .shortcuts {
         ShortcutsSettingsView(registry: registry())
       } else if category == .transfers {
@@ -72,9 +72,10 @@ private struct SettingsCategoryView: View {
         ToolsSettingsView(settings: settings)
       } else if category == .editing {
         EditingSettingsView(settings: settings)
-      } else {
-        Text("Settings for \(category.rawValue.lowercased()) will appear here.").foregroundStyle(
-          .secondary)
+      } else if category == .tags {
+        TagsSettingsView(settings: settings)
+      } else if category == .themes {
+        ThemesSettingsView(settings: settings)
       }
       Spacer()
     }
@@ -193,62 +194,74 @@ private struct TransfersSettingsView: View {
 
 private struct GeneralSettingsView: View {
   @Bindable var settings: AppSettings
+  let registry: CommandRegistry
   @State private var directory = ""
   @State private var error: String?
   @State private var isSaving = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      Toggle("Restore windows and tabs on startup", isOn: $settings.workspace.restoreWindows)
-        .accessibilityIdentifier("restoreSession")
-      Text("Starting Directory").font(.headline)
-      TextField("Absolute folder path", text: $directory).textFieldStyle(.roundedBorder)
-        .accessibilityIdentifier("startingDirectory")
-        .onSubmit { saveDirectory() }
-      HStack {
-        Button("Set Starting Directory") { saveDirectory() }.disabled(isSaving)
-        Text("Used by new windows and when session restoration is off.").font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      Picker("Open remote connections in", selection: $settings.connections.remotePlacement) {
-        ForEach(RemotePanePlacement.allCases, id: \.self) { Text($0.title).tag($0) }
-      }
-      .accessibilityIdentifier("remotePlacement")
-      Text("Archives").font(.headline)
-      Toggle("Handle archives with FileTerm", isOn: $settings.handleArchives)
-        .accessibilityIdentifier("handleArchives")
-      Toggle("Treat archives as folders", isOn: $settings.archivesAsFolders)
-        .disabled(!settings.handleArchives)
-        .accessibilityIdentifier("archivesAsFolders")
-      Text("Double-clicking an archive extracts it next to the archive, or opens it as a folder.")
-        .font(.caption).foregroundStyle(.secondary)
-      Toggle("Detect application when deleting", isOn: $settings.detectAppOnDelete)
-        .accessibilityIdentifier("detectAppOnDelete")
-      Text("Moving a .app to the Trash first lists its preferences, caches and support folders.")
-        .font(.caption).foregroundStyle(.secondary)
-      Picker("Compare tool", selection: $settings.compareTool) {
-        ForEach(CompareTool.allCases, id: \.self) {
-          Text($0.isInstalled ? $0.title : $0.title + " (not installed)").tag($0)
+    ScrollView {
+      VStack(alignment: .leading, spacing: 16) {
+        Toggle("Restore windows and tabs on startup", isOn: $settings.workspace.restoreWindows)
+          .accessibilityIdentifier("restoreSession")
+        Text("Starting Directory").font(.headline)
+        TextField("Absolute folder path", text: $directory).textFieldStyle(.roundedBorder)
+          .accessibilityIdentifier("startingDirectory")
+          .onSubmit { saveDirectory() }
+        HStack {
+          Button("Set Starting Directory") { saveDirectory() }.disabled(isSaving)
+          Text("Used by new windows and when session restoration is off.").font(.caption)
+            .foregroundStyle(.secondary)
         }
-      }
-      .accessibilityIdentifier("compareTool")
-      Picker("Terminal application", selection: $settings.terminalApplication) {
-        ForEach(TerminalApplication.allCases, id: \.self) {
-          Text($0.isInstalled ? $0.title : $0.title + " (not installed)").tag($0)
+        Picker("Open remote connections in", selection: $settings.connections.remotePlacement) {
+          ForEach(RemotePanePlacement.allCases, id: \.self) { Text($0.title).tag($0) }
         }
-      }
-      .accessibilityIdentifier("terminalApplication")
-      Text("Used by File › Open in Terminal. The built-in terminal panel is separate.")
-        .font(.caption).foregroundStyle(.secondary)
-      Toggle("Sync Favorites to iCloud", isOn: $settings.syncFavoritesToICloud)
-        .accessibilityIdentifier("syncFavorites")
-      Text(
-        "Syncs only the favorites list, never file contents. Syncing is not available in this build; "
-          + "the setting is saved for when it is."
-      ).font(.caption).foregroundStyle(.secondary)
-      Text("Current: " + settings.workspace.startingDirectory).font(.caption).foregroundStyle(
-        .secondary)
-      if let error { Text(error).font(.caption).foregroundStyle(.red) }
+        .accessibilityIdentifier("remotePlacement")
+        Text("Archives").font(.headline)
+        Toggle("Handle archives with FileTerm", isOn: $settings.handleArchives)
+          .accessibilityIdentifier("handleArchives")
+        Toggle("Treat archives as folders", isOn: $settings.archivesAsFolders)
+          .disabled(!settings.handleArchives)
+          .accessibilityIdentifier("archivesAsFolders")
+        Text("Double-clicking an archive extracts it next to the archive, or opens it as a folder.")
+          .font(.caption).foregroundStyle(.secondary)
+        Toggle("Detect application when deleting", isOn: $settings.detectAppOnDelete)
+          .accessibilityIdentifier("detectAppOnDelete")
+        Text("Moving a .app to the Trash first lists its preferences, caches and support folders.")
+          .font(.caption).foregroundStyle(.secondary)
+        Picker("Compare tool", selection: $settings.compareTool) {
+          ForEach(CompareTool.allCases, id: \.self) {
+            Text($0.isInstalled ? $0.title : $0.title + " (not installed)").tag($0)
+          }
+        }
+        .accessibilityIdentifier("compareTool")
+        Picker("Terminal application", selection: $settings.terminalApplication) {
+          ForEach(TerminalApplication.allCases, id: \.self) {
+            Text($0.isInstalled ? $0.title : $0.title + " (not installed)").tag($0)
+          }
+        }
+        .accessibilityIdentifier("terminalApplication")
+        Text("Used by File › Open in Terminal. The built-in terminal panel is separate.")
+          .font(.caption).foregroundStyle(.secondary)
+        Toggle("Sync Favorites to iCloud", isOn: $settings.syncFavoritesToICloud)
+          .accessibilityIdentifier("syncFavorites")
+        Text(
+          "Syncs only the favorites list, never file contents. Syncing is not available in this build; "
+            + "the setting is saved for when it is."
+        ).font(.caption).foregroundStyle(.secondary)
+        Toggle("Ask for confirmation for drag operations", isOn: $settings.askBeforeDrag)
+          .accessibilityIdentifier("askBeforeDrag")
+        Text("Dropping items on a pane asks whether to copy or move them.")
+          .font(.caption).foregroundStyle(.secondary)
+        Text("Updates").font(.headline)
+        Toggle("Automatically check for updates", isOn: $settings.automaticUpdateChecks)
+          .accessibilityIdentifier("automaticUpdateChecks")
+        Button("Check for Updates Now") { registry.execute("app.checkForUpdates") }
+          .accessibilityIdentifier("checkForUpdatesNow")
+        Text("Current: " + settings.workspace.startingDirectory).font(.caption).foregroundStyle(
+          .secondary)
+        if let error { Text(error).font(.caption).foregroundStyle(.red) }
+      }.frame(maxWidth: .infinity, alignment: .leading)
     }.onAppear { directory = settings.workspace.startingDirectory }
   }
 

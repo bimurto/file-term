@@ -1,0 +1,10 @@
+{
+  "id": "polar-night",
+  "name": "Polar Night",
+  "order": 8,
+  "appearance": "dark",
+  "accent": "#88C0D0",
+  "background": "#2E3440",
+  "sidebar": "#3B4252",
+  "foreground": "#ECEFF4"
+}

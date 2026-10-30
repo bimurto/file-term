@@ -44,7 +44,7 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
 }
 
 enum BrowserChrome: String, CaseIterable {
-  case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders
+  case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders, tags
   var title: String {
     switch self {
     case .pathBar: "Path Bar"
@@ -55,6 +55,7 @@ enum BrowserChrome: String, CaseIterable {
     case .sidebar: "Sidebar"
     case .tabBar: "Tab Bar"
     case .recentFolders: "Recent Folders"
+    case .tags: "Tags"
     }
   }
   var commandID: String { "view.\(rawValue)" }
@@ -89,6 +90,27 @@ enum BrowserChrome: String, CaseIterable {
   var editors: [EditorMapping] {
     didSet { Defaults[editorsKey] = (try? JSONEncoder().encode(editors)) ?? Data() }
   }
+  var tags: [FileTag] {
+    didSet { Defaults[tagsKey] = (try? JSONEncoder().encode(tags)) ?? Data() }
+  }
+  var themeID: String {
+    didSet { Defaults[themeKey] = themeID }
+  }
+  var askBeforeDrag: Bool {
+    didSet { Defaults[askBeforeDragKey] = askBeforeDrag }
+  }
+  var automaticUpdateChecks: Bool {
+    didSet { Defaults[automaticUpdateChecksKey] = automaticUpdateChecks }
+  }
+  var onboardingShown: Bool {
+    didSet { Defaults[onboardingShownKey] = onboardingShown }
+  }
+  var theme: AppTheme { AppTheme.theme(id: themeID, in: ThemeLibrary.themes) }
+  @ObservationIgnored private let tagsKey: Defaults.Key<Data>
+  @ObservationIgnored private let themeKey: Defaults.Key<String>
+  @ObservationIgnored private let askBeforeDragKey: Defaults.Key<Bool>
+  @ObservationIgnored private let automaticUpdateChecksKey: Defaults.Key<Bool>
+  @ObservationIgnored private let onboardingShownKey: Defaults.Key<Bool>
   @ObservationIgnored private let editorsKey: Defaults.Key<Data>
   @ObservationIgnored private let toolsKey: Defaults.Key<Data>
   @ObservationIgnored private let favoritesKey: Defaults.Key<Data>
@@ -169,6 +191,16 @@ enum BrowserChrome: String, CaseIterable {
   @ObservationIgnored private let categoryKey: Defaults.Key<String>
 
   init(suite: UserDefaults = .standard) {
+    tagsKey = Defaults.Key("tags", default: Data(), suite: suite)
+    tags = (try? JSONDecoder().decode([FileTag].self, from: Defaults[tagsKey])) ?? FileTag.defaults
+    themeKey = Defaults.Key("theme", default: AppTheme.defaultID, suite: suite)
+    themeID = Defaults[themeKey]
+    askBeforeDragKey = Defaults.Key("askBeforeDrag", default: false, suite: suite)
+    askBeforeDrag = Defaults[askBeforeDragKey]
+    automaticUpdateChecksKey = Defaults.Key("automaticUpdateChecks", default: false, suite: suite)
+    automaticUpdateChecks = Defaults[automaticUpdateChecksKey]
+    onboardingShownKey = Defaults.Key("onboardingShown", default: false, suite: suite)
+    onboardingShown = Defaults[onboardingShownKey]
     transfersKey = Defaults.Key("transferPreferences", default: Data(), suite: suite)
     transfers =
       (try? JSONDecoder().decode(TransferPreferences.self, from: Defaults[transfersKey]))
@@ -244,6 +276,8 @@ enum BrowserChrome: String, CaseIterable {
       (try? JSONDecoder().decode([String: ShortcutOverride].self, from: Defaults[shortcutsKey]))
       ?? [:]
     selectedCategory = Defaults[categoryKey]
+    // Sidebars saved before the Tags section existed still show it.
+    if !workspace.sidebarOrder.contains("tags") { workspace.sidebarOrder.append("tags") }
     viewPreferences.showHidden = showHidden
     viewPreferences.onChange = { [weak self] in
       guard let self else { return }

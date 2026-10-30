@@ -1,0 +1,10 @@
+{
+  "id": "forklift",
+  "name": "ForkLift",
+  "order": 3,
+  "appearance": "light",
+  "accent": "#1E88E5",
+  "background": "#FFFFFF",
+  "sidebar": "#EEF3F8",
+  "foreground": "#1F2933"
+}

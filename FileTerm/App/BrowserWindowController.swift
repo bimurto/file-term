@@ -25,6 +25,10 @@ import SwiftUI
     terminal.sshSession = { connections.sshSession(for: $0) }
     window = BrowserWindow(
       registry: registry,
+      selectedFiles: { [weak browser] in
+        (browser?.activePane.selectedEntries ?? []).filter { $0.location.providerID == "local" }
+          .map { URL(fileURLWithPath: $0.location.path) }
+      },
       contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
       styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false
     )
@@ -89,14 +93,16 @@ import SwiftUI
   }
 }
 
-private final class BrowserWindow: NSWindow {
+private final class BrowserWindow: NSWindow, @preconcurrency NSServicesMenuRequestor {
   private let registry: CommandRegistry
+  private let selectedFiles: () -> [URL]
 
   init(
-    registry: CommandRegistry, contentRect: NSRect, styleMask: NSWindow.StyleMask,
-    backing: NSWindow.BackingStoreType, defer flag: Bool
+    registry: CommandRegistry, selectedFiles: @escaping () -> [URL], contentRect: NSRect,
+    styleMask: NSWindow.StyleMask, backing: NSWindow.BackingStoreType, defer flag: Bool
   ) {
     self.registry = registry
+    self.selectedFiles = selectedFiles
     super.init(contentRect: contentRect, styleMask: styleMask, backing: backing, defer: flag)
   }
 
@@ -111,4 +117,31 @@ private final class BrowserWindow: NSWindow {
     }
     return super.performKeyEquivalent(with: event)
   }
+
+  /// Text fields answer first for their own text. This offers the selected files to Services.
+  override func validRequestor(
+    forSendType sendType: NSPasteboard.PasteboardType?,
+    returnType: NSPasteboard.PasteboardType?
+  ) -> Any? {
+    if returnType == nil, sendType.map(ServiceTypes.files.contains) == true,
+      !selectedFiles().isEmpty
+    {
+      return self
+    }
+    return super.validRequestor(forSendType: sendType, returnType: returnType)
+  }
+
+  func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
+    let urls = selectedFiles()
+    guard !urls.isEmpty else { return false }
+    pboard.clearContents()
+    return pboard.writeObjects(urls as [NSURL])
+  }
+}
+
+enum ServiceTypes {
+  /// Older services still ask for files by the filenames type.
+  static let files: [NSPasteboard.PasteboardType] = [
+    .fileURL, NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+  ]
 }

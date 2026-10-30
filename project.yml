@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
+  developmentLanguage: en
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -40,6 +41,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.fileterm.app
         PRODUCT_NAME: FileTerm
         GENERATE_INFOPLIST_FILE: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
         INFOPLIST_KEY_CFBundleDisplayName: FileTerm
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: FileTerm connects to servers on your network when you press Connect.

@@ -12,7 +12,7 @@ struct WorkspacePreferences: Codable, Equatable {
     "go.toFolder", "go.favorites.manage", "file.openInTerminal", "file.trash",
     "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
   ]
-  var sidebarOrder = ["devices", "recents"]
+  var sidebarOrder = ["devices", "recents", "tags"]
 }
 
 struct WindowSnapshot: Codable {
@@ -44,6 +44,7 @@ enum ToolbarSymbols {
     case "go.favorites.manage": "star"
     case "file.openInTerminal": "apple.terminal"
     case "file.trash": "trash"
+    case "file.share": "square.and.arrow.up"
     case "go.connect": "network"
     case "view.preview": "sidebar.right"
     case "view.activities": "arrow.left.arrow.right"

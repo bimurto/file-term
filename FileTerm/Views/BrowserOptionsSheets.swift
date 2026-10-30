@@ -137,7 +137,8 @@ struct SidebarEditorSheet: View {
       Text("Sidebar Editor").font(.headline)
       Text("Choose visible sections and their order. Changes save immediately.").font(.caption)
       ForEach(settings.workspace.sidebarOrder, id: \.self) { section in
-        let chrome: BrowserChrome = section == "devices" ? .devices : .recentFolders
+        let chrome: BrowserChrome =
+          section == "devices" ? .devices : section == "tags" ? .tags : .recentFolders
         HStack {
           Toggle(
             chrome.title,

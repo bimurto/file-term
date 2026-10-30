@@ -409,7 +409,7 @@ import FileTermCore
     } catch { return nil }
   }
 
-  private func resolve(_ conflict: FileConflict, window: NSWindow?) async -> ConflictResolution {
+  func resolve(_ conflict: FileConflict, window: NSWindow?) async -> ConflictResolution {
     await decide(
       name: conflict.destination.lastPathComponent, source: conflict.source.path,
       destination: conflict.destination.path, isDirectoryMerge: conflict.isDirectoryMerge,

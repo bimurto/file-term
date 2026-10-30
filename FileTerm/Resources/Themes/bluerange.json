@@ -1,0 +1,10 @@
+{
+  "id": "bluerange",
+  "name": "Bluerange",
+  "order": 4,
+  "appearance": "dark",
+  "accent": "#4DA3FF",
+  "background": "#0F1F33",
+  "sidebar": "#0B1726",
+  "foreground": "#D6E6F5"
+}

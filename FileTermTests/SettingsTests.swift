@@ -74,3 +74,112 @@ import Testing
     #expect(restored.shortcutOverrides["select.quick"]?.shortcut?.display == "⌘J")
   }
 }
+
+@MainActor struct AppearanceSettingsTests {
+  private func isolated(_ body: (UserDefaults) throws -> Void) throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    try body(suite)
+  }
+
+  @Test func allBuiltInThemesShipAsValidDataFiles() throws {
+    #expect(
+      ThemeLibrary.themes.map(\.name) == [
+        "Default", "Dark", "Light", "ForkLift", "Bluerange", "Dracula", "Commander", "Sand",
+        "Polar Night",
+      ])
+    #expect(ThemeLibrary.themes[0].appearance == .system)
+    #expect(ThemeLibrary.themes[1].appearance == .dark)
+    #expect(ThemeLibrary.themes[2].appearance == .light)
+    for theme in ThemeLibrary.themes {
+      for color in [theme.accent, theme.background, theme.sidebar, theme.foreground] {
+        if let color { #expect(AppTheme.components(hex: color) != nil, "\(theme.id): \(color)") }
+      }
+    }
+  }
+
+  @Test func newSettingsHaveTheirDefaultsAndPersist() throws {
+    try isolated { suite in
+      let initial = AppSettings(suite: suite)
+      #expect(initial.theme.id == "default")
+      #expect(initial.tags == FileTag.defaults)
+      #expect(!initial.askBeforeDrag)
+      #expect(!initial.automaticUpdateChecks)
+      #expect(!initial.onboardingShown)
+      #expect(initial.workspace.startingDirectory == NSHomeDirectory())
+      #expect(!initial.workspace.restoreWindows)
+      initial.themeID = "dracula"
+      initial.tags = [FileTag(name: "Work", color: .blue)]
+      initial.askBeforeDrag = true
+      initial.automaticUpdateChecks = true
+      initial.onboardingShown = true
+      let restored = AppSettings(suite: suite)
+      #expect(restored.theme.name == "Dracula")
+      #expect(restored.tags == [FileTag(name: "Work", color: .blue)])
+      #expect(restored.askBeforeDrag)
+      #expect(restored.automaticUpdateChecks)
+      #expect(restored.onboardingShown)
+    }
+  }
+
+  @Test func removingEveryTagStaysRemoved() throws {
+    try isolated { suite in
+      AppSettings(suite: suite).tags = []
+      #expect(AppSettings(suite: suite).tags.isEmpty)
+    }
+  }
+
+  @Test func aSidebarSavedBeforeTagsGainsTheSection() throws {
+    try isolated { suite in
+      let settings = AppSettings(suite: suite)
+      settings.workspace.sidebarOrder = ["recents", "devices"]
+      #expect(AppSettings(suite: suite).workspace.sidebarOrder == ["recents", "devices", "tags"])
+    }
+  }
+
+  @Test func onboardingShowsOnceAndNeverDuringTests() {
+    #expect(OnboardingCoordinator.shouldShow(alreadyShown: false, environment: [:]))
+    #expect(!OnboardingCoordinator.shouldShow(alreadyShown: true, environment: [:]))
+    #expect(
+      !OnboardingCoordinator.shouldShow(
+        alreadyShown: false, environment: ["FILETERM_SETTINGS_SUITE": "x"]))
+    #expect(
+      !OnboardingCoordinator.shouldShow(
+        alreadyShown: false, environment: ["XCTestConfigurationFilePath": "x"]))
+    #expect(
+      OnboardingCoordinator.shouldShow(
+        alreadyShown: true,
+        environment: ["FILETERM_SHOW_ONBOARDING": "1", "FILETERM_SETTINGS_SUITE": "x"]))
+  }
+
+  @Test func updateCheckerReportsEachOutcome() async throws {
+    let url = try #require(URL(string: "https://example.com"))
+    func checker(_ status: Int, _ body: String) -> UpdateChecker {
+      UpdateChecker { _ in
+        (
+          Data(body.utf8),
+          HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
+        )
+      }
+    }
+    let json = #"{"tag_name":"v2.0.0","html_url":"https://example.com"}"#
+    #expect(
+      await checker(200, json).latest(current: "1.0.0")
+        == .available(AppRelease(tag: "v2.0.0", page: url)))
+    #expect(await checker(200, json).latest(current: "2.0.0") == .upToDate)
+    #expect(await checker(404, "").latest(current: "1.0.0") == .noRelease)
+    #expect(
+      await checker(500, "").latest(current: "1.0.0")
+        == .failed("The update server returned 500."))
+    if case .failed = await checker(200, "nope").latest(current: "1.0.0") {
+    } else {
+      Issue.record("A malformed response should fail")
+    }
+  }
+
+  @Test func theBundleCarriesAVersionAndBuildForAbout() {
+    #expect(UpdateChecker.currentVersion == "0.1.0")
+    #expect(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String == "1")
+  }
+}
