@@ -42,6 +42,45 @@ final class WorkspaceUITests: XCTestCase {
     capture(app, name: "M02 sortable list")
   }
 
+  @MainActor func testIconViewArrowKeysTypeToSelectAndRubberBand() throws {
+    let fixture = try WorkspaceFixture()
+    defer { fixture.remove() }
+    let app = fixture.launch()
+    defer { app.terminate() }
+    XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
+    app.buttons["view.asIcons"].click()
+    let grid = app.scrollViews["iconGrid"]
+    XCTAssertTrue(grid.waitForExistence(timeout: 5))
+    // Name order: Child, large.txt, small.txt. The status bar names each selection's size.
+    let selected = app.staticTexts["selectedSize"]
+    let large = "1 selected · 100 bytes"
+    let small = "1 selected · 5 bytes"
+    grid.descendants(matching: .any)["icon.large.txt"].click()
+    XCTAssertTrue(shows(selected, large))
+    app.typeKey(.rightArrow, modifierFlags: [])
+    XCTAssertTrue(shows(selected, small))
+    app.typeKey(.leftArrow, modifierFlags: [])
+    XCTAssertTrue(shows(selected, large))
+
+    app.typeText("sm")
+    XCTAssertTrue(shows(selected, small))
+
+    let first = grid.descendants(matching: .any)["icon.Child"]
+    let start = grid.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.95))
+    let end = first.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    start.press(forDuration: 0.1, thenDragTo: end)
+    XCTAssertTrue(shows(selected, "3 selected", exact: false))
+    capture(app, name: "M14 icon rubber band")
+  }
+
+  @MainActor private func shows(_ element: XCUIElement, _ text: String, exact: Bool = true) -> Bool
+  {
+    let format = exact ? "label == %@ OR value == %@" : "label BEGINSWITH %@ OR value BEGINSWITH %@"
+    let predicate = NSPredicate(format: format, text, text)
+    let wait = XCTNSPredicateExpectation(predicate: predicate, object: element)
+    return XCTWaiter.wait(for: [wait], timeout: 5) == .completed
+  }
+
   @MainActor func testIconViewShowsFileSizeOnlyWhenTheOptionIsOn() throws {
     let fixture = try WorkspaceFixture()
     defer { fixture.remove() }

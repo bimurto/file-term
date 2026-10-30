@@ -17,7 +17,8 @@
 - [x] Optional size label under icons.
 
 ### M14.04 Icon view navigation & selection improvements (4.7.3)
-- [ ] Arrow keys move through the grid, type-to-select works, and rubber-band selection works.
+- [x] Arrow keys move through the grid, type-to-select works, and rubber-band selection works.
+  - The band selects only icons currently laid out, and it doesn't auto-scroll.
 
 ### M14.05 Move tab to other pane (4.7.6)
 - [x] Window menu command that moves the current tab to the opposite pane.

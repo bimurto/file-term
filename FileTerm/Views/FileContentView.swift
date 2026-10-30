@@ -2,12 +2,25 @@ import AppKit
 import FileTermCore
 import SwiftUI
 
+private struct IconFramesKey: PreferenceKey {
+  static let defaultValue: [Location: CGRect] = [:]
+  static func reduce(value: inout [Location: CGRect], nextValue: () -> [Location: CGRect]) {
+    value.merge(nextValue()) { $1 }
+  }
+}
+
 struct FileContentView: View {
   @Bindable var pane: PaneModel
   let paneID: PaneID
   let browser: BrowserModel
   let provider: LocalFileSystemProvider
   @State private var anchor: Location?
+  private static let iconGridSpace = "iconGridContent"
+  @FocusState private var iconGridFocused: Bool
+  @State private var iconFrames: [Location: CGRect] = [:]
+  @State private var rubberBand: CGRect?
+  @State private var rubberBandBase: Set<Location> = []
+  @State private var typeSelect = TypeSelectBuffer()
 
   var body: some View {
     Group {
@@ -121,56 +134,155 @@ struct FileContentView: View {
   }
 
   private var iconGrid: some View {
-    ScrollView {
-      LazyVStack(alignment: .leading, spacing: 16) {
-        ForEach(pane.entryGroups) { group in
-          if let title = group.title { Text(title).font(.headline).padding(.horizontal, 12) }
-          LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: 130))], spacing: 12) {
-            ForEach(group.entries) { entry in
-              VStack(spacing: 6) {
-                FileIcon(entry: entry, localProvider: provider, size: 48)
-                InlineFileName(pane: pane, entry: entry)
-                  .font(.callout).lineLimit(2).multilineTextAlignment(.center)
-                if pane.viewOptions.showsIconSize, let size = entry.size {
-                  Text(size.formatted(.byteCount(style: .file)))
-                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                    .accessibilityIdentifier("iconSize.\(entry.name)")
+    GeometryReader { viewport in
+      ScrollViewReader { scroller in
+        ScrollView {
+          LazyVStack(alignment: .leading, spacing: 16) {
+            ForEach(pane.entryGroups) { group in
+              if let title = group.title { Text(title).font(.headline).padding(.horizontal, 12) }
+              LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: 130))], spacing: 12) {
+                ForEach(group.entries) { entry in
+                  VStack(spacing: 6) {
+                    FileIcon(entry: entry, localProvider: provider, size: 48)
+                    InlineFileName(pane: pane, entry: entry)
+                      .font(.callout).lineLimit(2).multilineTextAlignment(.center)
+                    if pane.viewOptions.showsIconSize, let size = entry.size {
+                      Text(size.formatted(.byteCount(style: .file)))
+                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        .accessibilityIdentifier("iconSize.\(entry.name)")
+                    }
+                  }
+                  .opacity(entry.isHidden ? 0.5 : 1)
+                  .padding(8).frame(maxWidth: .infinity, minHeight: 88)
+                  .background(
+                    pane.selection.contains(entry.id) ? Color.accentColor.opacity(0.2) : .clear,
+                    in: RoundedRectangle(cornerRadius: 6)
+                  )
+                  .background {
+                    GeometryReader { item in
+                      Color.clear.preference(
+                        key: IconFramesKey.self,
+                        value: [entry.id: item.frame(in: .named(Self.iconGridSpace))])
+                    }
+                  }
+                  .contentShape(Rectangle())
+                  .onTapGesture(count: 2) {
+                    guard pane.renamingLocation != entry.location else { return }
+                    open(entry)
+                  }
+                  .onTapGesture {
+                    guard pane.renamingLocation != entry.location else { return }
+                    select(entry)
+                  }
+                  .contextMenu {
+                    FileEntryContextMenu(
+                      pane: pane, entry: entry, provider: provider, open: open,
+                      showPackageContents: showPackageContents)
+                  }
+                  .onDrag { fileDragProvider(entry) ?? NSItemProvider() }
+                  .accessibilityElement(children: .contain)
+                  .accessibilityIdentifier("icon.\(entry.name)")
+                  .accessibilityAction(named: "Open") { open(entry) }
+                  .help(entry.location.path)
                 }
-              }
-              .opacity(entry.isHidden ? 0.5 : 1)
-              .padding(8).frame(maxWidth: .infinity, minHeight: 88)
-              .background(
-                pane.selection.contains(entry.id) ? Color.accentColor.opacity(0.2) : .clear,
-                in: RoundedRectangle(cornerRadius: 6)
-              )
-              .contentShape(Rectangle())
-              .onTapGesture(count: 2) {
-                guard pane.renamingLocation != entry.location else { return }
-                open(entry)
-              }
-              .onTapGesture {
-                guard pane.renamingLocation != entry.location else { return }
-                select(entry)
-              }
-              .contextMenu {
-                FileEntryContextMenu(
-                  pane: pane, entry: entry, provider: provider, open: open,
-                  showPackageContents: showPackageContents)
-              }
-              .onDrag { fileDragProvider(entry) ?? NSItemProvider() }
-              .accessibilityElement(children: .contain)
-              .accessibilityIdentifier("icon.\(entry.name)")
-              .accessibilityAction(named: "Open") { open(entry) }
-              .help(entry.location.path)
+              }.padding(.horizontal, 8)
             }
-          }.padding(.horizontal, 8)
+          }
+          .padding(.vertical, 12)
+          .frame(
+            maxWidth: .infinity, minHeight: viewport.size.height, alignment: .topLeading
+          )
+          .background { rubberBandSurface }
+          .overlay(alignment: .topLeading) {
+            if let band = rubberBand {
+              Rectangle().fill(Color.accentColor.opacity(0.15))
+                .overlay(Rectangle().stroke(Color.accentColor))
+                .frame(width: band.width, height: band.height)
+                .offset(x: band.minX, y: band.minY)
+                .allowsHitTesting(false)
+            }
+          }
+          .coordinateSpace(.named(Self.iconGridSpace))
+          .onPreferenceChange(IconFramesKey.self) { frames in
+            MainActor.assumeIsolated { iconFrames = frames }
+          }
         }
-      }.padding(.vertical, 12)
-    }.accessibilityIdentifier("iconGrid")
+        .accessibilityIdentifier("iconGrid")
+        .focusable()
+        .focusEffectDisabled()
+        .focused($iconGridFocused)
+        .onAppear { iconGridFocused = browser.activePaneID == paneID }
+        .onMoveCommand { direction in moveIconSelection(direction, scroller) }
+        .onKeyPress(phases: .down) { press in typeToSelect(press, scroller) }
+      }
+    }
+  }
+
+  /// Sits behind the icons, so a drag that starts on an icon stays a file drag.
+  private var rubberBandSurface: some View {
+    Color.clear.contentShape(Rectangle()).gesture(
+      DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.iconGridSpace))
+        .onChanged { drag in
+          if rubberBand == nil {
+            browser.activePaneID = paneID
+            iconGridFocused = true
+            let adds = !NSEvent.modifierFlags.isDisjoint(with: [.command, .shift])
+            rubberBandBase = adds ? pane.selection : []
+          }
+          let band = CGRect(
+            x: min(drag.startLocation.x, drag.location.x),
+            y: min(drag.startLocation.y, drag.location.y),
+            width: abs(drag.location.x - drag.startLocation.x),
+            height: abs(drag.location.y - drag.startLocation.y))
+          rubberBand = band
+          pane.selection = rubberBandBase.union(
+            IconGridNavigation.selection(in: band, frames: iconFrames))
+        }
+        .onEnded { _ in rubberBand = nil })
+  }
+
+  private func moveIconSelection(_ direction: MoveCommandDirection, _ scroller: ScrollViewProxy) {
+    let move: IconGridNavigation.Direction
+    switch direction {
+    case .left: move = .left
+    case .right: move = .right
+    case .up: move = .up
+    case .down: move = .down
+    @unknown default: return
+    }
+    let groups = pane.entryGroups.map { $0.entries.map(\.id) }
+    let current = anchor.flatMap { pane.selection.contains($0) ? $0 : nil } ?? pane.selection.first
+    guard
+      let target = IconGridNavigation.move(
+        from: current, move, groups: groups, columns: IconGridNavigation.columns(in: iconFrames))
+    else { return }
+    selectIcon(target, scroller)
+  }
+
+  private func typeToSelect(_ press: KeyPress, _ scroller: ScrollViewProxy) -> KeyPress.Result {
+    guard press.modifiers.isDisjoint(with: [.command, .control, .option]),
+      let character = press.characters.first,
+      character.isLetter || character.isNumber || character.isPunctuation || character.isSymbol
+        || (character == " " && typeSelect.isTyping()),
+      pane.renamingLocation == nil
+    else { return .ignored }
+    let typed = typeSelect.append(press.characters)
+    if let match = IconGridNavigation.match(typed, in: pane.entryGroups.flatMap(\.entries)) {
+      selectIcon(match, scroller)
+    }
+    return .handled
+  }
+
+  private func selectIcon(_ location: Location, _ scroller: ScrollViewProxy) {
+    browser.activePaneID = paneID
+    anchor = location
+    pane.selection = [location]
+    scroller.scrollTo(location)
   }
 
   private func select(_ entry: FileEntry) {
     browser.activePaneID = paneID
+    iconGridFocused = true
     if NSEvent.modifierFlags.contains(.shift), let anchor = anchor ?? pane.selection.first {
       let ordered = pane.entryGroups.flatMap(\.entries).map(\.id)
       if let start = ordered.firstIndex(of: anchor), let end = ordered.firstIndex(of: entry.id) {
