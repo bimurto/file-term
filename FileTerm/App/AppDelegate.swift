@@ -1385,7 +1385,8 @@ import UniformTypeIdentifiers
         command(
           "commands.git.\(id)", git.title + (id == "commit" ? "…" : ""),
           menu: ["Commands", "Source Control"],
-          condition: { [weak self] in self?.gitDisabledReason(needsSelection: needsSelection) == nil },
+          condition: { [weak self] in self?.gitDisabledReason(needsSelection: needsSelection) == nil
+          },
           reason: { [weak self] in self?.gitDisabledReason(needsSelection: needsSelection) ?? "" }
         ) { [weak self] in
           guard let self, let location = browser.activePane.location,

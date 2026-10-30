@@ -11,7 +11,8 @@ private func entry(_ name: String, kind: FileEntry.Kind = .file, tags: [String] 
 
 struct SelectionOpsTests {
   let entries = [
-    entry("a.txt"), entry("b.md", tags: ["Red"]), entry("Report.TXT"), entry("dir", kind: .directory),
+    entry("a.txt"), entry("b.md", tags: ["Red"]), entry("Report.TXT"),
+    entry("dir", kind: .directory),
   ]
 
   @Test func invertSwapsSelectedAndUnselected() {

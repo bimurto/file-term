@@ -106,7 +106,8 @@ import Testing
     #expect(latin1 == Data("quote = \"-DELE ".utf8) + Data([0xE9]) + Data("\"\n".utf8))
     // 表 is 95 5C in Shift_JIS: the 5C must be doubled or curl reads it as an escape.
     let shiftJIS = FTPProvider.quoteLines(["MKD 表"], encoding: "Shift_JIS")
-    #expect(shiftJIS == Data("quote = \"-MKD ".utf8) + Data([0x95, 0x5C, 0x5C]) + Data("\"\n".utf8))
+    #expect(
+      shiftJIS == Data("quote = \"-MKD ".utf8) + Data([0x95, 0x5C, 0x5C]) + Data("\"\n".utf8))
     #expect(
       FTPProvider.quoteLines(["a\"b"], encoding: "UTF-8") == Data("quote = \"-a\\\"b\"\n".utf8))
   }

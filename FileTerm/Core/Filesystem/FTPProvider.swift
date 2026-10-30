@@ -222,7 +222,8 @@ public actor FTPProvider: ValidatingProvider {
       Data(
         try Self.configuration(
           host: host, port: port, path: path, username: username, password: password,
-          secure: secure, encoding: encoding).utf8)
+          secure: secure, encoding: encoding
+        ).utf8)
       + Self.quoteLines(quotes, encoding: encoding)
     let arguments =
       Self.arguments(

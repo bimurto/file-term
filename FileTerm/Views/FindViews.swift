@@ -56,7 +56,9 @@ struct FindToolbar: View {
           Text(engine.rawValue).tag(engine)
         }
       }.accessibilityIdentifier("searchEngine")
-      if let location = scopeLocation, let reason = SearchEngine.spotlight.unavailableReason(for: location) {
+      if let location = scopeLocation,
+        let reason = SearchEngine.spotlight.unavailableReason(for: location)
+      {
         Text(reason).font(.caption).foregroundStyle(.secondary)
       }
       Text("Searching in " + (scopeLocation?.path ?? "—")).font(.caption)
@@ -126,6 +128,7 @@ struct SearchResultsBanner: View {
   private func summary(_ scope: SearchScope) -> String {
     let count = scope.results.count
     let word = scope.isRunning ? "Searching" : "\(count) result\(count == 1 ? "" : "s")"
-    return "\(word) for “\(scope.query.text)” in \(scope.root.path) · \(scope.query.engine.rawValue)"
+    return
+      "\(word) for “\(scope.query.text)” in \(scope.root.path) · \(scope.query.engine.rawValue)"
   }
 }

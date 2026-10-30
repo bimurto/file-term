@@ -27,7 +27,8 @@ public enum BuiltInSearch {
         {
           results.append(entry)
         }
-        if entry.kind == .directory, query.includeSubfolders, visited.insert(entry.location).inserted
+        if entry.kind == .directory, query.includeSubfolders,
+          visited.insert(entry.location).inserted
         {
           queue.append(entry.location)
         }
