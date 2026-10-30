@@ -139,7 +139,6 @@
 /* Begin PBXFileReference section */
 		0122B8F895C5A9B0D118027A /* SettingsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCoordinator.swift; sourceTree = "<group>"; };
 		038175555FA052A70148B8FC /* SwiftTerm */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftTerm; path = .build/vendor/SwiftTerm; sourceTree = SOURCE_ROOT; };
-		056B2891B5846B7AE2FFF029 /* file-term-m13 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "file-term-m13"; path = .; sourceTree = SOURCE_ROOT; };
 		05E4E4D917C96AB62ABB605E /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		068E8F23D710A6A72FBDAC61 /* ThemeLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeLibrary.swift; sourceTree = "<group>"; };
 		06E54F3B1A88E09053B58B87 /* FileOperationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationCoordinator.swift; sourceTree = "<group>"; };
@@ -162,6 +161,7 @@
 		1DE09C1630BCF23F151106E0 /* BatchRenameModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameModel.swift; sourceTree = "<group>"; };
 		21D024166EDD68827E57C9B1 /* RemoteEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteEditTests.swift; sourceTree = "<group>"; };
 		21D5125609844EF3D285FEDE /* FileOperationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationCoordinatorTests.swift; sourceTree = "<group>"; };
+		252E1CD5E5C248D1EC458280 /* file-term */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "file-term"; path = .; sourceTree = SOURCE_ROOT; };
 		26623D2ABD49E2F4BECAA88A /* TerminalAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAppearance.swift; sourceTree = "<group>"; };
 		27BBD3EF0F116BA68E15A6D9 /* FileOperationCoordinator+AppCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+AppCleanup.swift"; sourceTree = "<group>"; };
 		290EEAB6AB3269418C4A0B76 /* ToolRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRunnerTests.swift; sourceTree = "<group>"; };
@@ -295,7 +295,7 @@
 			isa = PBXGroup;
 			children = (
 				11F71DFC45862CA48431D59A /* Defaults */,
-				056B2891B5846B7AE2FFF029 /* file-term-m13 */,
+				252E1CD5E5C248D1EC458280 /* file-term */,
 				D8039C31BEB9E425384F2870 /* Settings */,
 				038175555FA052A70148B8FC /* SwiftTerm */,
 			);
