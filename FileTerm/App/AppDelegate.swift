@@ -100,6 +100,12 @@ import UniformTypeIdentifiers
     }
   )
 
+  /// Hosted tests can start before `applicationDidFinishLaunching`, so the menus are set up earlier.
+  func applicationWillFinishLaunching(_ notification: Notification) {
+    menuCoordinator = MenuCoordinator(registry: registry)
+    menuCoordinator?.install()
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSWindow.allowsAutomaticWindowTabbing = false
     ThemeLibrary.apply(settings.theme)
@@ -111,8 +117,6 @@ import UniformTypeIdentifiers
     ] {
       center.addObserver(self, selector: #selector(volumeChanged(_:)), name: name, object: nil)
     }
-    menuCoordinator = MenuCoordinator(registry: registry)
-    menuCoordinator?.install()
     registry.onShortcutOverridesChanged = { [weak self] overrides in
       self?.settings.shortcutOverrides = overrides
       self?.menuCoordinator?.install()
@@ -192,7 +196,7 @@ import UniformTypeIdentifiers
     filePreviews.onMetadataChange = { [weak self] in
       Task { [weak self] in
         guard let self else { return }
-        for controller in windows { await controller.browser.refreshAll() }
+        for controller in self.windows { await controller.browser.refreshAll() }
       }
     }
     folderWatcher.onChange = { [weak self] paths in self?.refreshWatched(paths) }
