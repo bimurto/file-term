@@ -45,7 +45,8 @@ import FileTermCore
     if parts.isEmpty {
       parts.append(NSPredicate(format: "%K CONTAINS[cd] %@", NSMetadataItemFSNameKey, text))
     }
-    return NSCompoundPredicate(orPredicateWithSubpredicates: parts)
+    // NSMetadataQuery raises an exception for an OR predicate with a single subpredicate.
+    return parts.count == 1 ? parts[0] : NSCompoundPredicate(orPredicateWithSubpredicates: parts)
   }
 
   private func start(_ search: SearchQuery, root: URL) async throws -> [URL] {

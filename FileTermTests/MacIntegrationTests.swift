@@ -43,6 +43,17 @@ import Testing
     #expect(try await titles("Edit").contains("System Item"))
   }
 
+  @Test func spotlightAcceptsASingleSearchCriterion() async throws {
+    let tag = SearchQuery(text: "Red", matchName: false, matchTag: true, engine: .spotlight)
+    #expect(!(SpotlightSearch.predicate(for: tag) is NSCompoundPredicate))
+    let both = SearchQuery(text: "Red", matchName: true, matchTag: true, engine: .spotlight)
+    #expect(SpotlightSearch.predicate(for: both) is NSCompoundPredicate)
+    let provider = LocalFileSystemProvider()
+    let root = provider.location(for: FileManager.default.temporaryDirectory)
+    // Before the predicate fix, this raised an exception that NSMetadataQuery does not recover from.
+    _ = try await SpotlightSearch.run(tag, in: root, provider: provider)
+  }
+
   @Test func theEditMenuHasEachSystemItemOnce() async throws {
     #expect(await eventually { NSApp.mainMenu?.item(withTitle: "Edit") != nil })
     let edit = try #require(NSApp.mainMenu?.item(withTitle: "Edit")?.submenu)

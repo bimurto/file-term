@@ -22,6 +22,8 @@ final class AppearanceUITests: XCTestCase {
 
   @MainActor private func launch(environment: [String: String] = [:]) -> XCUIApplication {
     let app = XCUIApplication()
+    // A crash in an earlier run would otherwise block launch with the system's reopen dialog.
+    app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
     app.launchEnvironment["FILETERM_INITIAL_DIRECTORY"] = root.appendingPathComponent("left").path
     app.launchEnvironment["FILETERM_SETTINGS_SUITE"] = suite
     for (key, value) in environment { app.launchEnvironment[key] = value }
@@ -45,13 +47,13 @@ final class AppearanceUITests: XCTestCase {
     let tab = app.buttons["settingsTab.Themes"]
     XCTAssertTrue(tab.waitForExistence(timeout: 5))
     tab.click()
-    for name in [
-      "Default", "Dark", "Light", "ForkLift", "Bluerange", "Dracula", "Commander", "Sand",
-      "Polar Night",
+    for id in [
+      "default", "dark", "light", "forklift", "bluerange", "dracula", "commander", "sand",
+      "polar-night",
     ] {
-      XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5), name)
+      XCTAssertTrue(app.staticTexts["theme.\(id)"].waitForExistence(timeout: 5), id)
     }
-    app.staticTexts["Dracula"].click()
+    app.staticTexts["theme.dracula"].click()
     screenshot(app, "themes-settings")
     app.typeKey("w", modifierFlags: .command)
     sleep(1)
@@ -133,9 +135,9 @@ final class AppearanceUITests: XCTestCase {
     app.typeKey("w", modifierFlags: .command)
     app.buttons["view.vertical"].firstMatch.click()
     try dropSampleOnSecondPane(app)
-    let copy = app.buttons["Copy"].firstMatch
+    let copy = app.sheets.buttons["Copy"]
     XCTAssertTrue(copy.waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Move"].firstMatch.exists)
+    XCTAssertTrue(app.sheets.buttons["Move"].exists)
     screenshot(app, "drop-confirmation")
     copy.click()
     let copied = root.appendingPathComponent("left/Target/sample.txt")
@@ -174,11 +176,8 @@ final class AppearanceUITests: XCTestCase {
     app.typeKey(.escape, modifierFlags: [])
     app.menuBars.menuBarItems["FileTerm"].click()
     app.menuItems["Services"].hover()
-    sleep(1)
-    let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-    shot.name = "services-menu"
-    shot.lifetime = .keepAlways
-    add(shot)
+    let services = app.menuItems["Services"].menuItems
+    XCTAssertTrue(services.firstMatch.waitForExistence(timeout: 5))
     app.typeKey(.escape, modifierFlags: [])
     app.typeKey(.escape, modifierFlags: [])
     app.menuBars.menuBarItems["FileTerm"].click()

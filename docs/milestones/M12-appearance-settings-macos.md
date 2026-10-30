@@ -54,4 +54,4 @@ M12.01 to M12.08 are built. M12.09 is partly built, see below.
 ## Not done
 
 - **M12.09:** SwiftUI text and the menus look up translations, and `Localizable.xcstrings` holds 380 English strings extracted from the build. Still hard-coded: `NSAlert` text, command titles as catalog entries, `String` values built in code, and messages from Core. There are about 1,300 lines with such literals, many in `AppDelegate` and `FileOperationCoordinator`, so do this sweep after parallel work in those files has merged.
-- **UI tests:** `FileTermUITests/AppearanceUITests` is written but has not run, because XCUITest could not get macOS Automation Mode without someone approving its prompt. Until it runs, these are untested end to end: a real drag between panes, the drop confirmation dialog, a tag click returning real tagged files, and a Service or Share running. Hosted tests cover the drop operation, the Services hooks and the live menus.
+- **Not driven by a test:** a Service or Share actually running. `FileTermUITests/AppearanceUITests` confirms that the menus list them and that they are enabled for a selection. Hosted tests cover the file data a Service receives.
