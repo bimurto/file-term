@@ -86,6 +86,10 @@ enum BrowserChrome: String, CaseIterable {
   var tools: [UserTool] {
     didSet { Defaults[toolsKey] = (try? JSONEncoder().encode(tools)) ?? Data() }
   }
+  var editors: [EditorMapping] {
+    didSet { Defaults[editorsKey] = (try? JSONEncoder().encode(editors)) ?? Data() }
+  }
+  @ObservationIgnored private let editorsKey: Defaults.Key<Data>
   @ObservationIgnored private let toolsKey: Defaults.Key<Data>
   @ObservationIgnored private let favoritesKey: Defaults.Key<Data>
   @ObservationIgnored private let renamePresetsKey: Defaults.Key<Data>
@@ -172,6 +176,8 @@ enum BrowserChrome: String, CaseIterable {
     syncFavoritesKey = Defaults.Key("syncFavorites", default: Data(), suite: suite)
     syncFavorites =
       (try? JSONDecoder().decode([SyncFavorite].self, from: Defaults[syncFavoritesKey])) ?? []
+    editorsKey = Defaults.Key("editors", default: Data(), suite: suite)
+    editors = (try? JSONDecoder().decode([EditorMapping].self, from: Defaults[editorsKey])) ?? []
     toolsKey = Defaults.Key("userTools", default: Data(), suite: suite)
     tools = (try? JSONDecoder().decode([UserTool].self, from: Defaults[toolsKey])) ?? []
     favoritesKey = Defaults.Key("favorites", default: Data(), suite: suite)

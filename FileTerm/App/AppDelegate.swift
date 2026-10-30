@@ -1075,6 +1075,15 @@ import UniformTypeIdentifiers
     }
   }
 
+  /// Edit needs exactly one regular file. Remote files arrive with remote editing.
+  private func editDisabledReason() -> String? {
+    let entries = browser.activePane.selectedEntries
+    guard entries.count == 1, let entry = entries.first, entry.kind == .file else {
+      return "Select one file to edit."
+    }
+    return entry.location.providerID == "local" ? nil : "Remote files cannot be edited yet."
+  }
+
   private func toolDisabledReason(_ tool: UserTool) -> String? {
     let pane = browser.activePane
     return ToolRunner.disabledReason(
@@ -1176,6 +1185,25 @@ import UniformTypeIdentifiers
         [weak self] in
         guard let self else { return }
         fileOperations.chooseApplication(browser, window: browserWindow)
+      })
+    result.append(
+      command(
+        "commands.edit", "Edit", selection: true, anyProvider: true,
+        condition: { [weak self] in
+          guard let self else { return false }
+          return editDisabledReason() == nil
+        },
+        reason: { [weak self] in self?.editDisabledReason() ?? "" }
+      ) { [weak self] in
+        guard let self, let entry = browser.activePane.selectedEntries.first else { return }
+        let model = browser
+        let editors = settings.editors
+        let url = URL(fileURLWithPath: entry.location.path)
+        Task { @MainActor in
+          if let message = await self.fileOperations.openInEditor(url, editors: editors) {
+            model.notice = message
+          }
+        }
       })
     result.append(
       command(

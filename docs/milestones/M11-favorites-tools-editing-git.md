@@ -29,8 +29,8 @@
 - [x] When Show in Toolbar is on, the tool gets a toolbar button.
 
 ### M11.07 External editors
-- [ ] Settings › Editing: a table mapping Application to Extensions, with Add, Edit and Remove.
-- [ ] Commands › Edit opens the file in the editor mapped to its extension.
+- [x] Settings › Editing: a table mapping Application to Extensions, with Add, Edit and Remove.
+- [x] Commands › Edit opens the file in the editor mapped to its extension.
 
 ### M11.08 Remote editing *(vendor-documented)*
 - [ ] Downloads the remote file to a temp folder and watches it for saves. Each save uploads the file and logs the upload.
@@ -54,7 +54,7 @@ M11 ships in tickets, one commit each.
 | T2 Sync Favorites setting | M11.03 | Setting only, sync deferred |
 | T3 Tool model, placeholders, editor | M11.04, M11.05 | Done |
 | T4 Tool execution, output, toolbar | M11.06 | Done |
-| T5 External editors and Edit | M11.07 | Open |
+| T5 External editors and Edit | M11.07 | Done |
 | T6 Remote editing | M11.08 | Open |
 | T7 Open in Terminal | M11.09 | Open |
 | T8 Source control | M11.10 | Open |
@@ -125,3 +125,19 @@ M11 ships in tickets, one commit each.
 - Not done: the output window and toolbar button have not been driven by hand on the desktop. Tests
   run real commands through the queue (exit codes, per-file runs, working folder) and check the
   availability rules.
+
+## T5 notes
+
+- Settings › Editing is a table of Application and Extensions with Add, Edit and Remove. The editor
+  picks an `.app` (Choose… or a typed path) and takes extensions separated by commas or spaces
+  (`swift, .MD txt`). A row whose application no longer exists is shown in red.
+- Commands › Edit opens the one selected file in the first row, in list order, that lists one of its
+  extensions. Matching ignores case and works on whole suffixes, so `tar.gz` matches `a.tar.gz` and
+  `gitignore` matches `.gitignore`, while `swift` does not match `x.notswift`.
+- With no matching row Edit opens the file in its default application. If the mapped application is
+  missing, the file opens in the default application and a notice says so.
+- Edit needs exactly one regular file. Remote files are refused for now, with the reason in the
+  tooltip; T6 turns that into download, edit and upload.
+- `FileOperationCoordinator.openInEditor(_:editors:)` is what T6 reuses for the downloaded copy.
+- Not done: opening through `NSWorkspace` has not been driven by hand. Unit tests cover the matching
+  rules, the extension parser and persistence.

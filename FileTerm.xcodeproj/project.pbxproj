@@ -33,6 +33,7 @@
 		4140A5374DBB60C325FD3ACD /* FileOperationCoordinator+Sync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E927BE4B6695C6DE166344A /* FileOperationCoordinator+Sync.swift */; };
 		41D771B0B7C24997A820B367 /* FileTermCore in Frameworks */ = {isa = PBXBuildFile; productRef = BDA4D9562B8CDBBF78D85EBD /* FileTermCore */; };
 		4253CE8C8482A0FC4CF0B0E0 /* InlineFileName.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D6CB0E08251975EA3DF929 /* InlineFileName.swift */; };
+		428EEF25000989F44900FD90 /* FileOperationCoordinator+Edit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6901BA3059D5D1BE13701E23 /* FileOperationCoordinator+Edit.swift */; };
 		43018735FF004DFD4FB47F11 /* BatchRenameModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE09C1630BCF23F151106E0 /* BatchRenameModel.swift */; };
 		44AA258F04AE63E5A48B3B0F /* PathBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76573E0579F8B61E01AC01FE /* PathBar.swift */; };
 		4B50336F990550E779F076CE /* BatchRenameCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 683F852FE7FFBC674221300B /* BatchRenameCoordinatorTests.swift */; };
@@ -41,6 +42,7 @@
 		552AB8EE9CD83AA27D525072 /* NavigationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F39962B92332D44523EA91 /* NavigationUITests.swift */; };
 		5541AB42821FCD706D96624C /* DeviceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A16FE2A26A749FBCA98E9A0 /* DeviceModel.swift */; };
 		5A800C4DE4F9D831A74FB9F4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1308A9BE29BEEC19841DAA4B /* PrivacyInfo.xcprivacy */; };
+		5E5D772687FD58B2960E9C6F /* EditingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C2088FCB858962E698902E /* EditingSettingsView.swift */; };
 		6ACB00332FDA81449303A2E8 /* TerminalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */; };
 		6B874110A4782F7D0A5FFA06 /* FileOperationCoordinator+AppCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BBD3EF0F116BA68E15A6D9 /* FileOperationCoordinator+AppCleanup.swift */; };
 		6E40BFCEEB543EF019876960 /* BatchRenameSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DCF4596403D71569EE5B325 /* BatchRenameSheet.swift */; };
@@ -156,6 +158,7 @@
 		6673A69D83102582AA752B6B /* FileTerm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FileTerm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6827571BFC5023EDC064B80A /* FileContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileContentView.swift; sourceTree = "<group>"; };
 		683F852FE7FFBC674221300B /* BatchRenameCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameCoordinatorTests.swift; sourceTree = "<group>"; };
+		6901BA3059D5D1BE13701E23 /* FileOperationCoordinator+Edit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+Edit.swift"; sourceTree = "<group>"; };
 		6910FF54BD34578D38001063 /* ConnectionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionCoordinatorTests.swift; sourceTree = "<group>"; };
 		6BA026A229572C46FC23F25D /* FileUtilityCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilityCoordinator.swift; sourceTree = "<group>"; };
 		6C0D4372083B90963DAFBFA2 /* SyncDialogModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDialogModelTests.swift; sourceTree = "<group>"; };
@@ -185,6 +188,7 @@
 		C0434095DC5F7CEED5924D81 /* ToolOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolOutputView.swift; sourceTree = "<group>"; };
 		C0FFAE2CA84D542DEB0E1F9E /* TerminalWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalWorkspace.swift; sourceTree = "<group>"; };
 		C1DC0CE81A8B6F13514020EE /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
+		C3C2088FCB858962E698902E /* EditingSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditingSettingsView.swift; sourceTree = "<group>"; };
 		C6D6CB0E08251975EA3DF929 /* InlineFileName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFileName.swift; sourceTree = "<group>"; };
 		CC95DBFA6B2D09F772E31575 /* FilePreviewContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewContentView.swift; sourceTree = "<group>"; };
 		CDCFB06361D11DA221744D7C /* PaneTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneTabBar.swift; sourceTree = "<group>"; };
@@ -266,6 +270,7 @@
 			isa = PBXGroup;
 			children = (
 				05E4E4D917C96AB62ABB605E /* AppSettings.swift */,
+				C3C2088FCB858962E698902E /* EditingSettingsView.swift */,
 				0122B8F895C5A9B0D118027A /* SettingsCoordinator.swift */,
 				B400667AA697F5C52E7E4063 /* TerminalSettings.swift */,
 				FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */,
@@ -371,6 +376,7 @@
 				27BBD3EF0F116BA68E15A6D9 /* FileOperationCoordinator+AppCleanup.swift */,
 				50FB4E30DB9AB84C96291389 /* FileOperationCoordinator+Archive.swift */,
 				E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */,
+				6901BA3059D5D1BE13701E23 /* FileOperationCoordinator+Edit.swift */,
 				A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */,
 				5E927BE4B6695C6DE166344A /* FileOperationCoordinator+Sync.swift */,
 				0DBF840FFE04CC5F96F1814A /* FilePreviewCoordinator.swift */,
@@ -561,12 +567,14 @@
 				E8E8EC4C90F071AC972D086C /* ConnectionForm.swift in Sources */,
 				B6F720D12A93B009A6673E54 /* CredentialStore.swift in Sources */,
 				5541AB42821FCD706D96624C /* DeviceModel.swift in Sources */,
+				5E5D772687FD58B2960E9C6F /* EditingSettingsView.swift in Sources */,
 				8C850B00FAAA006672566AC0 /* FavoritesManagerSheet.swift in Sources */,
 				DD35E4153C841353CCDE3C50 /* FileContentView.swift in Sources */,
 				8C8CF6975EA756CA2BC30F24 /* FileMetadataService.swift in Sources */,
 				6B874110A4782F7D0A5FFA06 /* FileOperationCoordinator+AppCleanup.swift in Sources */,
 				1D8E69565519D69D208A668F /* FileOperationCoordinator+Archive.swift in Sources */,
 				D4A7FF4B5C491331FB0B8B08 /* FileOperationCoordinator+Delete.swift in Sources */,
+				428EEF25000989F44900FD90 /* FileOperationCoordinator+Edit.swift in Sources */,
 				C189AE31558133FD53A0ED7B /* FileOperationCoordinator+Remote.swift in Sources */,
 				4140A5374DBB60C325FD3ACD /* FileOperationCoordinator+Sync.swift in Sources */,
 				E14D880CAAED820ABA416AC9 /* FileOperationCoordinator.swift in Sources */,

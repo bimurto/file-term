@@ -43,7 +43,7 @@ private struct SettingsCategoryView: View {
   private var paneHeight: CGFloat {
     switch category {
     case .terminal, .transfers, .general: 640
-    case .shortcuts, .tools: 480
+    case .shortcuts, .tools, .editing: 480
     default: 320
     }
   }
@@ -69,6 +69,8 @@ private struct SettingsCategoryView: View {
         TerminalSettingsView(settings: settings)
       } else if category == .tools {
         ToolsSettingsView(settings: settings)
+      } else if category == .editing {
+        EditingSettingsView(settings: settings)
       } else {
         Text("Settings for \(category.rawValue.lowercased()) will appear here.").foregroundStyle(
           .secondary)
