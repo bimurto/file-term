@@ -1089,7 +1089,7 @@ import UniformTypeIdentifiers
     let items = selected.map {
       RenameItem(
         location: $0.location, name: $0.name, isDirectory: $0.kind == .directory,
-        modifiedAt: $0.modifiedAt, createdAt: $0.createdAt)
+        modifiedAt: $0.modifiedAt, createdAt: $0.createdAt, size: $0.size)
     }
     let window = controller.window
     var existing: [String: Set<String>] = [:]

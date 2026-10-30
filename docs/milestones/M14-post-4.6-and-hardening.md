@@ -6,7 +6,8 @@
 ## Part A — Post-4.6 features *(post-4.6)*
 
 ### M14.01 Metadata-based batch rename (4.7.1)
-- [ ] New rename rule that inserts EXIF, ID3 or file metadata fields (extends M09).
+- [x] New rename rule that inserts EXIF, ID3 or file metadata fields (extends M09).
+  - Embedded fields are read from local files only. An item without the chosen field keeps its name.
 
 ### M14.02 Shell PATH inheritance (4.7.1)
 - [x] Tools, the external terminal launch and built-in terminal sessions (M06) inherit the user's login-shell PATH.

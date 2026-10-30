@@ -4,12 +4,16 @@ import Observation
 
 /// State of the Batch Rename dialog: the items in the order shown in the pane and the rule list.
 @MainActor @Observable final class BatchRenameModel: Identifiable {
-  let items: [RenameItem]
-  var rules: [RenameRule]
+  private(set) var items: [RenameItem]
+  var rules: [RenameRule] { didSet { loadMetadataIfNeeded() } }
   /// Extension changes are a warning: Rename stays off until the user allows them.
   var allowExtensionChanges = false
   var presetName = ""
   private(set) var presets: [RenamePreset]
+  /// Rename stays off while files are being read, because the preview isn't final yet.
+  private(set) var isReadingMetadata = false
+  @ObservationIgnored private var metadataRead = false
+  @ObservationIgnored private let readMetadata: @Sendable ([RenameItem]) async -> [RenameItem]
   @ObservationIgnored private let now = Date()
   @ObservationIgnored private let existingNames: [String: Set<String>]
   @ObservationIgnored private let savePreset: (RenamePreset) -> Void
@@ -21,6 +25,8 @@ import Observation
     existingNames: [String: Set<String>] = [:], presets: [RenamePreset] = [],
     savePreset: @escaping (RenamePreset) -> Void = { _ in },
     deletePreset: @escaping (UUID) -> Void = { _ in },
+    readMetadata: @escaping @Sendable ([RenameItem]) async -> [RenameItem] =
+      RenameMetadataReader.enriched,
     submit: @escaping ([(location: Location, name: String)]) -> Void
   ) {
     self.items = items
@@ -29,10 +35,26 @@ import Observation
     self.presets = presets
     self.savePreset = savePreset
     self.deletePreset = deletePreset
+    self.readMetadata = readMetadata
     self.submit = submit
+    loadMetadataIfNeeded()
   }
 
   nonisolated var id: ObjectIdentifier { ObjectIdentifier(self) }
+
+  /// Reads files once, and only if a rule uses what's in them, so opening the dialog stays instant.
+  private func loadMetadataIfNeeded() {
+    guard !metadataRead, rules.contains(where: { $0.kind == .addMetadata }) else { return }
+    metadataRead = true
+    isReadingMetadata = true
+    let items = items
+    let read = readMetadata
+    Task { [weak self] in
+      let enriched = await read(items)
+      self?.items = enriched
+      self?.isReadingMetadata = false
+    }
+  }
 
   var rows: [RenameRow] {
     BatchRenamePlanner.preview(
@@ -52,7 +74,8 @@ import Observation
 
   var canRename: Bool {
     let current = rows
-    return current.contains(where: \.isChanged) && !current.contains(where: \.hasError)
+    return !isReadingMetadata && current.contains(where: \.isChanged)
+      && !current.contains(where: \.hasError)
       && (allowExtensionChanges || !current.contains(where: \.hasWarning))
   }
 

@@ -173,6 +173,18 @@ private struct RenameRuleEditor: View {
           TextField("Format, e.g. yyyy-MM-dd", text: $rule.dateFormat)
           PositionEditor(position: $rule.position, index: $rule.positionIndex)
         }
+      case .addMetadata:
+        HStack {
+          Picker("Field", selection: $rule.metadataField) {
+            ForEach(RenameMetadataField.allCases, id: \.self) { Text($0.title).tag($0) }
+          }.frame(width: 220).accessibilityIdentifier("renameMetadataField")
+          if rule.metadataField.isDate {
+            TextField("Format, e.g. yyyy-MM-dd", text: $rule.dateFormat)
+          }
+          PositionEditor(position: $rule.position, index: $rule.positionIndex)
+        }
+        Text("Items without this field keep their name. Remote files can only use File fields.")
+          .font(.caption).foregroundStyle(.secondary)
       }
     }
     .textFieldStyle(.roundedBorder)

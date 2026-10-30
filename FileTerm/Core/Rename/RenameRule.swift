@@ -3,7 +3,7 @@ import Foundation
 /// One step of a batch rename. Rules run in list order, each on the part of the name it applies to.
 public struct RenameRule: Codable, Hashable, Identifiable, Sendable {
   public enum Kind: String, Codable, CaseIterable, Sendable {
-    case replaceText, changeCase, addSequence, addText, addDate
+    case replaceText, changeCase, addSequence, addText, addDate, addMetadata
 
     public var title: String {
       switch self {
@@ -12,6 +12,7 @@ public struct RenameRule: Codable, Hashable, Identifiable, Sendable {
       case .addSequence: "Add Sequence"
       case .addText: "Add Text"
       case .addDate: "Add Date"
+      case .addMetadata: "Add Metadata"
       }
     }
   }
@@ -43,14 +44,20 @@ public struct RenameRule: Codable, Hashable, Identifiable, Sendable {
   public var padding = 1
   public var prefix = ""
   public var suffix = ""
-  // Add Sequence, Add Text and Add Date
+  // Add Sequence, Add Text, Add Date and Add Metadata
   public var position: Position = .start
   public var positionIndex = 0
   // Add Text
   public var text = ""
-  // Add Date
+  // Add Date and Add Metadata
   public var dateSource: DateSource = .modified
   public var dateFormat = "yyyy-MM-dd"
+  // Add Metadata. Optional so presets saved before this rule existed still decode.
+  private var storedMetadataField: RenameMetadataField?
+  public var metadataField: RenameMetadataField {
+    get { storedMetadataField ?? .dateTaken }
+    set { storedMetadataField = newValue }
+  }
 
   public init(kind: Kind) { self.kind = kind }
 }
@@ -63,16 +70,19 @@ public struct RenameItem: Identifiable, Hashable, Sendable {
   public let isDirectory: Bool
   public let modifiedAt: Date?
   public let createdAt: Date?
+  public let size: Int64?
+  public var embedded = RenameEmbeddedMetadata()
 
   public init(
     location: Location, name: String, isDirectory: Bool = false, modifiedAt: Date? = nil,
-    createdAt: Date? = nil
+    createdAt: Date? = nil, size: Int64? = nil
   ) {
     self.location = location
     self.name = name
     self.isDirectory = isDirectory
     self.modifiedAt = modifiedAt
     self.createdAt = createdAt
+    self.size = size
   }
 }
 
@@ -118,11 +128,36 @@ extension RenameRule {
       case .now: date = now
       }
       guard let date else { return value }
-      let formatter = DateFormatter()
-      formatter.locale = Locale(identifier: "en_US_POSIX")
-      formatter.dateFormat = dateFormat
-      return inserting(formatter.string(from: date), into: value)
+      return inserting(formatted(date), into: value)
+    case .addMetadata:
+      guard let piece = metadataValue(of: item) else { return value }
+      return inserting(piece, into: value)
     }
+  }
+
+  private func formatted(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = dateFormat
+    return formatter.string(from: date)
+  }
+
+  /// Nil when the item doesn't have this field, which leaves its name alone. Tags often contain
+  /// characters a file name can't, such as the slash in "AC/DC".
+  private func metadataValue(of item: RenameItem) -> String? {
+    let raw: String?
+    switch metadataField {
+    case .dateTaken: raw = item.embedded.dateTaken.map(formatted)
+    case .created: raw = item.createdAt.map(formatted)
+    case .modified: raw = item.modifiedAt.map(formatted)
+    case .size: raw = item.size.map(String.init)
+    default: raw = item.embedded.text[metadataField]
+    }
+    guard let raw else { return nil }
+    let safe = raw.components(separatedBy: .controlCharacters).joined(separator: " ")
+      .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+      .trimmingCharacters(in: .whitespaces)
+    return safe.isEmpty ? nil : safe
   }
 
   private func replacing(in value: String) -> String {

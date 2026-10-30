@@ -4,6 +4,21 @@ import Testing
 
 @testable import FileTerm
 
+private final class LockedCounter: @unchecked Sendable {
+  private let lock = NSLock()
+  private var count = 0
+  var value: Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return count
+  }
+  func increment() {
+    lock.lock()
+    count += 1
+    lock.unlock()
+  }
+}
+
 @Suite(.serialized)
 @MainActor struct BatchRenameCoordinatorTests {
   private func folder(_ names: [String]) throws -> URL {
@@ -28,6 +43,45 @@ import Testing
     pane.selection = [pane.entries[0].location]
     coordinator.startRename(pane, window: nil)
     #expect(opened == 1 && pane.renamingLocation == pane.entries[0].location)
+  }
+
+  @Test func metadataIsReadOnlyOnceARuleNeedsItAndRenameWaitsForIt() async throws {
+    let source = RenameItem(
+      location: Location(providerID: "local", path: "/d/a.mp3"), name: "a.mp3")
+    let reads = LockedCounter()
+    let gate = AsyncStream<Void>.makeStream()
+    let model = BatchRenameModel(
+      items: [source], rules: [],
+      readMetadata: { items in
+        reads.increment()
+        for await _ in gate.stream { break }
+        return items.map { item in
+          var item = item
+          item.embedded.text[.artist] = "Artist-"
+          return item
+        }
+      },
+      submit: { _ in })
+    try await Task.sleep(for: .milliseconds(20))
+    #expect(reads.value == 0)
+
+    model.addRule(.addMetadata)
+    model.rules[0].metadataField = .artist
+    #expect(model.isReadingMetadata)
+    #expect(!model.canRename)
+    #expect(model.rows.first?.proposed == "a.mp3")
+
+    gate.continuation.yield()
+    for _ in 0..<200 where model.isReadingMetadata {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(!model.isReadingMetadata)
+    #expect(model.rows.first?.proposed == "Artist-a.mp3")
+    #expect(model.canRename)
+
+    model.addRule(.addMetadata)
+    #expect(!model.isReadingMetadata)
+    #expect(reads.value == 1)
   }
 
   @Test func modelPreviewsCountsAndSubmitsOnlyChangedItems() {
