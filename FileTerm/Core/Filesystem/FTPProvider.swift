@@ -179,7 +179,7 @@ public actor FTPProvider: ValidatingProvider {
 
   private var defaultPort: Int { 21 }
 
-  private func mapping<T>(_ body: () async throws -> T) async throws -> T {
+  private func mapping<T: Sendable>(_ body: () async throws -> T) async throws -> T {
     do { return try await body() } catch let error as CurlFailure {
       throw error.mapped(host: host, port: port ?? defaultPort)
     }
