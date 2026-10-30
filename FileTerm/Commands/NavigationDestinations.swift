@@ -39,13 +39,29 @@ enum StandardDestination: String, CaseIterable {
   private let browser: BrowserModel
   private let provider: LocalFileSystemProvider
   private let paneID: PaneID
+  private let settings: AppSettings?
   private var cancelled = false
 
-  init(browser: BrowserModel, provider: LocalFileSystemProvider, paneID: PaneID) {
+  init(
+    browser: BrowserModel, provider: LocalFileSystemProvider, paneID: PaneID,
+    settings: AppSettings? = nil
+  ) {
     self.browser = browser
     self.provider = provider
     self.paneID = paneID
+    self.settings = settings
     path = browser.pane(paneID).location?.path ?? "/"
+  }
+
+  /// Earlier destinations matching what's typed, folders starting with it first.
+  var suggestions: [String] {
+    let typed = path.trimmingCharacters(in: .whitespaces)
+    let matches = (settings?.goToFolderHistory ?? []).filter {
+      $0 != typed && (typed.isEmpty || $0.localizedCaseInsensitiveContains(typed))
+    }
+    let starting = matches.filter { $0.lowercased().hasPrefix(typed.lowercased()) }
+    let others = matches.filter { !$0.lowercased().hasPrefix(typed.lowercased()) }
+    return Array((starting + others).prefix(6))
   }
 
   func cancel() { cancelled = true }
@@ -58,7 +74,10 @@ enum StandardDestination: String, CaseIterable {
     do {
       let destination = try await provider.resolveFolderPath(path)
       guard !cancelled else { return false }
-      if await browser.navigate(to: destination, in: paneID) { return true }
+      if await browser.navigate(to: destination, in: paneID) {
+        settings?.recordGoToFolder(destination.path)
+        return true
+      }
       errorMessage = browser.pane(paneID).errorMessage ?? "The folder could not be opened."
     } catch { errorMessage = error.localizedDescription }
     return false

@@ -65,6 +65,71 @@ import Testing
         == root.appendingPathComponent("Child").resolvingSymlinksInPath().path)
   }
 
+  @Test func goToFolderRemembersOnlyFoldersItReachedAndSuggestsThem() async throws {
+    let name = "GoToFolderHistory-\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      .resolvingSymlinksInPath()
+    for folder in ["Alpha", "Beta"] {
+      try FileManager.default.createDirectory(
+        at: root.appendingPathComponent(folder), withIntermediateDirectories: true)
+    }
+    defer { try? FileManager.default.removeItem(at: root) }
+    let settings = AppSettings(suite: suite)
+    let provider = LocalFileSystemProvider()
+    let browser = BrowserModel(providers: [provider])
+    await browser.navigate(to: provider.location(for: root), in: .first)
+    let dialog = GoToFolderModel(
+      browser: browser, provider: provider, paneID: .first, settings: settings)
+    let alpha = root.appendingPathComponent("Alpha").path
+    let beta = root.appendingPathComponent("Beta").path
+
+    dialog.path = root.appendingPathComponent("missing").path
+    #expect(await dialog.submit() == false)
+    #expect(settings.goToFolderHistory.isEmpty)
+
+    dialog.path = alpha
+    #expect(await dialog.submit())
+    dialog.path = beta
+    #expect(await dialog.submit())
+    dialog.path = alpha
+    #expect(await dialog.submit())
+    #expect(settings.goToFolderHistory == [alpha, beta])
+    #expect(AppSettings(suite: suite).goToFolderHistory == [alpha, beta])
+
+    dialog.path = ""
+    #expect(dialog.suggestions == [alpha, beta])
+    dialog.path = alpha
+    #expect(dialog.suggestions.isEmpty)
+    dialog.path = "bEt"
+    #expect(dialog.suggestions == [beta])
+    dialog.path = root.path
+    #expect(dialog.suggestions == [alpha, beta])
+    dialog.path = "/no/such/prefix"
+    #expect(dialog.suggestions.isEmpty)
+  }
+
+  @Test func goToFolderHistoryIsCappedAndPrefersPathsStartingWithWhatIsTyped() async throws {
+    let name = "GoToFolderOrder-\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let settings = AppSettings(suite: suite)
+    for index in 0..<25 { settings.recordGoToFolder("/folder\(index)") }
+    #expect(settings.goToFolderHistory.count == 20)
+    #expect(settings.goToFolderHistory.first == "/folder24")
+    settings.recordGoToFolder("/x/tmp")
+    settings.recordGoToFolder("/tmp/x")
+    let provider = LocalFileSystemProvider()
+    let dialog = GoToFolderModel(
+      browser: BrowserModel(providers: [provider]), provider: provider, paneID: .first,
+      settings: settings)
+    dialog.path = "/x"
+    #expect(dialog.suggestions == ["/x/tmp", "/tmp/x"])
+    dialog.path = "folder"
+    #expect(dialog.suggestions.count == 6)
+  }
+
   @Test func staleCapacityCannotReplaceTheCurrentLocation() async {
     let service = DelayedCapacityService()
     let status = PaneStatusModel()

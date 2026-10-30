@@ -42,6 +42,49 @@ final class WorkspaceUITests: XCTestCase {
     capture(app, name: "M02 sortable list")
   }
 
+  @MainActor func testGoToFolderCompletesAndOffersEarlierDestinations() throws {
+    let fixture = try WorkspaceFixture()
+    defer { fixture.remove() }
+    let app = fixture.launch()
+    defer { app.terminate() }
+    let list = app.outlines["fileList"]
+    XCTAssertTrue(list.staticTexts["small.txt"].waitForExistence(timeout: 10))
+    let root = fixture.root.resolvingSymlinksInPath().path
+    let child = root + "/Child"
+    let go = { (text: String) -> XCUIElement in
+      app.buttons["go.toFolder"].click()
+      let field = app.textFields["goToFolderPath"]
+      XCTAssertTrue(field.waitForExistence(timeout: 5))
+      field.click()
+      field.typeKey("a", modifierFlags: .command)
+      field.typeText(text)
+      return field
+    }
+    go(child).typeKey(.return, modifierFlags: [])
+    XCTAssertTrue(list.staticTexts["inside.txt"].waitForExistence(timeout: 5))
+
+    let field = go(root)
+    let suggestion = app.buttons.matching(
+      NSPredicate(format: "identifier == %@", "goToFolderSuggestion.\(child)")
+    ).firstMatch
+    XCTAssertTrue(suggestion.waitForExistence(timeout: 5))
+    capture(app, name: "M14 go to folder suggestions")
+    field.typeKey(.escape, modifierFlags: [])
+    XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+
+    let tabbed = go(root + "/ch")
+    tabbed.typeKey(.tab, modifierFlags: [])
+    tabbed.typeKey(.return, modifierFlags: [])
+    XCTAssertTrue(list.staticTexts["inside.txt"].waitForExistence(timeout: 5))
+
+    go(root).typeKey(.return, modifierFlags: [])
+    XCTAssertTrue(list.staticTexts["small.txt"].waitForExistence(timeout: 5))
+    _ = go(root)
+    XCTAssertTrue(suggestion.waitForExistence(timeout: 5))
+    suggestion.click()
+    XCTAssertTrue(list.staticTexts["inside.txt"].waitForExistence(timeout: 5))
+  }
+
   @MainActor func testIconViewArrowKeysTypeToSelectAndRubberBand() throws {
     let fixture = try WorkspaceFixture()
     defer { fixture.remove() }

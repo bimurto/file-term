@@ -24,8 +24,10 @@
 - [x] Window menu command that moves the current tab to the opposite pane.
 
 ### M14.06 Go to Folder history & extra tool placeholders
-- [ ] Go to Folder keeps a history and autocompletes from it.
+- [x] Go to Folder keeps a history and autocompletes from it.
+  - The history holds the last 20 folders reached through this dialog. Tab completes the top suggestion, and clicking one goes there.
 - [ ] Add new placeholders to M11.05 as they are defined.
+  - Open: no new placeholders have been defined yet, so none were added.
 
 ## Part B — Acceptance scenarios (end-to-end tests)
 

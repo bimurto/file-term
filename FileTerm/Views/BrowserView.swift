@@ -83,7 +83,8 @@ struct BrowserView: View {
     .onReceive(NotificationCenter.default.publisher(for: .fileTermGoToFolder)) { notification in
       guard notification.object as? BrowserModel === browser else { return }
       goToFolder = GoToFolderModel(
-        browser: browser, provider: localProvider, paneID: browser.activePaneID)
+        browser: browser, provider: localProvider, paneID: browser.activePaneID,
+        settings: settings)
     }
     .sheet(item: $goToFolder) { model in GoToFolderSheet(model: model) }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermConnect)) { notification in
@@ -612,8 +613,25 @@ private struct GoToFolderSheet: View {
         .textFieldStyle(.roundedBorder).focused($pathFocused)
         .accessibilityIdentifier("goToFolderPath")
         .onSubmit { submit() }
+        .onKeyPress(.tab) {
+          guard let first = model.suggestions.first else { return .ignored }
+          model.path = first
+          return .handled
+        }
       if let error = model.errorMessage {
         Text(error).foregroundStyle(.red).accessibilityIdentifier("goToFolderError")
+      }
+      if !model.suggestions.isEmpty {
+        VStack(alignment: .leading, spacing: 4) {
+          ForEach(model.suggestions, id: \.self) { path in
+            Button(path) {
+              model.path = path
+              submit()
+            }
+            .buttonStyle(.plain).lineLimit(1).truncationMode(.middle)
+            .accessibilityIdentifier("goToFolderSuggestion.\(path)")
+          }
+        }
       }
       HStack {
         Spacer()

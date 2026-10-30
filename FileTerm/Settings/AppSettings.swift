@@ -161,8 +161,12 @@ enum BrowserChrome: String, CaseIterable {
   private(set) var recentFolders: [String] {
     didSet { Defaults[recentKey] = recentFolders }
   }
+  private(set) var goToFolderHistory: [String] {
+    didSet { Defaults[goToFolderHistoryKey] = goToFolderHistory }
+  }
   @ObservationIgnored private let chromeKey: Defaults.Key<Set<String>>
   @ObservationIgnored private let recentKey: Defaults.Key<[String]>
+  @ObservationIgnored private let goToFolderHistoryKey: Defaults.Key<[String]>
   var visiblePanels: Set<String> {
     didSet { Defaults[panelsKey] = visiblePanels }
   }
@@ -280,6 +284,9 @@ enum BrowserChrome: String, CaseIterable {
     recentKey = Defaults.Key("recentFolders", default: [], suite: suite)
     hiddenChrome = Defaults[chromeKey]
     recentFolders = Array(Defaults[recentKey].filter { $0.hasPrefix("/") }.prefix(20))
+    goToFolderHistoryKey = Defaults.Key("goToFolderHistory", default: [], suite: suite)
+    goToFolderHistory = Array(
+      Defaults[goToFolderHistoryKey].filter { $0.hasPrefix("/") }.prefix(20))
     panelsKey = Defaults.Key("visiblePanels", default: [], suite: suite)
     categoryKey = Defaults.Key(
       "settingsCategory", default: SettingsCategory.general.rawValue, suite: suite)
@@ -348,6 +355,10 @@ enum BrowserChrome: String, CaseIterable {
     guard location.providerID == "local", location.path.hasPrefix("/") else { return }
     recentFolders = Array(
       ([location.path] + recentFolders.filter { $0 != location.path }).prefix(20))
+  }
+
+  func recordGoToFolder(_ path: String) {
+    goToFolderHistory = Array(([path] + goToFolderHistory.filter { $0 != path }).prefix(20))
   }
 
   func isVisible(_ panel: PlaceholderPanel) -> Bool { visiblePanels.contains(panel.rawValue) }
