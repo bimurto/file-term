@@ -37,8 +37,8 @@
 - [x] Before the first upload, the user confirms the target account and path.
 
 ### M11.09 Terminal integration
-- [ ] File › Open in Terminal and a toolbar button open the current local folder in the terminal app chosen in Settings › General › Terminal Application (Terminal, iTerm, etc.).
-- [ ] This external terminal stays separate from the built-in terminal panel (M06). Both can be used side by side.
+- [x] File › Open in Terminal and a toolbar button open the current local folder in the terminal app chosen in Settings › General › Terminal Application (Terminal, iTerm, etc.).
+- [x] This external terminal stays separate from the built-in terminal panel (M06). Both can be used side by side.
 
 ### M11.10 Source control (Git)
 - [ ] Commands › Source Control: Add, Add All, Commit (message prompt), Push, Pull.
@@ -56,7 +56,7 @@ M11 ships in tickets, one commit each.
 | T4 Tool execution, output, toolbar | M11.06 | Done |
 | T5 External editors and Edit | M11.07 | Done |
 | T6 Remote editing | M11.08 | Done |
-| T7 Open in Terminal | M11.09 | Open |
+| T7 Open in Terminal | M11.09 | Done |
 | T8 Source control | M11.10 | Open |
 
 ## T1 notes
@@ -168,3 +168,19 @@ M11 ships in tickets, one commit each.
 - Not done: the confirmation dialog and a real editor have not been driven by hand; the tests use an
   in-memory server, an injected confirmation and a no-op editor launch, plus one real file-system
   event test.
+
+## T7 notes
+
+- File › Open in Terminal (and a toolbar button, `apple.terminal`) opens the active pane's folder in
+  the app chosen in Settings › General › Terminal Application: Terminal (default), iTerm, Ghostty or
+  Warp. Apps are looked for in `/Applications`, `~/Applications` and, for Terminal, the system
+  Utilities folder. An app that is not installed is marked "(not installed)" in the picker, and the
+  command is disabled with the reason.
+- Local folders only. A remote or archive pane disables the command.
+- The command opens the folder through `NSWorkspace`, so each app decides how to show it (a new
+  window or tab at that folder). It does not touch the built-in terminal panel (View › Show
+  Terminal): the two share no state and can be open side by side.
+- The toolbar button is in the default toolbar, so only new installs see it. Existing users add it
+  from View › Customize Toolbar….
+- Not done: the apps themselves have not been launched by hand; tests cover where each app is found,
+  the setting, and the default toolbar.

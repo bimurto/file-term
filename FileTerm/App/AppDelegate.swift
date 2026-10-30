@@ -1190,6 +1190,34 @@ import UniformTypeIdentifiers
       })
     result.append(
       command(
+        "file.openInTerminal", "Open in Terminal", menu: ["File"],
+        condition: { [weak self] in self?.settings.terminalApplication.isInstalled == true },
+        reason: { [weak self] in
+          guard let self, browser.activePane.location?.providerID == "local" else {
+            return "Only local folders can be opened in a terminal."
+          }
+          return
+            "\(settings.terminalApplication.title) is not installed. Choose another in Settings › General › Terminal Application."
+        }
+      ) { [weak self] in
+        guard let self, let folder = browser.activePane.location,
+          let path = settings.terminalApplication.applicationPath()
+        else { return }
+        let model = browser
+        let name = settings.terminalApplication.title
+        NSWorkspace.shared.open(
+          [URL(fileURLWithPath: folder.path, isDirectory: true)],
+          withApplicationAt: URL(fileURLWithPath: path),
+          configuration: NSWorkspace.OpenConfiguration()
+        ) { _, error in
+          guard let error else { return }
+          Task { @MainActor in
+            model.notice = "Could not open \(name): \(error.localizedDescription)"
+          }
+        }
+      })
+    result.append(
+      command(
         "commands.edit", "Edit", selection: true, anyProvider: true,
         condition: { [weak self] in
           guard let self else { return false }

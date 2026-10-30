@@ -41,6 +41,7 @@ import Testing
     initial.tools = [tool]
     let editor = EditorMapping(applicationPath: "/Applications/Zed.app", extensions: ["swift"])
     initial.editors = [editor]
+    initial.terminalApplication = .iTerm
     let favorite = FavoriteItem(name: "Docs", target: .local(path: "/Users/me/Documents"))
     initial.favorites = [.group(FavoriteGroup(name: "Work", items: [favorite]))]
     initial.searchEngine = .spotlight
@@ -59,6 +60,7 @@ import Testing
     #expect(restored.syncFavoritesToICloud)
     #expect(restored.tools == [tool])
     #expect(restored.editors == [editor])
+    #expect(restored.terminalApplication == .iTerm)
     #expect(restored.favorites.allItems == [favorite])
     let fresh = UserDefaults(suiteName: "com.fileterm.tests.\(UUID())")!
     #expect(AppSettings(suite: fresh).detectAppOnDelete)
@@ -67,6 +69,7 @@ import Testing
     #expect(!AppSettings(suite: fresh).syncFavoritesToICloud)
     #expect(AppSettings(suite: fresh).tools.isEmpty)
     #expect(AppSettings(suite: fresh).editors.isEmpty)
+    #expect(AppSettings(suite: fresh).terminalApplication == .terminal)
     #expect(!restored.searchIncludeSubfolders)
     #expect(restored.shortcutOverrides["select.quick"]?.shortcut?.display == "⌘J")
   }

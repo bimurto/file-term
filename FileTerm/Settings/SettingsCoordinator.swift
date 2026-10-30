@@ -42,7 +42,8 @@ private struct SettingsCategoryView: View {
 
   private var paneHeight: CGFloat {
     switch category {
-    case .terminal, .transfers, .general: 640
+    case .general: 700
+    case .terminal, .transfers: 640
     case .shortcuts, .tools, .editing: 480
     default: 320
     }
@@ -231,6 +232,14 @@ private struct GeneralSettingsView: View {
         }
       }
       .accessibilityIdentifier("compareTool")
+      Picker("Terminal application", selection: $settings.terminalApplication) {
+        ForEach(TerminalApplication.allCases, id: \.self) {
+          Text($0.isInstalled ? $0.title : $0.title + " (not installed)").tag($0)
+        }
+      }
+      .accessibilityIdentifier("terminalApplication")
+      Text("Used by File › Open in Terminal. The built-in terminal panel is separate.")
+        .font(.caption).foregroundStyle(.secondary)
       Toggle("Sync Favorites to iCloud", isOn: $settings.syncFavoritesToICloud)
         .accessibilityIdentifier("syncFavorites")
       Text(

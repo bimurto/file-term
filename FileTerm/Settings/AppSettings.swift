@@ -139,6 +139,9 @@ enum BrowserChrome: String, CaseIterable {
   var compareTool: CompareTool {
     didSet { Defaults[compareToolKey] = compareTool.rawValue }
   }
+  var terminalApplication: TerminalApplication {
+    didSet { Defaults[terminalApplicationKey] = terminalApplication.rawValue }
+  }
   var syncFavoritesToICloud: Bool {
     didSet { Defaults[syncFavoritesToICloudKey] = syncFavoritesToICloud }
   }
@@ -157,6 +160,7 @@ enum BrowserChrome: String, CaseIterable {
   @ObservationIgnored private let archivesAsFoldersKey: Defaults.Key<Bool>
   @ObservationIgnored private let detectAppOnDeleteKey: Defaults.Key<Bool>
   @ObservationIgnored private let compareToolKey: Defaults.Key<String>
+  @ObservationIgnored private let terminalApplicationKey: Defaults.Key<String>
   @ObservationIgnored private let syncFavoritesToICloudKey: Defaults.Key<Bool>
   @ObservationIgnored private let searchEngineKey: Defaults.Key<String>
   @ObservationIgnored private let subfoldersKey: Defaults.Key<Bool>
@@ -218,6 +222,8 @@ enum BrowserChrome: String, CaseIterable {
     detectAppOnDeleteKey = Defaults.Key("detectAppOnDelete", default: true, suite: suite)
     compareToolKey = Defaults.Key(
       "compareTool", default: CompareTool.fileMerge.rawValue, suite: suite)
+    terminalApplicationKey = Defaults.Key(
+      "terminalApplication", default: TerminalApplication.terminal.rawValue, suite: suite)
     syncFavoritesToICloudKey = Defaults.Key("syncFavoritesToICloud", default: false, suite: suite)
     searchEngineKey = Defaults.Key(
       "searchEngine", default: SearchEngine.builtIn.rawValue, suite: suite)
@@ -229,6 +235,8 @@ enum BrowserChrome: String, CaseIterable {
     archivesAsFolders = Defaults[archivesAsFoldersKey]
     detectAppOnDelete = Defaults[detectAppOnDeleteKey]
     compareTool = CompareTool(rawValue: Defaults[compareToolKey]) ?? .fileMerge
+    terminalApplication =
+      TerminalApplication(rawValue: Defaults[terminalApplicationKey]) ?? .terminal
     syncFavoritesToICloud = Defaults[syncFavoritesToICloudKey]
     searchEngine = SearchEngine(rawValue: Defaults[searchEngineKey]) ?? .builtIn
     searchIncludeSubfolders = Defaults[subfoldersKey]
