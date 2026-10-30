@@ -491,6 +491,10 @@ import UniformTypeIdentifiers
         disabledReason: { _ in "Open two panes side by side and wait for navigation to finish." },
         handler: { [weak self] in self?.openSync() }),
       AppCommand(
+        id: "commands.manageTools", title: "Manage Tools…", menuPath: ["Commands"],
+        isEnabled: { _ in true }, disabledReason: { _ in "" },
+        handler: { [weak self] in self?.settingsCoordinator.show(.tools) }),
+      AppCommand(
         id: "go.connect", title: "Connect…", menuPath: ["Go"],
         isEnabled: { $0.hasBrowserWindow },
         disabledReason: { _ in "Open the browser window first." },

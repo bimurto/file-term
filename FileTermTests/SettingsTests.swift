@@ -37,6 +37,8 @@ import Testing
     initial.detectAppOnDelete = false
     initial.compareTool = .vscode
     initial.syncFavoritesToICloud = true
+    let tool = UserTool(name: "Open", command: "open $SOURCE_SELECTION_PATHS", showInToolbar: true)
+    initial.tools = [tool]
     let favorite = FavoriteItem(name: "Docs", target: .local(path: "/Users/me/Documents"))
     initial.favorites = [.group(FavoriteGroup(name: "Work", items: [favorite]))]
     initial.searchEngine = .spotlight
@@ -53,12 +55,14 @@ import Testing
     #expect(!restored.detectAppOnDelete)
     #expect(restored.compareTool == .vscode)
     #expect(restored.syncFavoritesToICloud)
+    #expect(restored.tools == [tool])
     #expect(restored.favorites.allItems == [favorite])
     let fresh = UserDefaults(suiteName: "com.fileterm.tests.\(UUID())")!
     #expect(AppSettings(suite: fresh).detectAppOnDelete)
     #expect(AppSettings(suite: fresh).compareTool == .fileMerge)
     #expect(AppSettings(suite: fresh).favorites.isEmpty)
     #expect(!AppSettings(suite: fresh).syncFavoritesToICloud)
+    #expect(AppSettings(suite: fresh).tools.isEmpty)
     #expect(!restored.searchIncludeSubfolders)
     #expect(restored.shortcutOverrides["select.quick"]?.shortcut?.display == "⌘J")
   }

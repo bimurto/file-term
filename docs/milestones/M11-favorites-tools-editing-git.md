@@ -16,12 +16,12 @@
 - [ ] Settings › General › Sync Favorites to iCloud (default off) syncs only the favorites list, not file contents.
 
 ### M11.04 Tool list & editor
-- [ ] Settings › Tools or Commands › Manage Tools opens the tool list. Add opens the editor.
-- [ ] Editor fields: Name, Command, Run for every selected file, Enable for remote files, Show output, Show in Toolbar.
+- [x] Settings › Tools or Commands › Manage Tools opens the tool list. Add opens the editor.
+- [x] Editor fields: Name, Command, Run for every selected file, Enable for remote files, Show output, Show in Toolbar.
 
 ### M11.05 Tool placeholders
-- [ ] `$SOURCE_PATH`, `$TARGET_PATH`, `$SOURCE_SELECTION_PATHS`, `$TARGET_SELECTION_PATHS`, `$SOURCE_SELECTION_NAMES`, `$TARGET_SELECTION_NAMES`. Each has an insert button.
-- [ ] Paths are shell-quoted automatically. Unit tests cover spaces, quotes and Unicode.
+- [x] `$SOURCE_PATH`, `$TARGET_PATH`, `$SOURCE_SELECTION_PATHS`, `$TARGET_SELECTION_PATHS`, `$SOURCE_SELECTION_NAMES`, `$TARGET_SELECTION_NAMES`. Each has an insert button.
+- [x] Paths are shell-quoted automatically. Unit tests cover spaces, quotes and Unicode.
 
 ### M11.06 Tool execution & output
 - [ ] Tools run through the M07 queue, and the exit code is logged.
@@ -52,7 +52,7 @@ M11 ships in tickets, one commit each.
 |---|---|---|
 | T1 Favorites manager and remote paths | M11.01, M11.02 | Done |
 | T2 Sync Favorites setting | M11.03 | Setting only, sync deferred |
-| T3 Tool model, placeholders, editor | M11.04, M11.05 | Open |
+| T3 Tool model, placeholders, editor | M11.04, M11.05 | Done |
 | T4 Tool execution, output, toolbar | M11.06 | Open |
 | T5 External editors and Edit | M11.07 | Open |
 | T6 Remote editing | M11.08 | Open |
@@ -84,3 +84,22 @@ M11 ships in tickets, one commit each.
 - `FavoritesSyncPayload` (Core) is what would be synced: a version number and the favorites list,
   nothing else, so file contents can never be included. Data from a newer version is refused.
 - Also fixed: Settings › Shortcuts no longer lists the dynamic Go › Favorites entries.
+
+## T3 notes
+
+- Settings › Tools lists the tools with Add, Edit (or double-click) and Remove. Commands › Manage
+  Tools… opens that pane. The editor has Name, Command, Run for every selected file, Enable for
+  remote files, Show output and Show in Toolbar. Running the tools is T4; until then they are only
+  saved.
+- Each placeholder has an Insert button that appends it to the end of the command (the text field has
+  no cursor to insert at). Source is the active pane, target is the other pane.
+- Substituted paths and names are quoted as one literal shell word each (`'it'\''s'`), several are
+  space-separated, and a missing value becomes an empty string. The command is scanned once, so a
+  file named `$TARGET_PATH` is not expanded a second time. `$SOURCE_PATHS` or `$SOURCE_PATH_X` are
+  not placeholders and stay as written; `$SOURCE_PATH/x` works.
+- Run for every selected file gives one command line per selected item (the target selection is
+  unchanged) and none when nothing is selected.
+- Enable for remote files means the placeholders carry remote paths and the command runs on this Mac;
+  nothing is downloaded.
+- Unit tests quote spaces, single and double quotes, `$()` and backticks, backslashes and Unicode,
+  and check the result by having `/bin/sh` split it back into the original words.

@@ -71,6 +71,7 @@
 		D0CBCD4BB7CB0AF21DB557BB /* SyncDialogModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4E27DBCCE21F8A35D700D6A /* SyncDialogModel.swift */; };
 		D4A7FF4B5C491331FB0B8B08 /* FileOperationCoordinator+Delete.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */; };
 		D6737E253E9C71DDCF0DCD50 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E4E4D917C96AB62ABB605E /* AppSettings.swift */; };
+		DD346E9D754B46CFF3AB8E95 /* ToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCCBF8A61F63EF22A408EC5B /* ToolsSettingsView.swift */; };
 		DD35E4153C841353CCDE3C50 /* FileContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6827571BFC5023EDC064B80A /* FileContentView.swift */; };
 		DFCC78C4337AE4D04F9BAA70 /* QuickSelectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4824913277CA18B7327330 /* QuickSelectSheet.swift */; };
 		E0C0267BBCA80C1F7DFE1E53 /* SyncDialogModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C0D4372083B90963DAFBFA2 /* SyncDialogModelTests.swift */; };
@@ -182,6 +183,7 @@
 		CC95DBFA6B2D09F772E31575 /* FilePreviewContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewContentView.swift; sourceTree = "<group>"; };
 		CDCFB06361D11DA221744D7C /* PaneTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneTabBar.swift; sourceTree = "<group>"; };
 		D8039C31BEB9E425384F2870 /* Settings */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Settings; path = .build/vendor/Settings; sourceTree = SOURCE_ROOT; };
+		DCCBF8A61F63EF22A408EC5B /* ToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolsSettingsView.swift; sourceTree = "<group>"; };
 		E2B6D81AF101F9349284282D /* FileMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataService.swift; sourceTree = "<group>"; };
 		E4E27DBCCE21F8A35D700D6A /* SyncDialogModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDialogModel.swift; sourceTree = "<group>"; };
 		E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+Delete.swift"; sourceTree = "<group>"; };
@@ -261,6 +263,7 @@
 				0122B8F895C5A9B0D118027A /* SettingsCoordinator.swift */,
 				B400667AA697F5C52E7E4063 /* TerminalSettings.swift */,
 				FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */,
+				DCCBF8A61F63EF22A408EC5B /* ToolsSettingsView.swift */,
 				B66E12CCDC5F7B206027109D /* WorkspacePreferences.swift */,
 			);
 			path = Settings;
@@ -584,6 +587,7 @@
 				B542EAF76F646C05C5B84E80 /* TerminalSettings.swift in Sources */,
 				6ACB00332FDA81449303A2E8 /* TerminalSettingsView.swift in Sources */,
 				7167DDB43AC70112BD7ECB9A /* TerminalWorkspace.swift in Sources */,
+				DD346E9D754B46CFF3AB8E95 /* ToolsSettingsView.swift in Sources */,
 				AFB760582C984AEEE8B30D7E /* TransferPanels.swift in Sources */,
 				8E59ED63DDC1F9A07D2ED941 /* WorkspacePreferences.swift in Sources */,
 				C0C63815F6DBB38D1C6EC547 /* main.swift in Sources */,

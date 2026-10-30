@@ -40,6 +40,14 @@ private struct SettingsCategoryView: View {
   let registry: () -> CommandRegistry
   let selectCategory: (SettingsCategory) -> Void
 
+  private var paneHeight: CGFloat {
+    switch category {
+    case .terminal, .transfers, .general: 640
+    case .shortcuts, .tools: 480
+    default: 320
+    }
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack(spacing: 4) {
@@ -59,6 +67,8 @@ private struct SettingsCategoryView: View {
         TransfersSettingsView(settings: settings)
       } else if category == .terminal {
         TerminalSettingsView(settings: settings)
+      } else if category == .tools {
+        ToolsSettingsView(settings: settings)
       } else {
         Text("Settings for \(category.rawValue.lowercased()) will appear here.").foregroundStyle(
           .secondary)
@@ -68,8 +78,7 @@ private struct SettingsCategoryView: View {
     .padding(28)
     .frame(
       width: 660,
-      height: category == .terminal || category == .transfers
-        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 640 : 320)),
+      height: paneHeight,
       alignment: .topLeading
     )
     .onAppear { settings.selectedCategory = category.rawValue }
