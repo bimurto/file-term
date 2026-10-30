@@ -42,6 +42,27 @@ final class WorkspaceUITests: XCTestCase {
     capture(app, name: "M02 sortable list")
   }
 
+  @MainActor func testIconViewShowsFileSizeOnlyWhenTheOptionIsOn() throws {
+    let fixture = try WorkspaceFixture()
+    defer { fixture.remove() }
+    let app = fixture.launch()
+    defer { app.terminate() }
+    XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
+    app.buttons["view.asIcons"].click()
+    let grid = app.scrollViews["iconGrid"]
+    XCTAssertTrue(grid.waitForExistence(timeout: 5))
+    let label = grid.staticTexts["iconSize.small.txt"]
+    XCTAssertFalse(label.exists)
+    menu("View", command: "Show View Options", app: app)
+    let option = app.checkBoxes["viewOptionsIconSize"]
+    XCTAssertTrue(option.waitForExistence(timeout: 5))
+    option.click()
+    app.buttons["Apply"].click()
+    XCTAssertTrue(label.waitForExistence(timeout: 5))
+    XCTAssertFalse(grid.staticTexts["iconSize.Child"].exists)
+    capture(app, name: "M14 icon size labels")
+  }
+
   @MainActor func testMoveTabToOtherPaneShowsThePaneAndKeepsATabBehind() throws {
     let fixture = try WorkspaceFixture()
     defer { fixture.remove() }

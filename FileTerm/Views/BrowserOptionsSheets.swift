@@ -43,6 +43,8 @@ struct ViewOptionsSheet: View {
       Picker("Group by", selection: $options.groupField) {
         ForEach(FileGroupField.allCases, id: \.self) { Text($0.rawValue).tag($0) }
       }
+      Toggle("Show File Size in Icon View", isOn: $options.showsIconSize)
+        .accessibilityIdentifier("viewOptionsIconSize")
       HStack {
         Button("Save View Settings as Defaults") { pane.viewPreferences.defaults = options }
         Button("Restore Defaults") { options = pane.viewPreferences.defaults }

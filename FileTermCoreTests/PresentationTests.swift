@@ -51,6 +51,21 @@ import Testing
     #expect(groups.first { $0.title == "No Tags" }?.entries.map(\.name) == ["untagged"])
   }
 
+  @Test func viewOptionsSavedBeforeTheIconSizeOptionStillDecode() throws {
+    let saved = #"{"mode":"Icons","sortField":"Size","descending":true,"groupField":"None"}"#
+    let options = try JSONDecoder().decode(ViewOptions.self, from: Data(saved.utf8))
+    #expect(options.mode == .icons)
+    #expect(options.sortField == .size)
+    #expect(!options.showsIconSize)
+  }
+
+  @Test func iconSizeOptionSurvivesARoundTrip() throws {
+    var options = ViewOptions()
+    options.showsIconSize = true
+    let data = try JSONEncoder().encode(options)
+    #expect(try JSONDecoder().decode(ViewOptions.self, from: data).showsIconSize)
+  }
+
   @Test func folderAndTabViewOptionsHaveExplicitIndependentScopes() async {
     let preferences = ViewPreferences()
     let provider = LocalFileSystemProvider()

@@ -14,7 +14,7 @@
   - A built-in session opened before the lookup finishes starts with the inherited PATH. With Login Shell on, its own startup files still set PATH.
 
 ### M14.03 Icon view file-size info (4.7.2)
-- [ ] Optional size label under icons.
+- [x] Optional size label under icons.
 
 ### M14.04 Icon view navigation & selection improvements (4.7.3)
 - [ ] Arrow keys move through the grid, type-to-select works, and rubber-band selection works.

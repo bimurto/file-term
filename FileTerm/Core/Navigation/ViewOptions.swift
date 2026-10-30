@@ -42,6 +42,12 @@ public struct ViewOptions: Codable, Equatable, Sendable {
   public var sortField: FileSortField = .name
   public var descending = false
   public var groupField: FileGroupField = .none
+  /// Optional so settings saved before this option existed still decode.
+  private var iconSizeLabel: Bool?
+  public var showsIconSize: Bool {
+    get { iconSizeLabel ?? false }
+    set { iconSizeLabel = newValue }
+  }
   public init() {}
   public var order: EntryOrder {
     EntryOrder(field: sortField, order: descending ? .reverse : .forward)

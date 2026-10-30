@@ -131,6 +131,11 @@ struct FileContentView: View {
                 FileIcon(entry: entry, localProvider: provider, size: 48)
                 InlineFileName(pane: pane, entry: entry)
                   .font(.callout).lineLimit(2).multilineTextAlignment(.center)
+                if pane.viewOptions.showsIconSize, let size = entry.size {
+                  Text(size.formatted(.byteCount(style: .file)))
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    .accessibilityIdentifier("iconSize.\(entry.name)")
+                }
               }
               .opacity(entry.isHidden ? 0.5 : 1)
               .padding(8).frame(maxWidth: .infinity, minHeight: 88)
