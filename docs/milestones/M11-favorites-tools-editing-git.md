@@ -24,9 +24,9 @@
 - [x] Paths are shell-quoted automatically. Unit tests cover spaces, quotes and Unicode.
 
 ### M11.06 Tool execution & output
-- [ ] Tools run through the M07 queue, and the exit code is logged.
-- [ ] When Show output is on, stdout and stderr appear in a panel.
-- [ ] When Show in Toolbar is on, the tool gets a toolbar button.
+- [x] Tools run through the M07 queue, and the exit code is logged.
+- [x] When Show output is on, stdout and stderr appear in a panel.
+- [x] When Show in Toolbar is on, the tool gets a toolbar button.
 
 ### M11.07 External editors
 - [ ] Settings › Editing: a table mapping Application to Extensions, with Add, Edit and Remove.
@@ -53,7 +53,7 @@ M11 ships in tickets, one commit each.
 | T1 Favorites manager and remote paths | M11.01, M11.02 | Done |
 | T2 Sync Favorites setting | M11.03 | Setting only, sync deferred |
 | T3 Tool model, placeholders, editor | M11.04, M11.05 | Done |
-| T4 Tool execution, output, toolbar | M11.06 | Open |
+| T4 Tool execution, output, toolbar | M11.06 | Done |
 | T5 External editors and Edit | M11.07 | Open |
 | T6 Remote editing | M11.08 | Open |
 | T7 Open in Terminal | M11.09 | Open |
@@ -103,3 +103,25 @@ M11 ships in tickets, one commit each.
   nothing is downloaded.
 - Unit tests quote spaces, single and double quotes, `$()` and backticks, backslashes and Unicode,
   and check the result by having `/bin/sh` split it back into the original words.
+
+## T4 notes
+
+- Tools appear in Commands › Tools (and in Quick Open, and Settings › Shortcuts so each can get a
+  shortcut). A tool runs as `/bin/sh -c <command>` in the active pane's folder, or in your home folder
+  when that pane is remote, as a queue job of kind `tool`.
+- The Logs panel gets `$ <command>` and `Exit code N` per command line. A nonzero exit fails the job
+  and the Activities row says which code. Tool jobs are never retried automatically or with Retry,
+  because rerunning an arbitrary command is not known to be safe. Cancel stops the running process.
+- Show output opens a window with each command, its exit code, and output and error sections
+  (Copy All, Close). It opens after the run, also when the run failed. Output is not streamed while
+  the tool runs.
+- Show in Toolbar adds a hammer button after the toolbar items. Tools are never added to the saved
+  toolbar list, so a removed tool leaves no stale button.
+- A tool is disabled, with the reason as its tooltip and in Quick Open, when: no folder is open; either
+  pane is remote and Enable for remote files is off; either pane is an archive opened as a folder;
+  or Run for every selected file has no selection.
+- `ProcessRunner.capture` is new in Core: it returns the exit status with stdout and stderr and does
+  not throw on a nonzero exit. `run` now shares its launch code and behaves as before.
+- Not done: the output window and toolbar button have not been driven by hand on the desktop. Tests
+  run real commands through the queue (exit codes, per-file runs, working folder) and check the
+  availability rules.

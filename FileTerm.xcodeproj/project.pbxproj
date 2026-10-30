@@ -13,11 +13,14 @@
 		074711FF0D2CC6E0781A7227 /* FindViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D936515409AB2666405C875 /* FindViews.swift */; };
 		09AE73DE335BB7469202CBC1 /* TerminalAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26623D2ABD49E2F4BECAA88A /* TerminalAppearance.swift */; };
 		0ADE56F5828DAB4C06FFB391 /* TerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAC7EA62B360BBB0ACC872D4 /* TerminalSession.swift */; };
+		0EB6C6CDCED96D50B7D07304 /* ToolRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 290EEAB6AB3269418C4A0B76 /* ToolRunnerTests.swift */; };
 		113103D4001DF21BBAFFCB20 /* FilePreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD263E41E833AB5F62AAF16 /* FilePreviewTests.swift */; };
 		1C34AD5694162051175CABBC /* SettingsCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0122B8F895C5A9B0D118027A /* SettingsCoordinator.swift */; };
 		1D8E69565519D69D208A668F /* FileOperationCoordinator+Archive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50FB4E30DB9AB84C96291389 /* FileOperationCoordinator+Archive.swift */; };
 		1E52A1D9E47C6454425C80CE /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 81E91E9836F1A4F5108406A0 /* SwiftTerm */; };
 		22A886D65BD71701A76AB3F7 /* NavigationDestinations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F492528D3BBB620AF0027AE /* NavigationDestinations.swift */; };
+		27357B070C113EC265B6C8C0 /* ToolOutputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0434095DC5F7CEED5924D81 /* ToolOutputView.swift */; };
+		274D67013D88779B90392450 /* ToolRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42218E795028D6A4E208570A /* ToolRunner.swift */; };
 		2AC4CAEEF8BC9C4643C14BF4 /* WorkspaceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D98A92C51E28C5FD1E624D /* WorkspaceUITests.swift */; };
 		2C95ABE84CAC97727F1F9339 /* FileUtilityCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2666F238C7CE71B029499F /* FileUtilityCoordinatorTests.swift */; };
 		2E3DB07F62E81AC2A4A20AB3 /* NavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E585BAF91DA75E7AD5FD9FC /* NavigationTests.swift */; };
@@ -131,12 +134,14 @@
 		252E1CD5E5C248D1EC458280 /* file-term */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "file-term"; path = .; sourceTree = SOURCE_ROOT; };
 		26623D2ABD49E2F4BECAA88A /* TerminalAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAppearance.swift; sourceTree = "<group>"; };
 		27BBD3EF0F116BA68E15A6D9 /* FileOperationCoordinator+AppCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+AppCleanup.swift"; sourceTree = "<group>"; };
+		290EEAB6AB3269418C4A0B76 /* ToolRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRunnerTests.swift; sourceTree = "<group>"; };
 		2B4824913277CA18B7327330 /* QuickSelectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickSelectSheet.swift; sourceTree = "<group>"; };
 		2BABF00EED1917EF1D260D5B /* TerminalAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAppearanceTests.swift; sourceTree = "<group>"; };
 		318F0B726DA72CF0222E29BE /* ThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyNotices.txt; sourceTree = "<group>"; };
 		33F39962B92332D44523EA91 /* NavigationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationUITests.swift; sourceTree = "<group>"; };
 		3DCF4596403D71569EE5B325 /* BatchRenameSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameSheet.swift; sourceTree = "<group>"; };
 		3E585BAF91DA75E7AD5FD9FC /* NavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationTests.swift; sourceTree = "<group>"; };
+		42218E795028D6A4E208570A /* ToolRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRunner.swift; sourceTree = "<group>"; };
 		428D6D3D2B07B2292ADA3A7F /* TerminalUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalUITests.swift; sourceTree = "<group>"; };
 		45D98A92C51E28C5FD1E624D /* WorkspaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceUITests.swift; sourceTree = "<group>"; };
 		4C6CBA69BBC5D272647D9C74 /* TerminalSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSettingsTests.swift; sourceTree = "<group>"; };
@@ -177,6 +182,7 @@
 		B98E91790BC2F7B34EDD9BAF /* SpotlightSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightSearch.swift; sourceTree = "<group>"; };
 		BAC7EA62B360BBB0ACC872D4 /* TerminalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSession.swift; sourceTree = "<group>"; };
 		BC9B9B059725474C49FC714E /* FileUtilityViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilityViews.swift; sourceTree = "<group>"; };
+		C0434095DC5F7CEED5924D81 /* ToolOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolOutputView.swift; sourceTree = "<group>"; };
 		C0FFAE2CA84D542DEB0E1F9E /* TerminalWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalWorkspace.swift; sourceTree = "<group>"; };
 		C1DC0CE81A8B6F13514020EE /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
 		C6D6CB0E08251975EA3DF929 /* InlineFileName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFileName.swift; sourceTree = "<group>"; };
@@ -290,6 +296,7 @@
 				A6D449AF50B7F247929B7125 /* QuickOpenSheet.swift */,
 				2B4824913277CA18B7327330 /* QuickSelectSheet.swift */,
 				15266C4B6E11700326BB9AE5 /* SyncSheet.swift */,
+				C0434095DC5F7CEED5924D81 /* ToolOutputView.swift */,
 				15A6ED8996680BB41D7ACCC7 /* TransferPanels.swift */,
 			);
 			path = Views;
@@ -371,6 +378,7 @@
 				4D483E6A7975E0538C696081 /* FolderWatcher.swift */,
 				B98E91790BC2F7B34EDD9BAF /* SpotlightSearch.swift */,
 				E4E27DBCCE21F8A35D700D6A /* SyncDialogModel.swift */,
+				42218E795028D6A4E208570A /* ToolRunner.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -392,6 +400,7 @@
 				2BABF00EED1917EF1D260D5B /* TerminalAppearanceTests.swift */,
 				4C6CBA69BBC5D272647D9C74 /* TerminalSettingsTests.swift */,
 				55A79DEB4A1BB4855A9BB6CF /* TerminalWorkspaceTests.swift */,
+				290EEAB6AB3269418C4A0B76 /* ToolRunnerTests.swift */,
 				96E96F788AE8C30380683520 /* TransferSettingsTests.swift */,
 				5CBF3DED2BF5ED2BA7E37C1F /* WorkspaceSettingsTests.swift */,
 			);
@@ -587,6 +596,8 @@
 				B542EAF76F646C05C5B84E80 /* TerminalSettings.swift in Sources */,
 				6ACB00332FDA81449303A2E8 /* TerminalSettingsView.swift in Sources */,
 				7167DDB43AC70112BD7ECB9A /* TerminalWorkspace.swift in Sources */,
+				27357B070C113EC265B6C8C0 /* ToolOutputView.swift in Sources */,
+				274D67013D88779B90392450 /* ToolRunner.swift in Sources */,
 				DD346E9D754B46CFF3AB8E95 /* ToolsSettingsView.swift in Sources */,
 				AFB760582C984AEEE8B30D7E /* TransferPanels.swift in Sources */,
 				8E59ED63DDC1F9A07D2ED941 /* WorkspacePreferences.swift in Sources */,
@@ -612,6 +623,7 @@
 				9DD92ECB33362C291012F843 /* TerminalAppearanceTests.swift in Sources */,
 				06848AFC40645EE18B15A53E /* TerminalSettingsTests.swift in Sources */,
 				E548625D89A7AC5F0CD0A0CA /* TerminalWorkspaceTests.swift in Sources */,
+				0EB6C6CDCED96D50B7D07304 /* ToolRunnerTests.swift in Sources */,
 				C07D13270FD5220EC288DCB3 /* TransferSettingsTests.swift in Sources */,
 				99862C75872DC14F09BEA893 /* WorkspaceSettingsTests.swift in Sources */,
 			);

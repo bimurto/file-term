@@ -105,7 +105,7 @@ import SwiftUI
   }
 }
 
-@MainActor private final class FileUtilityWindowController: NSWindowController, NSWindowDelegate {
+@MainActor final class FileUtilityWindowController: NSWindowController, NSWindowDelegate {
   var onClose: (@MainActor () -> Void)?
 
   init(title: String) {

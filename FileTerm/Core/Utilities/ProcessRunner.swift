@@ -46,12 +46,51 @@ public enum ProcessRunner {
     }
   }
 
+  public struct Output: Sendable {
+    public let status: Int32
+    public let stdout: String
+    public let stderr: String
+  }
+
+  private struct Finished: Sendable {
+    let status: Int32
+    let stdout: Data
+    let stderr: Data
+  }
+
   /// Returns standard output. A nonzero exit throws `Failure` carrying the tool's standard error.
   /// Cancelling the calling task terminates the process.
   @discardableResult
   public static func run(
     _ executable: String, _ arguments: [String], environment: [String: String] = [:]
   ) async throws -> Data {
+    let finished = try await execute(executable, arguments, environment: environment)
+    guard finished.status == 0 else {
+      let text = String(decoding: finished.stderr, as: UTF8.self)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      throw Failure(
+        tool: (executable as NSString).lastPathComponent, status: finished.status, message: text)
+    }
+    return finished.stdout
+  }
+
+  /// Returns the exit status with both output streams; a nonzero exit is not an error. Throws only
+  /// if the process cannot start, or `CancellationError` once the calling task is cancelled (the
+  /// process is terminated first).
+  public static func capture(
+    _ executable: String, _ arguments: [String], directory: String? = nil
+  ) async throws -> Output {
+    let finished = try await execute(executable, arguments, directory: directory)
+    try Task.checkCancellation()
+    return Output(
+      status: finished.status, stdout: String(decoding: finished.stdout, as: UTF8.self),
+      stderr: String(decoding: finished.stderr, as: UTF8.self))
+  }
+
+  private static func execute(
+    _ executable: String, _ arguments: [String], environment: [String: String] = [:],
+    directory: String? = nil
+  ) async throws -> Finished {
     let handle = Handle()
     return try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
@@ -64,6 +103,7 @@ public enum ProcessRunner {
           process.standardOutput = output
           process.standardError = errors
           process.standardInput = FileHandle.nullDevice
+          if let directory { process.currentDirectoryURL = URL(fileURLWithPath: directory) }
           if !environment.isEmpty {
             process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
           }
@@ -82,16 +122,9 @@ public enum ProcessRunner {
           let data = (try? output.fileHandleForReading.readToEnd()) ?? Data()
           group.wait()
           process.waitUntilExit()
-          if process.terminationStatus == 0 {
-            continuation.resume(returning: data)
-          } else {
-            let text = String(decoding: errorData.get(), as: UTF8.self)
-              .trimmingCharacters(in: .whitespacesAndNewlines)
-            continuation.resume(
-              throwing: Failure(
-                tool: (executable as NSString).lastPathComponent,
-                status: process.terminationStatus, message: text))
-          }
+          continuation.resume(
+            returning: Finished(
+              status: process.terminationStatus, stdout: data, stderr: errorData.get()))
         }
       }
     } onCancel: {

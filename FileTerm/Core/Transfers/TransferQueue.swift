@@ -7,7 +7,7 @@ public enum TransferJobState: String, Sendable {
 }
 
 public enum TransferJobKind: String, Sendable {
-  case copy, move, rename, delete, compress, extract, create, duplicate, open, undo, redo
+  case copy, move, rename, delete, compress, extract, create, duplicate, open, undo, redo, tool
 }
 
 public struct PartialTransferError: Error, LocalizedError, Sendable {

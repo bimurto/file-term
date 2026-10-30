@@ -31,6 +31,7 @@ import UniformTypeIdentifiers
   private let fileOperations = FileOperationCoordinator()
   private let filePreviews = FilePreviewCoordinator()
   private let fileUtilities = FileUtilityCoordinator()
+  private lazy var toolRunner = ToolRunner(fileOperations: fileOperations)
 
   /// The browser window is in front with no dialog on top (Quick Open counts as part of the browser).
   private var browserIsFront: Bool {
@@ -68,7 +69,7 @@ import UniformTypeIdentifiers
     commands: makeCommands(),
     dynamicCommands: { [unowned self] in
       recentCommands() + connectionCommands() + favoriteCommands() + syncFavoriteCommands()
-        + openWithCommands()
+        + toolCommands() + openWithCommands()
     },
     shortcutOverrides: settings.shortcutOverrides,
     context: { [unowned self] in
@@ -1041,6 +1042,44 @@ import UniformTypeIdentifiers
           disabledReason: { _ in "Use Go › Manage Favorites… to add one." }, handler: {}))
     }
     return result
+  }
+
+  /// Commands › Tools: one entry per user tool, available by the tool's own rules.
+  private func toolCommands() -> [AppCommand] {
+    settings.tools.map { tool in
+      AppCommand(
+        id: "tools.run.\(tool.id)", title: tool.name, menuPath: ["Commands", "Tools"],
+        isEnabled: { [weak self] context in
+          guard let self else { return false }
+          return browserIsFront && context.hasBrowserWindow && !context.isLoading
+            && toolDisabledReason(tool) == nil
+        },
+        disabledReason: { [weak self] context in
+          guard let self else { return "" }
+          if !context.hasBrowserWindow { return "Open the browser window first." }
+          if context.isLoading { return "Wait for navigation to finish." }
+          return toolDisabledReason(tool) ?? ""
+        },
+        handler: { [weak self] in
+          guard let self, let source = browser.activePane.location else { return }
+          let pane = browser.activePane
+          let target = browser.targetPane
+          toolRunner.run(
+            tool,
+            context: ToolCommandBuilder.Context(
+              sourcePath: source.path, targetPath: target?.location?.path,
+              sourceSelection: pane.selectedEntries.map(\.location.path),
+              targetSelection: target?.selectedEntries.map(\.location.path) ?? []),
+            source: source)
+        })
+    }
+  }
+
+  private func toolDisabledReason(_ tool: UserTool) -> String? {
+    let pane = browser.activePane
+    return ToolRunner.disabledReason(
+      for: tool, source: pane.location, target: browser.targetPane?.location,
+      selectionCount: pane.selection.count)
   }
 
   private func syncFavoriteCommands() -> [AppCommand] {

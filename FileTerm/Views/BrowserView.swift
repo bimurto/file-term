@@ -233,6 +233,9 @@ struct BrowserView: View {
         { id in
           commandButton(id, symbol: ToolbarSymbols.symbol(for: id))
         }
+        ForEach(settings.tools.filter(\.showInToolbar)) { tool in
+          commandButton("tools.run.\(tool.id)", symbol: "hammer")
+        }
         Spacer(minLength: 0)
         Toggle(
           "Show hidden",
