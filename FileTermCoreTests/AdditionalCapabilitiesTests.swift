@@ -38,7 +38,8 @@ struct DropboxLinksTests {
     #expect(request.url?.scheme == "https")
     #expect(request.url?.host == "api.dropboxapi.com")
     #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer secret")
-    let body = try JSONSerialization.jsonObject(with: #require(request.httpBody)) as? [String: String]
+    let body =
+      try JSONSerialization.jsonObject(with: #require(request.httpBody)) as? [String: String]
     #expect(body == ["path": "/a “b”.txt"])
   }
 

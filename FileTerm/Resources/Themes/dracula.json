@@ -1,0 +1,10 @@
+{
+  "id": "dracula",
+  "name": "Dracula",
+  "order": 5,
+  "appearance": "dark",
+  "accent": "#BD93F9",
+  "background": "#282A36",
+  "sidebar": "#21222C",
+  "foreground": "#F8F8F2"
+}

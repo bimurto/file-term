@@ -30,7 +30,8 @@ public enum DropboxLinks {
 
   /// Every Dropbox folder the desktop app has set up for the current user.
   public static func installedRoots(home: String = NSHomeDirectory()) -> [String] {
-    let info = (try? Data(contentsOf: URL(fileURLWithPath: home + "/.dropbox/info.json")))
+    let info =
+      (try? Data(contentsOf: URL(fileURLWithPath: home + "/.dropbox/info.json")))
       .map(roots(infoJSON:)) ?? []
     let cloudStorage = home + "/Library/CloudStorage"
     let providers = ((try? FileManager.default.contentsOfDirectory(atPath: cloudStorage)) ?? [])

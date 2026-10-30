@@ -1,0 +1,10 @@
+{
+  "id": "sand",
+  "name": "Sand",
+  "order": 7,
+  "appearance": "light",
+  "accent": "#B5793A",
+  "background": "#F7F1E3",
+  "sidebar": "#EDE4CF",
+  "foreground": "#3B3224"
+}

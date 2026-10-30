@@ -1,0 +1,10 @@
+{
+  "id": "commander",
+  "name": "Commander",
+  "order": 6,
+  "appearance": "dark",
+  "accent": "#00C2C2",
+  "background": "#000080",
+  "sidebar": "#00006A",
+  "foreground": "#E8E8E8"
+}

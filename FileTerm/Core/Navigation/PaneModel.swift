@@ -54,6 +54,8 @@ import Observation
     (@Sendable (SearchQuery, Location) async throws -> [FileEntry])?
   public private(set) var isLoading = false
   public private(set) var errorMessage: String?
+  /// The folder macOS or a server refused to open, while `errorMessage` describes that refusal.
+  public private(set) var deniedLocation: Location?
   public private(set) var navigationRevision = UUID()
   private var history: [Location] = []
   private var historyIndex = -1
@@ -197,11 +199,12 @@ import Observation
 
   // MARK: Search (a separate result scope; the folder underneath is untouched)
 
-  public func search(_ query: SearchQuery) async {
-    guard let root = location else { return }
+  /// Searches `root`, or else the open scope's root or the current folder.
+  public func search(_ query: SearchQuery, root requestedRoot: Location? = nil) async {
+    guard let root = requestedRoot ?? searchScope?.root ?? location else { return }
     searchTask?.cancel()
     if searchScope == nil { folderSelection = selection }
-    var scope = SearchScope(query: query, root: searchScope?.root ?? root)
+    var scope = SearchScope(query: query, root: root)
     scope.isRunning = !query.isEmpty
     searchScope = scope
     selection = []
@@ -265,6 +268,7 @@ import Observation
     navigationRevision = request
     isLoading = true
     errorMessage = nil
+    deniedLocation = nil
     do {
       guard let provider = registry.provider(for: destination.providerID) else {
         throw FileSystemError.unsupportedOperation
@@ -307,6 +311,7 @@ import Observation
       guard navigationRevision == request else { return false }
       isLoading = false
       if !(error is CancellationError) { errorMessage = error.localizedDescription }
+      if error as? FileSystemError == .permissionDenied { deniedLocation = destination }
       return false
     }
   }

@@ -46,8 +46,8 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
 }
 
 enum BrowserChrome: String, CaseIterable {
-  case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders, workspaces
-  case iCloudDrive
+  case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders, tags
+  case workspaces, iCloudDrive
   var title: String {
     switch self {
     case .pathBar: "Path Bar"
@@ -58,6 +58,7 @@ enum BrowserChrome: String, CaseIterable {
     case .sidebar: "Sidebar"
     case .tabBar: "Tab Bar"
     case .recentFolders: "Recent Folders"
+    case .tags: "Tags"
     case .workspaces: "Workspaces"
     case .iCloudDrive: "iCloud Drive"
     }
@@ -66,6 +67,7 @@ enum BrowserChrome: String, CaseIterable {
   static func forSidebarSection(_ section: String) -> BrowserChrome {
     switch section {
     case "devices": .devices
+    case "tags": .tags
     case "workspaces": .workspaces
     case "iCloudDrive": .iCloudDrive
     default: .recentFolders
@@ -117,6 +119,27 @@ enum BrowserChrome: String, CaseIterable {
     didSet { Defaults[favoritesImportOfferedKey] = favoritesImportOffered }
   }
   @ObservationIgnored private let favoritesImportOfferedKey: Defaults.Key<Bool>
+  var tags: [FileTag] {
+    didSet { Defaults[tagsKey] = (try? JSONEncoder().encode(tags)) ?? Data() }
+  }
+  var themeID: String {
+    didSet { Defaults[themeKey] = themeID }
+  }
+  var askBeforeDrag: Bool {
+    didSet { Defaults[askBeforeDragKey] = askBeforeDrag }
+  }
+  var automaticUpdateChecks: Bool {
+    didSet { Defaults[automaticUpdateChecksKey] = automaticUpdateChecks }
+  }
+  var onboardingShown: Bool {
+    didSet { Defaults[onboardingShownKey] = onboardingShown }
+  }
+  var theme: AppTheme { AppTheme.theme(id: themeID, in: ThemeLibrary.themes) }
+  @ObservationIgnored private let tagsKey: Defaults.Key<Data>
+  @ObservationIgnored private let themeKey: Defaults.Key<String>
+  @ObservationIgnored private let askBeforeDragKey: Defaults.Key<Bool>
+  @ObservationIgnored private let automaticUpdateChecksKey: Defaults.Key<Bool>
+  @ObservationIgnored private let onboardingShownKey: Defaults.Key<Bool>
   @ObservationIgnored private let editorsKey: Defaults.Key<Data>
   @ObservationIgnored private let toolsKey: Defaults.Key<Data>
   @ObservationIgnored private let favoritesKey: Defaults.Key<Data>
@@ -197,6 +220,16 @@ enum BrowserChrome: String, CaseIterable {
   @ObservationIgnored private let categoryKey: Defaults.Key<String>
 
   init(suite: UserDefaults = .standard) {
+    tagsKey = Defaults.Key("tags", default: Data(), suite: suite)
+    tags = (try? JSONDecoder().decode([FileTag].self, from: Defaults[tagsKey])) ?? FileTag.defaults
+    themeKey = Defaults.Key("theme", default: AppTheme.defaultID, suite: suite)
+    themeID = Defaults[themeKey]
+    askBeforeDragKey = Defaults.Key("askBeforeDrag", default: false, suite: suite)
+    askBeforeDrag = Defaults[askBeforeDragKey]
+    automaticUpdateChecksKey = Defaults.Key("automaticUpdateChecks", default: false, suite: suite)
+    automaticUpdateChecks = Defaults[automaticUpdateChecksKey]
+    onboardingShownKey = Defaults.Key("onboardingShown", default: false, suite: suite)
+    onboardingShown = Defaults[onboardingShownKey]
     transfersKey = Defaults.Key("transferPreferences", default: Data(), suite: suite)
     transfers =
       (try? JSONDecoder().decode(TransferPreferences.self, from: Defaults[transfersKey]))
@@ -212,7 +245,8 @@ enum BrowserChrome: String, CaseIterable {
     savedWorkspaces =
       (try? JSONDecoder().decode([SavedWorkspace].self, from: Defaults[savedWorkspacesKey])) ?? []
     previousFileViewerKey = Defaults.Key("previousFileViewer", default: "", suite: suite)
-    previousFileViewer = Defaults[previousFileViewerKey].isEmpty ? nil : Defaults[previousFileViewerKey]
+    previousFileViewer =
+      Defaults[previousFileViewerKey].isEmpty ? nil : Defaults[previousFileViewerKey]
     favoritesImportOfferedKey = Defaults.Key("favoritesImportOffered", default: false, suite: suite)
     favoritesImportOffered = Defaults[favoritesImportOfferedKey]
     editorsKey = Defaults.Key("editors", default: Data(), suite: suite)
@@ -279,6 +313,8 @@ enum BrowserChrome: String, CaseIterable {
       (try? JSONDecoder().decode([String: ShortcutOverride].self, from: Defaults[shortcutsKey]))
       ?? [:]
     selectedCategory = Defaults[categoryKey]
+    // Sidebars saved before the Tags section existed still show it.
+    if !workspace.sidebarOrder.contains("tags") { workspace.sidebarOrder.append("tags") }
     viewPreferences.showHidden = showHidden
     viewPreferences.onChange = { [weak self] in
       guard let self else { return }
@@ -290,7 +326,8 @@ enum BrowserChrome: String, CaseIterable {
 
   /// Saves under `name`. A workspace with the same name, ignoring case, is replaced in place.
   func saveWorkspace(named name: String, windows: [WindowSnapshot]) {
-    if let index = savedWorkspaces.firstIndex(where: { $0.name.lowercased() == name.lowercased() }) {
+    if let index = savedWorkspaces.firstIndex(where: { $0.name.lowercased() == name.lowercased() })
+    {
       savedWorkspaces[index].name = name
       savedWorkspaces[index].windows = windows
     } else {

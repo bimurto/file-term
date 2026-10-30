@@ -48,7 +48,7 @@ struct BrowserView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(.background)
+    .modifier(ThemedBrowser(theme: settings.theme))
     .frame(minWidth: 680, minHeight: 420)
     .onChange(of: settings.transfers, initial: true) { _, value in
       transfers.preferences = value
@@ -366,6 +366,21 @@ struct BrowserView: View {
             }
           }
         }
+        if section == "tags" && settings.isVisible(.tags) {
+          Section("Tags") {
+            ForEach(settings.tags) { tag in
+              Button {
+                showFiles(tagged: tag)
+              } label: {
+                Label {
+                  Text(tag.name).lineLimit(1)
+                } icon: {
+                  Circle().fill(tag.color.swatch).frame(width: 10, height: 10)
+                }
+              }.buttonStyle(.plain).accessibilityIdentifier("sidebarTag.\(tag.name)")
+            }
+          }
+        }
         if section == "iCloudDrive" && settings.isVisible(.iCloudDrive)
           && FileManager.default.fileExists(atPath: FavoriteItem.iCloudDrivePath)
         {
@@ -401,12 +416,36 @@ struct BrowserView: View {
           }
         }
       }
-    }.listStyle(.sidebar).accessibilityIdentifier("navigationSidebar")
+    }
+    .listStyle(.sidebar)
+    .background(Color(themeHex: settings.theme.sidebar) ?? .clear)
+    .accessibilityIdentifier("navigationSidebar")
   }
 
   private func open(_ location: Location) {
     let id = browser.activePaneID
     Task { await browser.navigate(to: location, in: id) }
+  }
+
+  /// Lists every local file with the tag, using Spotlight, as a closeable result scope.
+  private func showFiles(tagged tag: FileTag) {
+    let id = browser.activePaneID
+    let provider = localProvider
+    let includeHidden = settings.showHidden
+    Task {
+      if browser.pane(id).location?.providerID != provider.id {
+        let home = provider.location(for: FileManager.default.homeDirectoryForCurrentUser)
+        await browser.navigate(to: home, in: id)
+      }
+      let pane = browser.pane(id)
+      pane.spotlightRunner = { search, root in
+        try await SpotlightSearch.run(search, in: root, provider: provider).filter(tag.isOn)
+      }
+      let query = SearchQuery(
+        text: tag.name, matchName: false, matchTag: true, includeHidden: includeHidden,
+        engine: .spotlight)
+      await pane.search(query, root: Location(providerID: provider.id, path: "/"))
+    }
   }
 
   private func volumeInfo(_ volume: MountedVolume) -> String {
@@ -463,10 +502,20 @@ private struct BrowserPaneView: View {
         Divider()
       }
       if let error = pane.errorMessage {
-        Label(error, systemImage: "exclamationmark.triangle")
+        HStack {
+          Label(
+            deniedPermission.map { permissionMessage($0) } ?? error,
+            systemImage: "exclamationmark.triangle"
+          )
           .font(.callout).foregroundStyle(.secondary)
-          .padding(8).frame(maxWidth: .infinity, alignment: .leading)
           .accessibilityIdentifier("navigationError")
+          Spacer(minLength: 0)
+          if let permission = deniedPermission {
+            Button("Open System Settings") { NSWorkspace.shared.open(permission.settingsURL) }
+              .controlSize(.small).accessibilityIdentifier("openPermissionSettings")
+          }
+        }
+        .padding(8).frame(maxWidth: .infinity, alignment: .leading)
         Divider()
       }
       SearchResultsBanner(pane: pane)
@@ -485,6 +534,19 @@ private struct BrowserPaneView: View {
     .accessibilityIdentifier("pane.\(paneID.rawValue)")
     .accessibilityValue(browser.activePaneID == paneID ? "Active" : "Inactive")
     .task(id: pane.location) { await status.update(for: pane.location, service: volumeService) }
+  }
+
+  /// Only local folders are guarded by macOS permissions; a server's refusal has no setting here.
+  private var deniedPermission: SystemPermission? {
+    guard let denied = pane.deniedLocation, denied.providerID == localProvider.id else {
+      return nil
+    }
+    return SystemPermission.required(forPath: denied.path)
+  }
+
+  private func permissionMessage(_ permission: SystemPermission) -> String {
+    "macOS denied access to \(pane.deniedLocation?.path ?? "this folder"). "
+      + "FileTerm needs the \(permission.title) permission."
   }
 
   private var statusBar: some View {
@@ -527,6 +589,14 @@ private struct BrowserPaneView: View {
   private var fileList: some View {
     FileContentView(pane: pane, paneID: paneID, browser: browser, provider: localProvider)
       .id(pane.id)
+      .dropDestination(for: URL.self) { urls, _ in
+        let files = urls.filter(\.isFileURL)
+        guard !files.isEmpty, pane.location != nil, pane.searchScope == nil else { return false }
+        NotificationCenter.default.post(
+          name: .fileTermDropFiles, object: pane,
+          userInfo: ["urls": files, "optionPressed": NSEvent.modifierFlags.contains(.option)])
+        return true
+      }
   }
 }
 
@@ -574,4 +644,5 @@ extension Notification.Name {
   static let fileTermRenamePreset = Notification.Name("FileTerm.renamePreset")
   static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")
   static let fileTermFind = Notification.Name("FileTerm.find")
+  static let fileTermDropFiles = Notification.Name("FileTerm.dropFiles")
 }

@@ -33,6 +33,11 @@ Settings › General archive options and Treat archives as folders (read-only br
 inside zip/tar files), Delete… and Empty Trash…, an App Deleter that lists an app's related files, and
 Commands › Compare with FileMerge or another tool. See [M10 tickets](docs/milestones/M10-archives-deletion-comparison.md).
 
+M11 adds Go › Favorites with a manager (folders, iCloud Drive, connections with several saved paths,
+groups), user-defined Tools with shell-quoted placeholders that run through the queue, external
+editors with Commands › Edit (including uploading remote edits on save), File › Open in Terminal, and
+Commands › Source Control (Add, Add All, Commit, Push, Pull). Syncing favorites through iCloud is not
+available yet. See [M11 tickets](docs/milestones/M11-favorites-tools-editing-git.md).
 M13 adds saved workspaces (Go › Workspaces, the sidebar and Quick Open), iCloud Drive in the sidebar with Download Now and Remove Download,
 Copy Dropbox Link, an opt-in [default file viewer](docs/default-file-viewer.md) setting, ForkLift 3 favorites import and a shared prerequisite check.
 See [M13 tickets](docs/milestones/M13-additional-capabilities.md).

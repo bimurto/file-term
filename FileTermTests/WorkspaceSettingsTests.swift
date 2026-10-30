@@ -40,9 +40,11 @@ import Testing
   @Test func sidebarSectionsAddNewerSectionsToAnOlderOrder() {
     var preferences = WorkspacePreferences()
     preferences.sidebarOrder = ["recents", "devices"]
-    #expect(preferences.sidebarSections == ["recents", "devices", "iCloudDrive", "workspaces"])
-    preferences.sidebarOrder = ["workspaces", "iCloudDrive", "devices", "recents"]
-    #expect(preferences.sidebarSections == ["workspaces", "iCloudDrive", "devices", "recents"])
+    #expect(
+      preferences.sidebarSections == ["recents", "devices", "tags", "iCloudDrive", "workspaces"])
+    preferences.sidebarOrder = ["workspaces", "iCloudDrive", "tags", "devices", "recents"]
+    #expect(
+      preferences.sidebarSections == ["workspaces", "iCloudDrive", "tags", "devices", "recents"])
   }
 
   @Test func customizationViewPreferencesAndSessionSettingsPersist() throws {
@@ -54,7 +56,7 @@ import Testing
     settings.workspace.restoreWindows = true
     settings.workspace.startingDirectory = "/tmp"
     settings.workspace.toolbarItems = ["file.newTab", "view.asIcons"]
-    settings.workspace.sidebarOrder = ["recents", "devices"]
+    settings.workspace.sidebarOrder = ["recents", "tags", "devices"]
     settings.viewPreferences.defaults.mode = .columns
     let location = Location(providerID: "local", path: "/tmp")
     var options = ViewOptions()
@@ -64,7 +66,7 @@ import Testing
     #expect(restored.workspace.restoreWindows)
     #expect(restored.workspace.startingDirectory == "/tmp")
     #expect(restored.workspace.toolbarItems == ["file.newTab", "view.asIcons"])
-    #expect(restored.workspace.sidebarOrder == ["recents", "devices"])
+    #expect(restored.workspace.sidebarOrder == ["recents", "tags", "devices"])
     #expect(restored.viewPreferences.defaults.mode == .columns)
     #expect(restored.viewPreferences.folders[location]?.sortField == .size)
   }

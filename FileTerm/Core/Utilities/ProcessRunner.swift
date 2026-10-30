@@ -78,9 +78,11 @@ public enum ProcessRunner {
   /// if the process cannot start, or `CancellationError` once the calling task is cancelled (the
   /// process is terminated first).
   public static func capture(
-    _ executable: String, _ arguments: [String], directory: String? = nil
+    _ executable: String, _ arguments: [String], directory: String? = nil,
+    environment: [String: String] = [:]
   ) async throws -> Output {
-    let finished = try await execute(executable, arguments, directory: directory)
+    let finished = try await execute(
+      executable, arguments, environment: environment, directory: directory)
     try Task.checkCancellation()
     return Output(
       status: finished.status, stdout: String(decoding: finished.stdout, as: UTF8.self),
