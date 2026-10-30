@@ -108,6 +108,7 @@ private final class EditChunk: FileByteReader, @unchecked Sendable {
     let rig = await rig()
     let session = try await startEditing(rig)
     #expect(try String(contentsOf: session.local, encoding: .utf8) == "v1")
+    for _ in 0..<200 where rig.log.opened.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
     #expect(rig.log.opened == [session.local])
     await rig.edits.check(session)  // nothing was saved
     #expect(rig.log.confirmations.isEmpty)

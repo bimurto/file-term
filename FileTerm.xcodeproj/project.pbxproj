@@ -13,6 +13,7 @@
 		074711FF0D2CC6E0781A7227 /* FindViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D936515409AB2666405C875 /* FindViews.swift */; };
 		09AE73DE335BB7469202CBC1 /* TerminalAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26623D2ABD49E2F4BECAA88A /* TerminalAppearance.swift */; };
 		0ADE56F5828DAB4C06FFB391 /* TerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAC7EA62B360BBB0ACC872D4 /* TerminalSession.swift */; };
+		0BCDE2466C85EFE05241704E /* GitRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF15F6D6D8E58DD7B33501AC /* GitRunner.swift */; };
 		0EB6C6CDCED96D50B7D07304 /* ToolRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 290EEAB6AB3269418C4A0B76 /* ToolRunnerTests.swift */; };
 		113103D4001DF21BBAFFCB20 /* FilePreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD263E41E833AB5F62AAF16 /* FilePreviewTests.swift */; };
 		1C34AD5694162051175CABBC /* SettingsCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0122B8F895C5A9B0D118027A /* SettingsCoordinator.swift */; };
@@ -44,6 +45,7 @@
 		5A800C4DE4F9D831A74FB9F4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1308A9BE29BEEC19841DAA4B /* PrivacyInfo.xcprivacy */; };
 		5E5D772687FD58B2960E9C6F /* EditingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C2088FCB858962E698902E /* EditingSettingsView.swift */; };
 		662C4F9CF3F9F9610E03810E /* RemoteEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21D024166EDD68827E57C9B1 /* RemoteEditTests.swift */; };
+		68137765D6C3FD7C38496FA7 /* GitRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 957102D28FAC7B493F349964 /* GitRunnerTests.swift */; };
 		6ACB00332FDA81449303A2E8 /* TerminalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */; };
 		6B874110A4782F7D0A5FFA06 /* FileOperationCoordinator+AppCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BBD3EF0F116BA68E15A6D9 /* FileOperationCoordinator+AppCleanup.swift */; };
 		6E40BFCEEB543EF019876960 /* BatchRenameSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DCF4596403D71569EE5B325 /* BatchRenameSheet.swift */; };
@@ -173,6 +175,7 @@
 		9158F4133C985548B5BA0E7F /* BrowserSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSmokeTests.swift; sourceTree = "<group>"; };
 		929193C30D1DA67A267B5C1A /* FileTermTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileTermTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		944B726D6533BA3E3393EEC7 /* MenuCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuCoordinator.swift; sourceTree = "<group>"; };
+		957102D28FAC7B493F349964 /* GitRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRunnerTests.swift; sourceTree = "<group>"; };
 		96E96F788AE8C30380683520 /* TransferSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferSettingsTests.swift; sourceTree = "<group>"; };
 		988CA661CE78F2E9BEFC9FFF /* FileTermUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileTermUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9936DC26BDD617EEE1F745B5 /* FileMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataTests.swift; sourceTree = "<group>"; };
@@ -203,6 +206,7 @@
 		E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+Delete.swift"; sourceTree = "<group>"; };
 		EC6E2D416E7AD4CDF58E9324 /* ShellIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellIntegration.swift; sourceTree = "<group>"; };
 		FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSettingsView.swift; sourceTree = "<group>"; };
+		FF15F6D6D8E58DD7B33501AC /* GitRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRunner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -386,6 +390,7 @@
 				0DBF840FFE04CC5F96F1814A /* FilePreviewCoordinator.swift */,
 				6BA026A229572C46FC23F25D /* FileUtilityCoordinator.swift */,
 				4D483E6A7975E0538C696081 /* FolderWatcher.swift */,
+				FF15F6D6D8E58DD7B33501AC /* GitRunner.swift */,
 				CAB3CDBE025DFBAE3B2C9267 /* RemoteEditCoordinator.swift */,
 				B98E91790BC2F7B34EDD9BAF /* SpotlightSearch.swift */,
 				E4E27DBCCE21F8A35D700D6A /* SyncDialogModel.swift */,
@@ -403,6 +408,7 @@
 				21D5125609844EF3D285FEDE /* FileOperationCoordinatorTests.swift */,
 				9FD263E41E833AB5F62AAF16 /* FilePreviewTests.swift */,
 				8C2666F238C7CE71B029499F /* FileUtilityCoordinatorTests.swift */,
+				957102D28FAC7B493F349964 /* GitRunnerTests.swift */,
 				3E585BAF91DA75E7AD5FD9FC /* NavigationTests.swift */,
 				1D814D37D4729797528F0363 /* ProviderCopyTests.swift */,
 				21D024166EDD68827E57C9B1 /* RemoteEditTests.swift */,
@@ -590,6 +596,7 @@
 				7F89BB1869B9AD5814CD5326 /* FileUtilityViews.swift in Sources */,
 				074711FF0D2CC6E0781A7227 /* FindViews.swift in Sources */,
 				C4474E14FA57D2520322BFAA /* FolderWatcher.swift in Sources */,
+				0BCDE2466C85EFE05241704E /* GitRunner.swift in Sources */,
 				4253CE8C8482A0FC4CF0B0E0 /* InlineFileName.swift in Sources */,
 				7F7EEE7031796E4BB3030317 /* MenuCoordinator.swift in Sources */,
 				343CCC699BB095C7A1FA7C28 /* MetadataInspectorView.swift in Sources */,
@@ -630,6 +637,7 @@
 				ED1408351CA759E4A39BF46C /* FileOperationCoordinatorTests.swift in Sources */,
 				113103D4001DF21BBAFFCB20 /* FilePreviewTests.swift in Sources */,
 				2C95ABE84CAC97727F1F9339 /* FileUtilityCoordinatorTests.swift in Sources */,
+				68137765D6C3FD7C38496FA7 /* GitRunnerTests.swift in Sources */,
 				2E3DB07F62E81AC2A4A20AB3 /* NavigationTests.swift in Sources */,
 				027859550197A12C246225A4 /* ProviderCopyTests.swift in Sources */,
 				662C4F9CF3F9F9610E03810E /* RemoteEditTests.swift in Sources */,

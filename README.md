@@ -33,6 +33,12 @@ Settings › General archive options and Treat archives as folders (read-only br
 inside zip/tar files), Delete… and Empty Trash…, an App Deleter that lists an app's related files, and
 Commands › Compare with FileMerge or another tool. See [M10 tickets](docs/milestones/M10-archives-deletion-comparison.md).
 
+M11 adds Go › Favorites with a manager (folders, iCloud Drive, connections with several saved paths,
+groups), user-defined Tools with shell-quoted placeholders that run through the queue, external
+editors with Commands › Edit (including uploading remote edits on save), File › Open in Terminal, and
+Commands › Source Control (Add, Add All, Commit, Push, Pull). Syncing favorites through iCloud is not
+available yet. See [M11 tickets](docs/milestones/M11-favorites-tools-editing-git.md).
+
 ## Run
 
 Requires macOS 14+ and Xcode 16+ with Swift 6.
