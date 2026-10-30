@@ -20,6 +20,31 @@ import Testing
     #expect(ToolbarSymbols.symbol(for: "file.trash") == "trash")
   }
 
+  @Test func savedWorkspacesPersistAndReplaceBySameName() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let settings = AppSettings(suite: suite)
+    let browser = BrowserModel(providers: [])
+    let window = WindowSnapshot(browser: browser.snapshot(), frame: "{{0, 0}, {800, 600}}")
+    settings.saveWorkspace(named: "Deploy", windows: [window])
+    let id = try #require(settings.savedWorkspaces.first?.id)
+    settings.saveWorkspace(named: "deploy", windows: [window, window])
+    settings.saveWorkspace(named: "Photos", windows: [window])
+    let restored = AppSettings(suite: suite).savedWorkspaces
+    #expect(restored.map(\.name) == ["deploy", "Photos"])
+    #expect(restored[0].id == id)
+    #expect(restored[0].windows.count == 2)
+  }
+
+  @Test func sidebarSectionsAddNewerSectionsToAnOlderOrder() {
+    var preferences = WorkspacePreferences()
+    preferences.sidebarOrder = ["recents", "devices"]
+    #expect(preferences.sidebarSections == ["recents", "devices", "iCloudDrive", "workspaces"])
+    preferences.sidebarOrder = ["workspaces", "iCloudDrive", "devices", "recents"]
+    #expect(preferences.sidebarSections == ["workspaces", "iCloudDrive", "devices", "recents"])
+  }
+
   @Test func customizationViewPreferencesAndSessionSettingsPersist() throws {
     let name = "com.fileterm.tests.\(UUID().uuidString)"
     let suite = try #require(UserDefaults(suiteName: name))

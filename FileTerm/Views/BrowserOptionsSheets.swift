@@ -2,7 +2,7 @@ import FileTermCore
 import SwiftUI
 
 enum BrowserOptionsSheet: String, Identifiable {
-  case viewOptions, toolbar, sidebar, favorites
+  case viewOptions, toolbar, sidebar, favorites, favoritesImport
   var id: String { rawValue }
 }
 
@@ -136,8 +136,8 @@ struct SidebarEditorSheet: View {
     VStack(alignment: .leading, spacing: 16) {
       Text("Sidebar Editor").font(.headline)
       Text("Choose visible sections and their order. Changes save immediately.").font(.caption)
-      ForEach(settings.workspace.sidebarOrder, id: \.self) { section in
-        let chrome: BrowserChrome = section == "devices" ? .devices : .recentFolders
+      ForEach(settings.workspace.sidebarSections, id: \.self) { section in
+        let chrome = BrowserChrome.forSidebarSection(section)
         HStack {
           Toggle(
             chrome.title,
@@ -165,9 +165,9 @@ struct SidebarEditorSheet: View {
   }
 
   private func move(_ id: String, by step: Int) {
-    guard let index = settings.workspace.sidebarOrder.firstIndex(of: id),
-      settings.workspace.sidebarOrder.indices.contains(index + step)
-    else { return }
-    settings.workspace.sidebarOrder.swapAt(index, index + step)
+    var order = settings.workspace.sidebarSections
+    guard let index = order.firstIndex(of: id), order.indices.contains(index + step) else { return }
+    order.swapAt(index, index + step)
+    settings.workspace.sidebarOrder = order
   }
 }

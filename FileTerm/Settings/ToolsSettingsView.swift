@@ -69,6 +69,11 @@ private struct ToolEditor: View {
       TextField("Command", text: $tool.command, axis: .vertical)
         .lineLimit(3...6).font(.system(.body, design: .monospaced))
         .textFieldStyle(.roundedBorder).accessibilityIdentifier("toolCommand")
+      if let program = tool.requiredProgram,
+        let missing = Prerequisites.live.missing(.commandLineProgram(program))
+      {
+        Text(missing).font(.caption).foregroundStyle(.red)
+      }
       Text("Insert at the end of the command. Paths are quoted for the shell automatically.")
         .font(.caption).foregroundStyle(.secondary)
       VStack(alignment: .leading, spacing: 4) {

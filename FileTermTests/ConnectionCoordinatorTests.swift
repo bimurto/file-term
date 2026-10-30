@@ -496,3 +496,41 @@ private actor ScriptedSFTP: ValidatingProvider {
     }
   }
 }
+
+@MainActor struct CloudFileActionsTests {
+  private func response(_ status: Int) -> URLResponse {
+    HTTPURLResponse(
+      url: URL(string: "https://api.dropboxapi.com")!, statusCode: status, httpVersion: nil,
+      headerFields: nil)!
+  }
+
+  @Test func dropboxLinkIsUnavailableUntilDropboxAndATokenExist() throws {
+    let path = "/tmp/Dropbox/a.txt"
+    let noDropbox = CloudFileActions(credentials: FakeCredentials(), roots: { [] })
+    guard case .unavailable = noDropbox.dropboxLinkState(path) else {
+      Issue.record("expected unavailable")
+      return
+    }
+    let actions = CloudFileActions(credentials: FakeCredentials(), roots: { ["/tmp/Dropbox"] })
+    guard case .unavailable = actions.dropboxLinkState(path) else {
+      Issue.record("expected unavailable without a token")
+      return
+    }
+    #expect(actions.dropboxLinkState("/tmp/other.txt") == .outsideDropbox)
+    try actions.setDropboxToken(" token \n")
+    #expect(actions.dropboxLinkState(path) == .ready(remotePath: "/a.txt"))
+    try actions.setDropboxToken("")
+    #expect(!actions.hasDropboxToken)
+  }
+
+  @Test func aFailedLinkReportsTheReason() async throws {
+    let actions = CloudFileActions(
+      credentials: FakeCredentials(), roots: { ["/tmp/Dropbox"] },
+      send: { [response] _ in (Data(), response(401)) })
+    try actions.setDropboxToken("expired")
+    var notices: [String] = []
+    actions.onNotice = { notices.append($0) }
+    await actions.copyDropboxLink("/tmp/Dropbox/a.txt")
+    #expect(notices == [DropboxLinkError.invalidToken.localizedDescription])
+  }
+}

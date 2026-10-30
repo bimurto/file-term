@@ -12,6 +12,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
   case editing = "Editing"
   case themes = "Themes"
   case terminal = "Terminal"
+  case integrations = "Integrations"
 
   var id: String { rawValue }
   var symbol: String {
@@ -24,6 +25,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
     case .editing: "square.and.pencil"
     case .themes: "paintpalette"
     case .terminal: "terminal"
+    case .integrations: "link"
     }
   }
 }
@@ -44,7 +46,8 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
 }
 
 enum BrowserChrome: String, CaseIterable {
-  case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders
+  case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders, workspaces
+  case iCloudDrive
   var title: String {
     switch self {
     case .pathBar: "Path Bar"
@@ -55,6 +58,17 @@ enum BrowserChrome: String, CaseIterable {
     case .sidebar: "Sidebar"
     case .tabBar: "Tab Bar"
     case .recentFolders: "Recent Folders"
+    case .workspaces: "Workspaces"
+    case .iCloudDrive: "iCloud Drive"
+    }
+  }
+  /// The sidebar section this chrome item shows or hides.
+  static func forSidebarSection(_ section: String) -> BrowserChrome {
+    switch section {
+    case "devices": .devices
+    case "workspaces": .workspaces
+    case "iCloudDrive": .iCloudDrive
+    default: .recentFolders
     }
   }
   var commandID: String { "view.\(rawValue)" }
@@ -89,6 +103,20 @@ enum BrowserChrome: String, CaseIterable {
   var editors: [EditorMapping] {
     didSet { Defaults[editorsKey] = (try? JSONEncoder().encode(editors)) ?? Data() }
   }
+  var savedWorkspaces: [SavedWorkspace] {
+    didSet { Defaults[savedWorkspacesKey] = (try? JSONEncoder().encode(savedWorkspaces)) ?? Data() }
+  }
+  @ObservationIgnored private let savedWorkspacesKey: Defaults.Key<Data>
+  /// The viewer to restore when FileTerm stops being the default file viewer.
+  var previousFileViewer: String? {
+    didSet { Defaults[previousFileViewerKey] = previousFileViewer ?? "" }
+  }
+  @ObservationIgnored private let previousFileViewerKey: Defaults.Key<String>
+  /// The offer to import favorites from an older app is made once.
+  var favoritesImportOffered: Bool {
+    didSet { Defaults[favoritesImportOfferedKey] = favoritesImportOffered }
+  }
+  @ObservationIgnored private let favoritesImportOfferedKey: Defaults.Key<Bool>
   @ObservationIgnored private let editorsKey: Defaults.Key<Data>
   @ObservationIgnored private let toolsKey: Defaults.Key<Data>
   @ObservationIgnored private let favoritesKey: Defaults.Key<Data>
@@ -180,6 +208,13 @@ enum BrowserChrome: String, CaseIterable {
     syncFavoritesKey = Defaults.Key("syncFavorites", default: Data(), suite: suite)
     syncFavorites =
       (try? JSONDecoder().decode([SyncFavorite].self, from: Defaults[syncFavoritesKey])) ?? []
+    savedWorkspacesKey = Defaults.Key("savedWorkspaces", default: Data(), suite: suite)
+    savedWorkspaces =
+      (try? JSONDecoder().decode([SavedWorkspace].self, from: Defaults[savedWorkspacesKey])) ?? []
+    previousFileViewerKey = Defaults.Key("previousFileViewer", default: "", suite: suite)
+    previousFileViewer = Defaults[previousFileViewerKey].isEmpty ? nil : Defaults[previousFileViewerKey]
+    favoritesImportOfferedKey = Defaults.Key("favoritesImportOffered", default: false, suite: suite)
+    favoritesImportOffered = Defaults[favoritesImportOfferedKey]
     editorsKey = Defaults.Key("editors", default: Data(), suite: suite)
     editors = (try? JSONDecoder().decode([EditorMapping].self, from: Defaults[editorsKey])) ?? []
     toolsKey = Defaults.Key("userTools", default: Data(), suite: suite)
@@ -250,6 +285,16 @@ enum BrowserChrome: String, CaseIterable {
       let snapshot = ViewPreferenceSnapshot(
         defaults: viewPreferences.defaults, folders: viewPreferences.folders)
       Defaults[viewsKey] = (try? JSONEncoder().encode(snapshot)) ?? Data()
+    }
+  }
+
+  /// Saves under `name`. A workspace with the same name, ignoring case, is replaced in place.
+  func saveWorkspace(named name: String, windows: [WindowSnapshot]) {
+    if let index = savedWorkspaces.firstIndex(where: { $0.name.lowercased() == name.lowercased() }) {
+      savedWorkspaces[index].name = name
+      savedWorkspaces[index].windows = windows
+    } else {
+      savedWorkspaces.append(SavedWorkspace(name: name, windows: windows))
     }
   }
 

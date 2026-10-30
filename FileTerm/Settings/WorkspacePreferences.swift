@@ -13,12 +13,24 @@ struct WorkspacePreferences: Codable, Equatable {
     "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
   ]
   var sidebarOrder = ["devices", "recents"]
+
+  /// `sidebarOrder` saved by an older version lacks newer sections; they go at the end.
+  var sidebarSections: [String] {
+    sidebarOrder + ["devices", "recents", "iCloudDrive", "workspaces"].filter { !sidebarOrder.contains($0) }
+  }
 }
 
 struct WindowSnapshot: Codable {
   let browser: BrowserSnapshot
   let frame: String
   var terminal: TerminalPanelState? = nil
+}
+
+/// A named set of windows, with their tabs, panes and locations, that can be loaded later.
+struct SavedWorkspace: Codable, Identifiable {
+  var id = UUID()
+  var name: String
+  var windows: [WindowSnapshot]
 }
 
 struct ViewPreferenceSnapshot: Codable {

@@ -6,6 +6,7 @@ import SwiftUI
 @MainActor final class SettingsCoordinator {
   private let settings: AppSettings
   private let registry: () -> CommandRegistry
+  private let cloudFiles: CloudFileActions
   private lazy var controller = SettingsWindowController(
     panes: SettingsCategory.allCases.map { category in
       Settings.Pane(
@@ -15,16 +16,20 @@ import SwiftUI
           systemSymbolName: category.symbol, accessibilityDescription: category.rawValue)!
       ) {
         SettingsCategoryView(
-          category: category, settings: self.settings, registry: self.registry
+          category: category, settings: self.settings, registry: self.registry,
+          cloudFiles: self.cloudFiles
         ) { [weak self] target in self?.show(target) }
       }
     },
     animated: false
   )
 
-  init(settings: AppSettings, registry: @escaping () -> CommandRegistry) {
+  init(
+    settings: AppSettings, registry: @escaping () -> CommandRegistry, cloudFiles: CloudFileActions
+  ) {
     self.settings = settings
     self.registry = registry
+    self.cloudFiles = cloudFiles
   }
 
   func show(_ category: SettingsCategory? = nil) {
@@ -38,13 +43,14 @@ private struct SettingsCategoryView: View {
   let category: SettingsCategory
   let settings: AppSettings
   let registry: () -> CommandRegistry
+  let cloudFiles: CloudFileActions
   let selectCategory: (SettingsCategory) -> Void
 
   private var paneHeight: CGFloat {
     switch category {
     case .general: 700
     case .terminal, .transfers: 640
-    case .shortcuts, .tools, .editing: 480
+    case .shortcuts, .tools, .editing, .integrations: 480
     default: 320
     }
   }
@@ -72,6 +78,8 @@ private struct SettingsCategoryView: View {
         ToolsSettingsView(settings: settings)
       } else if category == .editing {
         EditingSettingsView(settings: settings)
+      } else if category == .integrations {
+        IntegrationsSettingsView(settings: settings, cloudFiles: cloudFiles)
       } else {
         Text("Settings for \(category.rawValue.lowercased()) will appear here.").foregroundStyle(
           .secondary)

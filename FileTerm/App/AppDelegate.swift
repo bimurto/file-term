@@ -26,7 +26,15 @@ import UniformTypeIdentifiers
   private lazy var connections = ConnectionCoordinator(
     settings: settings, registry: providerRegistry)
   private lazy var settingsCoordinator = SettingsCoordinator(
-    settings: settings, registry: { [unowned self] in registry })
+    settings: settings, registry: { [unowned self] in registry }, cloudFiles: cloudFiles)
+  private lazy var cloudFiles: CloudFileActions = {
+    let actions = CloudFileActions()
+    actions.onNotice = { [unowned self] in browser.notice = $0 }
+    return actions
+  }()
+  /// Open and reveal requests that arrive before the first window exists.
+  private var pendingOpenURLs: [URL] = []
+  private var isReadyToOpenURLs = false
   private let folderWatcher = FolderWatcher()
   private let fileOperations = FileOperationCoordinator()
   private let filePreviews = FilePreviewCoordinator()
@@ -69,7 +77,8 @@ import UniformTypeIdentifiers
   private lazy var registry = CommandRegistry(
     commands: makeCommands(),
     dynamicCommands: { [unowned self] in
-      recentCommands() + connectionCommands() + favoriteCommands() + syncFavoriteCommands()
+      recentCommands() + connectionCommands() + favoriteCommands() + savedWorkspaceCommands()
+        + syncFavoriteCommands()
         + toolCommands() + openWithCommands()
     },
     shortcutOverrides: settings.shortcutOverrides,
@@ -177,7 +186,55 @@ import UniformTypeIdentifiers
       } else {
         for snapshot in saved { await newWindow(restoring: snapshot) }
       }
+      isReadyToOpenURLs = true
+      if !pendingOpenURLs.isEmpty {
+        await reveal(pendingOpenURLs)
+        pendingOpenURLs = []
+      }
+      offerFavoritesImport()
     }
+  }
+
+  /// Other apps' Reveal and Show in Finder requests arrive here when FileTerm is the default file
+  /// viewer. An open request looks the same, so a folder opens and a file is selected in its folder.
+  func application(_ application: NSApplication, open urls: [URL]) {
+    guard isReadyToOpenURLs else {
+      pendingOpenURLs += urls
+      return
+    }
+    Task { await reveal(urls) }
+  }
+
+  private func reveal(_ urls: [URL]) async {
+    if windows.isEmpty { await newWindow() }
+    let requests = RevealRequest.plan(paths: urls.filter(\.isFileURL).map(\.path)) { path in
+      var isDirectory: ObjCBool = false
+      return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+        && isDirectory.boolValue
+    }
+    let model = browser
+    let id = model.activePaneID
+    for (index, request) in requests.enumerated() {
+      if index > 0 { model.newTab(in: id) }
+      let folder = provider.location(for: URL(fileURLWithPath: request.folder, isDirectory: true))
+      await model.navigate(to: folder, in: id)
+      // Match by name: the listing's paths are normalized and may differ from the request's.
+      let pane = model.pane(id)
+      let names = Set(request.selected.map { ($0 as NSString).lastPathComponent })
+      pane.selection = Set(pane.visibleEntries.filter { names.contains($0.name) }.map(\.id))
+    }
+    showBrowser()
+  }
+
+  /// The first run that finds ForkLift 3 favorites offers to import them.
+  private func offerFavoritesImport() {
+    guard !settings.favoritesImportOffered,
+      FileManager.default.fileExists(atPath: FavoritesImport.forkLift3Path)
+    else { return }
+    settings.favoritesImportOffered = true
+    NotificationCenter.default.post(
+      name: .fileTermBrowserOptions, object: browser,
+      userInfo: ["kind": BrowserOptionsSheet.favoritesImport.rawValue])
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -226,7 +283,7 @@ import UniformTypeIdentifiers
       browser: model, devices: deviceModel, settings: settings,
       registry: registry, provider: provider, frame: snapshot?.frame,
       terminalPanel: snapshot?.terminal, transfers: fileOperations.transfers,
-      connections: connections)
+      connections: connections, cloudFiles: cloudFiles)
     model.onVisit = { [weak self, weak controller, weak model] location in
       self?.settings.recordVisit(location)
       self?.syncWatcher()
@@ -1045,6 +1102,66 @@ import UniformTypeIdentifiers
     return result
   }
 
+  /// Go › Workspaces: save the open windows, or load a saved set. These also reach Quick Open
+  /// as commands.
+  private func savedWorkspaceCommands() -> [AppCommand] {
+    let root = ["Go", "Workspaces"]
+    let save = AppCommand(
+      id: "go.workspaces.save", title: "Save Workspace…", menuPath: root,
+      isEnabled: { $0.hasBrowserWindow },
+      disabledReason: { _ in "Open the browser window first." },
+      handler: { [weak self] in self?.saveWorkspace() })
+    return [save]
+      + settings.savedWorkspaces.map { workspace in
+        AppCommand(
+          id: "go.workspaces.load.\(workspace.id)", title: workspace.name, menuPath: root,
+          isEnabled: { _ in true }, disabledReason: { _ in "" },
+          handler: { [weak self] in self?.load(workspace) })
+      }
+  }
+
+  private func saveWorkspace() {
+    let alert = NSAlert()
+    alert.messageText = "Save Workspace"
+    alert.informativeText = "Saves the open windows with their tabs, panes and locations."
+    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+    field.placeholderString = "Workspace name"
+    alert.accessoryView = field
+    alert.addButton(withTitle: "Save")
+    alert.addButton(withTitle: "Cancel")
+    alert.window.initialFirstResponder = field
+    guard alert.runModal() == .alertFirstButtonReturn else { return }
+    let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !name.isEmpty else { return }
+    if settings.savedWorkspaces.contains(where: { $0.name.lowercased() == name.lowercased() }) {
+      let replace = NSAlert()
+      replace.messageText = "Replace the workspace “\(name)”?"
+      replace.addButton(withTitle: "Replace")
+      replace.addButton(withTitle: "Cancel")
+      guard replace.runModal() == .alertFirstButtonReturn else { return }
+    }
+    settings.saveWorkspace(named: name, windows: windows.map { $0.snapshot() })
+  }
+
+  /// Opens the workspace's windows, then closes the ones that were open.
+  private func load(_ workspace: SavedWorkspace) {
+    guard FilePreviewContentView.confirmTermination() else { return }
+    let current = windows
+    if current.contains(where: \.terminal.hasSessions) {
+      let alert = NSAlert()
+      alert.alertStyle = .warning
+      alert.messageText = "Load the workspace “\(workspace.name)”?"
+      alert.informativeText = "This closes the open windows and ends their terminal sessions."
+      alert.addButton(withTitle: "Load")
+      alert.addButton(withTitle: "Cancel")
+      guard alert.runModal() == .alertFirstButtonReturn else { return }
+    }
+    Task {
+      for snapshot in workspace.windows { await newWindow(restoring: snapshot) }
+      for controller in current { controller.window.close() }
+    }
+  }
+
   /// Commands › Tools: one entry per user tool, available by the tool's own rules.
   private func toolCommands() -> [AppCommand] {
     settings.tools.map { tool in
@@ -1091,6 +1208,19 @@ import UniformTypeIdentifiers
     return ToolRunner.disabledReason(
       for: tool, source: pane.location, target: browser.targetPane?.location,
       selectionCount: pane.selection.count)
+      ?? tool.requiredProgram.flatMap { Prerequisites.live.missing(.commandLineProgram($0)) }
+  }
+
+  /// The selected local items in the given iCloud state.
+  private func selectedPaths(in state: ICloudFileState) -> [String] {
+    browser.activePane.selectedEntries.map(\.location.path).filter {
+      ICloudFiles.state(of: URL(fileURLWithPath: $0)) == state
+    }
+  }
+
+  private var selectedDropboxPath: String? {
+    let entries = browser.activePane.selectedEntries
+    return entries.count == 1 ? entries[0].location.path : nil
   }
 
   private func syncFavoriteCommands() -> [AppCommand] {
@@ -1187,6 +1317,44 @@ import UniformTypeIdentifiers
         [weak self] in
         guard let self else { return }
         fileOperations.chooseApplication(browser, window: browserWindow)
+      })
+    result.append(
+      command(
+        "file.iCloud.download", "Download Now", menu: ["File", "iCloud"], selection: true,
+        condition: { [weak self] in self?.selectedPaths(in: .cloudOnly).isEmpty == false },
+        reason: { "Select iCloud Drive items that are not downloaded." }
+      ) { [weak self] in
+        guard let self else { return }
+        cloudFiles.downloadNow(selectedPaths(in: .cloudOnly))
+      })
+    result.append(
+      command(
+        "file.iCloud.removeDownload", "Remove Download", menu: ["File", "iCloud"], selection: true,
+        condition: { [weak self] in self?.selectedPaths(in: .downloaded).isEmpty == false },
+        reason: { "Select downloaded iCloud Drive items. The files stay in iCloud." }
+      ) { [weak self] in
+        guard let self else { return }
+        cloudFiles.removeDownload(selectedPaths(in: .downloaded))
+      })
+    result.append(
+      command(
+        "file.copyDropboxLink", "Copy Dropbox Link", menu: ["File"], selection: true,
+        condition: { [weak self] in
+          guard let self, let path = selectedDropboxPath,
+            case .ready = cloudFiles.dropboxLinkState(path)
+          else { return false }
+          return true
+        },
+        reason: { [weak self] in
+          guard let self, let path = selectedDropboxPath else {
+            return "Select one item in a Dropbox folder."
+          }
+          if case .unavailable(let reason) = cloudFiles.dropboxLinkState(path) { return reason }
+          return "Select one item in a Dropbox folder."
+        }
+      ) { [weak self] in
+        guard let self, let path = selectedDropboxPath else { return }
+        Task { await self.cloudFiles.copyDropboxLink(path) }
       })
     result.append(
       command(
@@ -1354,9 +1522,8 @@ import UniformTypeIdentifiers
         },
         reason: { [weak self] in
           guard let self else { return "" }
-          if !settings.compareTool.isInstalled {
-            return "\(settings.compareTool.title) is not installed. "
-              + "Choose another tool in Settings › General › Compare Tool."
+          if let missing = Prerequisites.live.missing(.compareTool(settings.compareTool)) {
+            return missing
           }
           if case .unavailable(let reason) = compareSelection() { return reason }
           return ""

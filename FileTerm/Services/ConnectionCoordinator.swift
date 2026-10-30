@@ -200,8 +200,19 @@ func makeRemoteProvider(
       }
       return nil
     }
+    let hasPassword = password?.isEmpty == false || credentials.password(for: profile.id) != nil
+    if let missing = Prerequisites.live.missing(
+      .remoteAccount(
+        profile.kind, server: profile.server, username: profile.username, hasPassword: hasPassword))
+    {
+      throw FileSystemError.io(missing)
+    }
     if profile.kind.usesProvider {
-      try await connectRemote(profile, password: password)
+      do {
+        try await connectRemote(profile, password: password)
+      } catch FileSystemError.permissionDenied {
+        throw FileSystemError.io(Prerequisites.remotePermissionMessage(server: profile.server))
+      }
       return nil
     }
     let url = try profile.url()

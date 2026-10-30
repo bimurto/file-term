@@ -188,6 +188,8 @@ struct SSHSessionCommand: Equatable {
     }
   }
 
+  var hasSessions: Bool { !records.isEmpty }
+
   func closeAll() {
     closed = true
     debounce?.cancel()

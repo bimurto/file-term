@@ -154,6 +154,7 @@ struct BrowserView: View {
       case .sidebar: SidebarEditorSheet(settings: settings)
       case .favorites:
         FavoritesManagerSheet(settings: settings, connections: connections, browser: browser)
+      case .favoritesImport: FavoritesImportSheet(settings: settings)
       }
     }
     .alert(
@@ -324,7 +325,7 @@ struct BrowserView: View {
 
   private var sidebar: some View {
     List {
-      ForEach(settings.workspace.sidebarOrder, id: \.self) { section in
+      ForEach(settings.workspace.sidebarSections, id: \.self) { section in
         if section == "devices" && settings.isVisible(.devices) {
           Section("Devices") {
             ForEach(devices.volumes) { volume in
@@ -362,6 +363,40 @@ struct BrowserView: View {
                     ? "/" : URL(fileURLWithPath: path).lastPathComponent, systemImage: "folder"
                 ).lineLimit(1)
               }.buttonStyle(.plain).help(path)
+            }
+          }
+        }
+        if section == "iCloudDrive" && settings.isVisible(.iCloudDrive)
+          && FileManager.default.fileExists(atPath: FavoriteItem.iCloudDrivePath)
+        {
+          Section("iCloud") {
+            Button {
+              devices.selectedVolumeID = nil
+              open(Location(providerID: localProvider.id, path: FavoriteItem.iCloudDrivePath))
+            } label: {
+              Label("iCloud Drive", systemImage: "icloud").lineLimit(1)
+            }.buttonStyle(.plain).help(FavoriteItem.iCloudDrivePath)
+              .accessibilityIdentifier("sidebarICloudDrive")
+          }
+        }
+        if section == "workspaces" && settings.isVisible(.workspaces)
+          && !settings.savedWorkspaces.isEmpty
+        {
+          Section("Workspaces") {
+            ForEach(settings.savedWorkspaces) { workspace in
+              Button {
+                _ = registry.execute("go.workspaces.load.\(workspace.id)")
+              } label: {
+                Label(workspace.name, systemImage: "rectangle.3.group").lineLimit(1)
+              }
+              .buttonStyle(.plain)
+              .help("Load this workspace")
+              .contextMenu {
+                Button("Delete Workspace") {
+                  settings.savedWorkspaces.removeAll { $0.id == workspace.id }
+                }
+              }
+              .accessibilityIdentifier("workspace.\(workspace.name)")
             }
           }
         }

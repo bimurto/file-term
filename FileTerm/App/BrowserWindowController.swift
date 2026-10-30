@@ -17,7 +17,7 @@ import SwiftUI
     browser: BrowserModel, devices: DeviceModel, settings: AppSettings,
     registry: CommandRegistry, provider: LocalFileSystemProvider, frame: String? = nil,
     terminalPanel: TerminalPanelState? = nil, transfers: TransferQueue = TransferQueue(),
-    connections: ConnectionCoordinator
+    connections: ConnectionCoordinator, cloudFiles: CloudFileActions
   ) {
     self.browser = browser
     self.devices = devices
@@ -39,7 +39,8 @@ import SwiftUI
       rootView: BrowserView(
         browser: browser, settings: settings,
         registry: registry, localProvider: provider, devices: devices, terminal: terminal,
-        transfers: transfers, connections: connections))
+        transfers: transfers, connections: connections
+      ).environment(cloudFiles))
     if let frame {
       let rect = NSRectFromString(frame)
       if rect.width >= 680, rect.height >= 420,

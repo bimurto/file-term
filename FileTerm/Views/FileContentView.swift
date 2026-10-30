@@ -222,6 +222,7 @@ private struct FileEntryContextMenu: View {
   let provider: LocalFileSystemProvider
   let open: (FileEntry) -> Void
   let showPackageContents: (FileEntry) -> Void
+  @Environment(CloudFileActions.self) private var cloudFiles: CloudFileActions?
 
   var body: some View {
     Button("Open") { open(entry) }
@@ -231,6 +232,22 @@ private struct FileEntryContextMenu: View {
     }
     if isPackage(entry, provider: provider) {
       Button("Show Package Contents") { showPackageContents(entry) }
+    }
+    if let cloudFiles, entry.location.providerID == "local" {
+      let path = entry.location.path
+      switch ICloudFiles.state(of: URL(fileURLWithPath: path)) {
+      case .cloudOnly: Button("Download Now") { cloudFiles.downloadNow([path]) }
+      case .downloaded:
+        Button("Remove Download (Keeps File in iCloud)") { cloudFiles.removeDownload([path]) }
+      case .notInICloud: EmptyView()
+      }
+      switch cloudFiles.dropboxLinkState(path) {
+      case .ready:
+        Button("Copy Dropbox Link") { Task { await cloudFiles.copyDropboxLink(path) } }
+      case .unavailable(let reason):
+        Button("Copy Dropbox Link") {}.disabled(true).help(reason)
+      case .outsideDropbox: EmptyView()
+      }
     }
   }
 }

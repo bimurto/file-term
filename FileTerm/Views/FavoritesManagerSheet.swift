@@ -10,6 +10,7 @@ struct FavoritesManagerSheet: View {
   @State private var selected: UUID?
   @State private var draft: FavoriteDraft?
   @State private var confirmingGroupDelete = false
+  @State private var importing = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -48,6 +49,7 @@ struct FavoritesManagerSheet: View {
         Button("New Favorite Group") { draft = FavoriteDraft(kind: .group) }
         Button("Edit") { edit() }.disabled(selectedNode == nil)
         Button("Delete") { delete() }.disabled(selectedNode == nil)
+        Button("Import…") { importing = true }
         Spacer()
         Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
       }
@@ -56,6 +58,7 @@ struct FavoritesManagerSheet: View {
     .sheet(item: $draft) { value in
       FavoriteEditor(draft: value, profiles: connections.profiles) { save($0) }
     }
+    .sheet(isPresented: $importing) { FavoritesImportSheet(settings: settings) }
     .confirmationDialog(
       "Delete this group and the favorites in it?", isPresented: $confirmingGroupDelete
     ) {

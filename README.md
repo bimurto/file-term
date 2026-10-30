@@ -33,6 +33,10 @@ Settings › General archive options and Treat archives as folders (read-only br
 inside zip/tar files), Delete… and Empty Trash…, an App Deleter that lists an app's related files, and
 Commands › Compare with FileMerge or another tool. See [M10 tickets](docs/milestones/M10-archives-deletion-comparison.md).
 
+M13 adds saved workspaces (Go › Workspaces, the sidebar and Quick Open), iCloud Drive in the sidebar with Download Now and Remove Download,
+Copy Dropbox Link, an opt-in [default file viewer](docs/default-file-viewer.md) setting, ForkLift 3 favorites import and a shared prerequisite check.
+See [M13 tickets](docs/milestones/M13-additional-capabilities.md).
+
 ## Run
 
 Requires macOS 14+ and Xcode 16+ with Swift 6.
