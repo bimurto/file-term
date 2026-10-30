@@ -3,6 +3,44 @@ import Testing
 @testable import FileTermCore
 
 @MainActor struct CommandRegistryTests {
+  @Test func statesBuildTheCommandsOnceAndMatchPerCommandAnswers() {
+    var builds = 0
+    let command = { (id: String, enabled: Bool, checked: Bool) in
+      AppCommand(
+        id: id, title: id, menuPath: ["Go"], isEnabled: { _ in enabled },
+        disabledReason: { _ in "No." }, isChecked: { _ in checked }, handler: {})
+    }
+    let registry = CommandRegistry(
+      commands: [command("base", true, false)],
+      dynamicCommands: {
+        builds += 1
+        return [command("off", false, true), command("off", true, false)]
+      },
+      context: { CommandContext(hasBrowserWindow: true, hasKeyWindow: true, isLoading: false) })
+
+    let states = registry.states()
+    #expect(builds == 1)
+    #expect(states.count == 2)
+    #expect(states["base"]?.disabledReason == nil)
+    #expect(states["base"]?.isChecked == false)
+    // When a dynamic ID repeats, the first one wins, as it does for command(_:).
+    #expect(states["off"]?.disabledReason == "No.")
+    #expect(states["off"]?.isChecked == true)
+    #expect(registry.disabledReason(for: "off") == "No.")
+    #expect(registry.isChecked("off"))
+  }
+
+  @Test func selectedEntriesSkipsTheScanWithoutASelection() async throws {
+    let provider = LocalFileSystemProvider()
+    let pane = PaneModel(providers: [provider])
+    #expect(await pane.navigate(to: Location(providerID: "local", path: "/")))
+    #expect(!pane.entries.isEmpty)
+    #expect(pane.selectedEntries.isEmpty)
+    let first = try #require(pane.entries.first)
+    pane.selection = [first.id]
+    #expect(pane.selectedEntries.map(\.id) == [first.id])
+  }
+
   @Test func dynamicCommandsAndCheckedStateUseTheCurrentContext() {
     var paths = ["/first"]
     var source = Location(providerID: "local", path: "/first")

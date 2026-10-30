@@ -34,7 +34,7 @@ import FileTermCore
     _ menu: NSMenu, for event: NSEvent, target: AutoreleasingUnsafeMutablePointer<AnyObject?>,
     action: UnsafeMutablePointer<Selector?>
   ) -> Bool {
-    updateEnabling(in: menu)
+    updateEnabling(in: menu, states: registry.states())
     return false
   }
 
@@ -44,15 +44,10 @@ import FileTermCore
       // AppKit owns OS-specific tiling controls and the live window list in Window, and Dictation,
       // Emoji & Symbols and AutoFill in Edit. Rebuilding these menus would remove them.
       removeRepeatedSystemItems(in: menu)
+      let states = registry.states()
       for item in menu.items {
-        guard let id = item.representedObject as? String, registry.command(id) != nil else {
-          continue
-        }
-        let reason = registry.disabledReason(for: id)
-        item.isEnabled = reason == nil
-        item.toolTip = reason
-        item.setAccessibilityHelp(reason)
-        item.state = registry.isChecked(id) ? .on : .off
+        guard let id = item.representedObject as? String, let state = states[id] else { continue }
+        apply(state, to: item)
       }
       return
     }
@@ -108,11 +103,7 @@ import FileTermCore
         case .control: $0.insert(.control)
         }
       }
-      let reason = registry.disabledReason(for: command.id)
-      item.isEnabled = reason == nil
-      item.toolTip = reason
-      item.setAccessibilityHelp(reason)
-      item.state = registry.isChecked(command.id) ? .on : .off
+      apply(registry.state(of: command), to: item)
       menu.addItem(item)
     }
     if path == ["FileTerm"] { insertServices(in: menu) }
@@ -130,23 +121,25 @@ import FileTermCore
   }
 
   func refreshEnabling() {
+    let states = registry.states()
     for menu in NSApp.mainMenu?.items.compactMap(\.submenu) ?? [] {
-      updateEnabling(in: menu)
+      updateEnabling(in: menu, states: states)
     }
   }
 
-  private func updateEnabling(in menu: NSMenu) {
+  private func updateEnabling(in menu: NSMenu, states: [String: CommandRegistry.CommandState]) {
     for item in menu.items {
-      if let child = item.submenu { updateEnabling(in: child) }
-      guard let id = item.representedObject as? String, registry.command(id) != nil else {
-        continue
-      }
-      let reason = registry.disabledReason(for: id)
-      item.isEnabled = reason == nil
-      item.toolTip = reason
-      item.setAccessibilityHelp(reason)
-      item.state = registry.isChecked(id) ? .on : .off
+      if let child = item.submenu { updateEnabling(in: child, states: states) }
+      guard let id = item.representedObject as? String, let state = states[id] else { continue }
+      apply(state, to: item)
     }
+  }
+
+  private func apply(_ state: CommandRegistry.CommandState, to item: NSMenuItem) {
+    item.isEnabled = state.disabledReason == nil
+    item.toolTip = state.disabledReason
+    item.setAccessibilityHelp(state.disabledReason)
+    item.state = state.isChecked ? .on : .off
   }
 
   @objc private func execute(_ sender: NSMenuItem) {

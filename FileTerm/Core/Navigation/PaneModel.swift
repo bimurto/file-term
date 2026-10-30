@@ -122,7 +122,9 @@ import Observation
     return location.parent ?? registry.container(of: location.providerID)
   }
   public var canGoUp: Bool { parentLocation != nil }
-  public var selectedEntries: [FileEntry] { visibleEntries.filter { selection.contains($0.id) } }
+  public var selectedEntries: [FileEntry] {
+    selection.isEmpty ? [] : visibleEntries.filter { selection.contains($0.id) }
+  }
   public var selectedBytes: Int64 { selectedEntries.compactMap(\.size).reduce(0, +) }
   public var hasUnknownSelectedSizes: Bool { selectedEntries.contains { $0.size == nil } }
 
@@ -260,6 +262,16 @@ import Observation
     isLoading = false
   }
 
+  /// Off the main thread, because a very large folder takes long enough to freeze the UI.
+  nonisolated private static func foldersFirst(_ listing: [FileEntry]) async -> [FileEntry] {
+    listing.sorted {
+      if ($0.kind == .directory) != ($1.kind == .directory) {
+        return $0.kind == .directory
+      }
+      return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+    }
+  }
+
   private func load(
     _ destination: Location, historyIndex newIndex: Int?, refreshing: Bool = false
   ) async -> Bool {
@@ -274,15 +286,11 @@ import Observation
       }
       let listing = try await provider.list(
         destination, includeHidden: viewPreferences.showHidden)
+      let sorted = await Self.foldersFirst(listing)
       try Task.checkCancellation()
       guard navigationRevision == request else { return false }
       calculatedSizes = [:]
-      entries = listing.sorted {
-        if ($0.kind == .directory) != ($1.kind == .directory) {
-          return $0.kind == .directory
-        }
-        return $0.name.localizedStandardCompare($1.name) == .orderedAscending
-      }
+      entries = sorted
       if let newIndex {
         historyIndex = newIndex
       } else if location != destination {

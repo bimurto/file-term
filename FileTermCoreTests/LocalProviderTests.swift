@@ -4,6 +4,48 @@ import Testing
 @testable import FileTermCore
 
 struct LocalProviderTests {
+  @Test func ownerGroupAndPermissionsMatchWhatFoundationReports() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("file.txt")
+    try Data().write(to: file)
+    try FileManager.default.setAttributes([.posixPermissions: 0o640], ofItemAtPath: file.path)
+    let link = root.appendingPathComponent("link")
+    try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+
+    let provider = LocalFileSystemProvider()
+    let entries = try await provider.list(provider.location(for: root))
+    #expect(entries.count == 2)
+    for entry in entries {
+      let expected = try FileManager.default.attributesOfItem(atPath: entry.location.path)
+      #expect(entry.owner == expected[.ownerAccountName] as? String)
+      #expect(entry.group == expected[.groupOwnerAccountName] as? String)
+      #expect(entry.permissions == expected[.posixPermissions] as? Int)
+    }
+    #expect(entries.first { $0.name == "file.txt" }?.permissions == 0o640)
+  }
+
+  @Test func lastOpenedComesFromTheAttributeAndIsEmptyWithoutIt() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let opened = root.appendingPathComponent("opened.txt")
+    let unopened = root.appendingPathComponent("unopened.txt")
+    try Data().write(to: opened)
+    try Data().write(to: unopened)
+    var time = timespec(tv_sec: 1_700_000_000, tv_nsec: 500_000_000)
+    let status = setxattr(
+      opened.path, "com.apple.lastuseddate#PS", &time, MemoryLayout<timespec>.size, 0, 0)
+    try #require(status == 0)
+
+    let provider = LocalFileSystemProvider()
+    let entries = try await provider.list(provider.location(for: root))
+    let date = { (name: String) in entries.first { $0.name == name }?.openedAt }
+    #expect(date("opened.txt") == Date(timeIntervalSince1970: 1_700_000_000.5))
+    #expect(date("unopened.txt") == nil)
+  }
+
   @Test func readsWritesMovesAndDeletesWithoutOverwriting() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

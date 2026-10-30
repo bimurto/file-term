@@ -119,6 +119,33 @@ public struct CommandContext: Sendable {
 
   public func command(_ id: String) -> AppCommand? { commands.first { $0.id == id } }
 
+  /// What a menu item shows for a command.
+  public struct CommandState {
+    public let disabledReason: String?
+    public let isChecked: Bool
+  }
+
+  public func state(of command: AppCommand) -> CommandState {
+    state(of: command, in: context())
+  }
+
+  /// Every command's state from one pass. Building the commands can read the selection, so menus
+  /// must use this instead of asking per item, which freezes the app in a very large folder.
+  public func states() -> [String: CommandState] {
+    let current = context()
+    var states: [String: CommandState] = [:]
+    for command in commands where states[command.id] == nil {
+      states[command.id] = state(of: command, in: current)
+    }
+    return states
+  }
+
+  private func state(of command: AppCommand, in current: CommandContext) -> CommandState {
+    CommandState(
+      disabledReason: command.isEnabled(current) ? nil : command.disabledReason(current),
+      isChecked: command.isChecked(current))
+  }
+
   public func isChecked(_ id: String) -> Bool { command(id)?.isChecked(context()) ?? false }
 
   public func disabledReason(for id: String) -> String? {

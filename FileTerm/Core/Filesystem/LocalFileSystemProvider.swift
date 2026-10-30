@@ -1,9 +1,12 @@
 import CoreServices
+import Darwin
 import Foundation
 
 public actor LocalFileSystemProvider: FileSystemProvider {
   public nonisolated let id = "local"
   private let manager = FileManager()
+  private var ownerNames: [uid_t: String] = [:]
+  private var groupNames: [gid_t: String] = [:]
 
   public init() {}
 
@@ -106,20 +109,62 @@ public actor LocalFileSystemProvider: FileSystemProvider {
       values.isSymbolicLink == true
       ? .symbolicLink
       : values.isDirectory == true ? .directory : values.isRegularFile == true ? .file : .other
-    let attributes = try? manager.attributesOfItem(atPath: url.path)
-    let metadata = MDItemCreateWithURL(kCFAllocatorDefault, url as CFURL)
-    let lastOpened = metadata.flatMap { MDItemCopyAttribute($0, kMDItemLastUsedDate) as? Date }
+    var status = Darwin.stat()
+    let hasStatus = lstat(url.path, &status) == 0
+    let lastOpened = Self.lastOpened(url, kind: kind)
     return FileEntry(
       location: location(for: url), name: url.lastPathComponent, kind: kind,
       size: kind == .file ? values.fileSize.map(Int64.init) : nil,
       createdAt: values.creationDate, modifiedAt: values.contentModificationDate,
       typeIdentifier: values.typeIdentifier, addedAt: values.addedToDirectoryDate,
       openedAt: lastOpened, tags: values.tagNames ?? [],
-      owner: attributes?[.ownerAccountName] as? String,
-      group: attributes?[.groupOwnerAccountName] as? String,
-      permissions: attributes?[.posixPermissions] as? Int,
+      owner: hasStatus ? ownerName(status.st_uid) : nil,
+      group: hasStatus ? groupName(status.st_gid) : nil,
+      permissions: hasStatus ? Int(status.st_mode & 0o7777) : nil,
       isHidden: values.isHidden == true || url.lastPathComponent.hasPrefix(".")
     )
+  }
+
+  /// A folder usually has one owner and group, so each name is looked up once.
+  private func ownerName(_ id: uid_t) -> String? {
+    if let name = ownerNames[id] { return name }
+    var entry = passwd()
+    var result: UnsafeMutablePointer<passwd>?
+    var buffer = [CChar](repeating: 0, count: 4096)
+    guard getpwuid_r(id, &entry, &buffer, buffer.count, &result) == 0, result != nil else {
+      return nil
+    }
+    let name = String(cString: entry.pw_name)
+    ownerNames[id] = name
+    return name
+  }
+
+  private func groupName(_ id: gid_t) -> String? {
+    if let name = groupNames[id] { return name }
+    var entry = Darwin.group()
+    var result: UnsafeMutablePointer<Darwin.group>?
+    var buffer = [CChar](repeating: 0, count: 4096)
+    guard getgrgid_r(id, &entry, &buffer, buffer.count, &result) == 0, result != nil else {
+      return nil
+    }
+    let name = String(cString: entry.gr_name)
+    groupNames[id] = name
+    return name
+  }
+
+  /// Files keep this date in an extended attribute, which is what Spotlight reports for them, and
+  /// asking Spotlight per file makes a 100k folder take about 30 s to list. Apps and folders often
+  /// have the date only in Spotlight, so they still ask it.
+  private static func lastOpened(_ url: URL, kind: FileEntry.Kind) -> Date? {
+    var time = timespec()
+    let size = getxattr(
+      url.path, "com.apple.lastuseddate#PS", &time, MemoryLayout<timespec>.size, 0, 0)
+    if size == MemoryLayout<timespec>.size {
+      return Date(timeIntervalSince1970: Double(time.tv_sec) + Double(time.tv_nsec) / 1e9)
+    }
+    guard kind == .directory else { return nil }
+    let metadata = MDItemCreateWithURL(kCFAllocatorDefault, url as CFURL)
+    return metadata.flatMap { MDItemCopyAttribute($0, kMDItemLastUsedDate) as? Date }
   }
 
   static func normalized(_ error: any Error) -> any Error {

@@ -66,6 +66,20 @@
 
 ### M14.12 Performance
 - [ ] A folder with 100k entries lists in an acceptable time. Large transfers don't freeze the UI.
+  - Open: listing misses the proposed 3 s target. Large transfers meet theirs.
+  - Run with `FILETERM_PERF=1 swift test -c release -Xswiftc -enable-testing --filter PerformanceBenchmarks`. It fails on the 3 s target until that's met or changed.
+
+  | Measure, on 100k empty files in a release build | Before | After | Proposed target |
+  |---|---|---|---|
+  | List and prepare one pane | 28.2 s | 5.2 s | 3 s |
+  | Longest main thread stall while listing | 0.62 s (first accurate reading, after the first listing fix) | 0.12 s | 0.25 s |
+  | Real app settles with both panes on that folder | Busy past 91 s, Debug build | About 11 s | None set |
+  | Longest main thread stall copying 1 GB | 0.001 s | 0.003 s | 0.25 s |
+
+  - The app figures come from timing a launched app until its CPU use settles, because XCUITest can't drive the app while it lists this folder. They don't show how smoothly the 100k list scrolls, and that wasn't measured.
+  - Selecting everything in a folder this large isn't measured. Open With asks macOS about each selected item, so expect that to be slow.
+  - A folder of 100k subfolders stays slower, because folders still ask Spotlight for their last opened date.
+  - Going further means loading tags and file kinds after the listing, about 1.5 s of what's left.
 
 ### M14.13 Documentation
 - [ ] A user guide mirroring the source chapters, plus an in-app help link for each command.
