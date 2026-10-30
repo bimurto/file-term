@@ -41,8 +41,8 @@
 - [x] This external terminal stays separate from the built-in terminal panel (M06). Both can be used side by side.
 
 ### M11.10 Source control (Git)
-- [ ] Commands › Source Control: Add, Add All, Commit (message prompt), Push, Pull.
-- [ ] The menu is disabled outside a Git repository. Git output is written to Logs.
+- [x] Commands › Source Control: Add, Add All, Commit (message prompt), Push, Pull.
+- [x] The menu is disabled outside a Git repository. Git output is written to Logs.
 
 ## Tickets
 
@@ -57,7 +57,7 @@ M11 ships in tickets, one commit each.
 | T5 External editors and Edit | M11.07 | Done |
 | T6 Remote editing | M11.08 | Done |
 | T7 Open in Terminal | M11.09 | Done |
-| T8 Source control | M11.10 | Open |
+| T8 Source control | M11.10 | Done |
 
 ## T1 notes
 
@@ -184,3 +184,28 @@ M11 ships in tickets, one commit each.
   from View › Customize Toolbar….
 - Not done: the apps themselves have not been launched by hand; tests cover where each app is found,
   the setting, and the default toolbar.
+
+## T8 notes
+
+- Commands › Source Control has Add (the selected items), Add All, Commit… (asks for a message),
+  Push and Pull. Each runs `/usr/bin/git -C <repository root> …` as a queue job of kind `git`, with
+  no shell, so paths and messages need no quoting. The root is the nearest folder at or above the
+  current one that holds `.git` (a folder or a worktree file).
+- Every item is disabled, with the reason as tooltip, outside a Git repository, in a remote or archive
+  pane, and (Add only) with nothing selected. Commit with an empty message does nothing.
+- Logs get `$ git -C … <command>`, each output line (stdout, then stderr, at most 500 lines) and
+  `Exit code N`. A nonzero exit fails the job and Activities shows git's last error line. Git jobs are
+  not retried. The panes refresh afterwards.
+- Git never waits for input: `GIT_TERMINAL_PROMPT=0`, `GIT_MERGE_AUTOEDIT=no` and `GIT_EDITOR=true`
+  are set, so a push or pull that needs a password fails with git's message instead of hanging.
+  Credentials must already work from the command line (keychain helper or SSH agent).
+- Push is plain `git push`. A branch with no upstream fails with git's own message, which includes
+  the command to run; the upstream is not set for you.
+- Tests run real git in temporary repositories: add, add all, commit (quotes and a multi-line
+  message), a failing add, and push and pull through a local bare remote.
+- Not done: the commit prompt and the menu have not been driven by hand.
+
+## Summary
+
+M11 is implemented except live iCloud sync (M11.03, deferred, see T2). Items not driven by hand on the
+desktop are listed in each ticket's notes.

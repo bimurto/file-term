@@ -32,6 +32,7 @@ import UniformTypeIdentifiers
   private let filePreviews = FilePreviewCoordinator()
   private let fileUtilities = FileUtilityCoordinator()
   private lazy var toolRunner = ToolRunner(fileOperations: fileOperations)
+  private lazy var gitRunner = GitRunner(fileOperations: fileOperations)
   private lazy var remoteEdits = RemoteEditCoordinator(fileOperations: fileOperations)
   private let updates = UpdateChecker()
   private let onboarding = OnboardingCoordinator()
@@ -1132,6 +1133,17 @@ import UniformTypeIdentifiers
       ? "Files inside an archive cannot be edited." : nil
   }
 
+  private func gitDisabledReason(needsSelection: Bool) -> String? {
+    guard let location = browser.activePane.location, location.providerID == "local" else {
+      return "Source control works in local folders only."
+    }
+    guard GitRepository.root(from: location.path) != nil else {
+      return "The current folder is not in a Git repository."
+    }
+    if needsSelection, browser.activePane.selection.isEmpty { return "Select the items to add." }
+    return nil
+  }
+
   private func toolDisabledReason(_ tool: UserTool) -> String? {
     let pane = browser.activePane
     return ToolRunner.disabledReason(
@@ -1234,6 +1246,33 @@ import UniformTypeIdentifiers
         guard let self else { return }
         fileOperations.chooseApplication(browser, window: browserWindow)
       })
+    for (id, git) in [
+      ("add", GitCommand.add([])), ("addAll", .addAll), ("commit", .commit(message: "")),
+      ("push", .push), ("pull", .pull),
+    ] {
+      let needsSelection = id == "add"
+      result.append(
+        command(
+          "commands.git.\(id)", git.title + (id == "commit" ? "…" : ""),
+          menu: ["Commands", "Source Control"],
+          condition: { [weak self] in self?.gitDisabledReason(needsSelection: needsSelection) == nil },
+          reason: { [weak self] in self?.gitDisabledReason(needsSelection: needsSelection) ?? "" }
+        ) { [weak self] in
+          guard let self, let location = browser.activePane.location,
+            let root = GitRepository.root(from: location.path)
+          else { return }
+          switch id {
+          case "add":
+            let paths = browser.activePane.selectedEntries.map(\.location.path)
+            gitRunner.run(.add(paths), root: root)
+          case "commit":
+            if let message = GitRunner.askForCommitMessage() {
+              gitRunner.run(.commit(message: message), root: root)
+            }
+          default: gitRunner.run(git, root: root)
+          }
+        })
+    }
     result.append(
       command(
         "file.openInTerminal", "Open in Terminal", menu: ["File"],

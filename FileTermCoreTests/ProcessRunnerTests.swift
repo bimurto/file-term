@@ -22,6 +22,12 @@ struct ProcessRunnerTests {
         .resolvingSymlinksInPath().path == folder.resolvingSymlinksInPath().path)
   }
 
+  @Test func captureAddsEnvironmentVariables() async throws {
+    let output = try await ProcessRunner.capture(
+      "/bin/sh", ["-c", "printf %s \"$FILETERM_PROBE\""], environment: ["FILETERM_PROBE": "yes"])
+    #expect(output.stdout == "yes")
+  }
+
   @Test func captureOfAMissingProgramThrows() async {
     await #expect(throws: (any Error).self) {
       try await ProcessRunner.capture("/no/such/program", [])
