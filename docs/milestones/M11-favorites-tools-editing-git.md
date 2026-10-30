@@ -51,7 +51,7 @@ M11 ships in tickets, one commit each.
 | Ticket | Covers | Status |
 |---|---|---|
 | T1 Favorites manager and remote paths | M11.01, M11.02 | Done |
-| T2 Sync Favorites setting | M11.03 | Open |
+| T2 Sync Favorites setting | M11.03 | Setting only, sync deferred |
 | T3 Tool model, placeholders, editor | M11.04, M11.05 | Open |
 | T4 Tool execution, output, toolbar | M11.06 | Open |
 | T5 External editors and Edit | M11.07 | Open |
@@ -74,3 +74,13 @@ M11 ships in tickets, one commit each.
 - Stored as the `favorites` Defaults key (JSON). Model and list helpers are in `Core/Favorites`.
 - Not done: reordering favorites by drag within the list; the dialogs have not been driven by hand
   on the desktop. Unit tests cover the model, persistence and opening a connection favorite.
+
+## T2 notes
+
+- Settings › General › Sync Favorites to iCloud (default off) is saved as `syncFavoritesToICloud`.
+  **Live sync is deferred, so the M11.03 box stays unticked.** FileTerm is ad-hoc signed with no
+  entitlements. iCloud key-value sync needs a developer team and an iCloud entitlement, and an ad-hoc
+  build carrying that entitlement does not launch. The pane says so next to the toggle.
+- `FavoritesSyncPayload` (Core) is what would be synced: a version number and the favorites list,
+  nothing else, so file contents can never be included. Data from a newer version is refused.
+- Also fixed: Settings › Shortcuts no longer lists the dynamic Go › Favorites entries.

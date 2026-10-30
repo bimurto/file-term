@@ -131,6 +131,9 @@ enum BrowserChrome: String, CaseIterable {
   var compareTool: CompareTool {
     didSet { Defaults[compareToolKey] = compareTool.rawValue }
   }
+  var syncFavoritesToICloud: Bool {
+    didSet { Defaults[syncFavoritesToICloudKey] = syncFavoritesToICloud }
+  }
   var searchEngine: SearchEngine {
     didSet { Defaults[searchEngineKey] = searchEngine.rawValue }
   }
@@ -146,6 +149,7 @@ enum BrowserChrome: String, CaseIterable {
   @ObservationIgnored private let archivesAsFoldersKey: Defaults.Key<Bool>
   @ObservationIgnored private let detectAppOnDeleteKey: Defaults.Key<Bool>
   @ObservationIgnored private let compareToolKey: Defaults.Key<String>
+  @ObservationIgnored private let syncFavoritesToICloudKey: Defaults.Key<Bool>
   @ObservationIgnored private let searchEngineKey: Defaults.Key<String>
   @ObservationIgnored private let subfoldersKey: Defaults.Key<Bool>
   @ObservationIgnored private let shortcutsKey: Defaults.Key<Data>
@@ -202,6 +206,7 @@ enum BrowserChrome: String, CaseIterable {
     detectAppOnDeleteKey = Defaults.Key("detectAppOnDelete", default: true, suite: suite)
     compareToolKey = Defaults.Key(
       "compareTool", default: CompareTool.fileMerge.rawValue, suite: suite)
+    syncFavoritesToICloudKey = Defaults.Key("syncFavoritesToICloud", default: false, suite: suite)
     searchEngineKey = Defaults.Key(
       "searchEngine", default: SearchEngine.builtIn.rawValue, suite: suite)
     subfoldersKey = Defaults.Key("searchSubfolders", default: true, suite: suite)
@@ -212,6 +217,7 @@ enum BrowserChrome: String, CaseIterable {
     archivesAsFolders = Defaults[archivesAsFoldersKey]
     detectAppOnDelete = Defaults[detectAppOnDeleteKey]
     compareTool = CompareTool(rawValue: Defaults[compareToolKey]) ?? .fileMerge
+    syncFavoritesToICloud = Defaults[syncFavoritesToICloudKey]
     searchEngine = SearchEngine(rawValue: Defaults[searchEngineKey]) ?? .builtIn
     searchIncludeSubfolders = Defaults[subfoldersKey]
     shortcutOverrides =

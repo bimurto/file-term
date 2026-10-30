@@ -55,3 +55,23 @@ struct FavoriteTests {
     #expect(FavoriteItem.iCloudDrivePath.hasSuffix("/Library/Mobile Documents/com~apple~CloudDocs"))
   }
 }
+
+struct FavoritesSyncPayloadTests {
+  @Test func roundTripsOnlyTheFavoritesList() throws {
+    let list: [FavoriteNode] = [
+      .item(FavoriteItem(name: "Docs", target: .local(path: "/Users/me/Documents"))),
+      .group(FavoriteGroup(name: "Work")),
+    ]
+    let data = try FavoritesSyncPayload(favorites: list).encoded()
+    let payload = try FavoritesSyncPayload.decode(data)
+    #expect(payload.favorites == list)
+    #expect(payload.version == FavoritesSyncPayload.currentVersion)
+    let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    #expect(Set(object?.keys.map { $0 } ?? []) == ["version", "favorites"])
+  }
+
+  @Test func refusesDataFromANewerVersion() throws {
+    let data = try FavoritesSyncPayload(favorites: [], version: 99).encoded()
+    #expect(throws: FavoritesSyncError.newerVersion) { try FavoritesSyncPayload.decode(data) }
+  }
+}

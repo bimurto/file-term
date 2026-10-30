@@ -69,7 +69,7 @@ private struct SettingsCategoryView: View {
     .frame(
       width: 660,
       height: category == .terminal || category == .transfers
-        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 560 : 320)),
+        ? 640 : (category == .shortcuts ? 480 : (category == .general ? 640 : 320)),
       alignment: .topLeading
     )
     .onAppear { settings.selectedCategory = category.rawValue }
@@ -220,6 +220,12 @@ private struct GeneralSettingsView: View {
         }
       }
       .accessibilityIdentifier("compareTool")
+      Toggle("Sync Favorites to iCloud", isOn: $settings.syncFavoritesToICloud)
+        .accessibilityIdentifier("syncFavorites")
+      Text(
+        "Syncs only the favorites list, never file contents. Syncing is not available in this build; "
+          + "the setting is saved for when it is."
+      ).font(.caption).foregroundStyle(.secondary)
       Text("Current: " + settings.workspace.startingDirectory).font(.caption).foregroundStyle(
         .secondary)
       if let error { Text(error).font(.caption).foregroundStyle(.red) }
@@ -252,6 +258,7 @@ private struct ShortcutsSettingsView: View {
   private var commands: [AppCommand] {
     registry.commands.filter { command in
       !command.id.hasPrefix("go.recent") && !command.id.hasPrefix("go.connections")
+        && (command.id == "go.favorites.manage" || !command.id.hasPrefix("go.favorites."))
         && (filter.isEmpty
           || command.title.localizedCaseInsensitiveContains(filter)
           || command.menuPath.joined(separator: " ").localizedCaseInsensitiveContains(filter)
