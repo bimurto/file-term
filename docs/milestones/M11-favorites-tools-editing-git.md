@@ -6,11 +6,11 @@
 ## Items
 
 ### M11.01 Favorites manager
-- [ ] Toolbar button opens the manager with New Favorite, New Favorite Group, Edit, Delete.
-- [ ] Local paths, iCloud Drive and connections can appear in the same list. Entries can be dragged into groups.
+- [x] Toolbar button opens the manager with New Favorite, New Favorite Group, Edit, Delete.
+- [x] Local paths, iCloud Drive and connections can appear in the same list. Entries can be dragged into groups.
 
 ### M11.02 Remote favorite paths *(vendor-documented)*
-- [ ] A connection favorite can hold several saved paths. Choosing one connects and opens that path.
+- [x] A connection favorite can hold several saved paths. Choosing one connects and opens that path.
 
 ### M11.03 Sync favorites to iCloud
 - [ ] Settings › General › Sync Favorites to iCloud (default off) syncs only the favorites list, not file contents.
@@ -43,3 +43,34 @@
 ### M11.10 Source control (Git)
 - [ ] Commands › Source Control: Add, Add All, Commit (message prompt), Push, Pull.
 - [ ] The menu is disabled outside a Git repository. Git output is written to Logs.
+
+## Tickets
+
+M11 ships in tickets, one commit each.
+
+| Ticket | Covers | Status |
+|---|---|---|
+| T1 Favorites manager and remote paths | M11.01, M11.02 | Done |
+| T2 Sync Favorites setting | M11.03 | Open |
+| T3 Tool model, placeholders, editor | M11.04, M11.05 | Open |
+| T4 Tool execution, output, toolbar | M11.06 | Open |
+| T5 External editors and Edit | M11.07 | Open |
+| T6 Remote editing | M11.08 | Open |
+| T7 Open in Terminal | M11.09 | Open |
+| T8 Source control | M11.10 | Open |
+
+## T1 notes
+
+- Go › Manage Favorites… (also a star button in the default toolbar) opens the manager sheet:
+  New Favorite, New Favorite Group, Edit and Delete. A favorite is a local folder (Choose…, or the
+  iCloud Drive button) or a saved connection with its own list of paths. Groups are one level deep.
+- Drag a favorite onto a group heading to file it there. "Move Out" returns it to the top level.
+  Deleting a group that holds favorites asks first.
+- Go › Favorites lists them, groups as submenus. A connection with several paths shows a submenu with
+  one entry per path. Choosing one connects (unless already open) and opens that path in the pane set
+  by Settings › General › Open remote connections in. Favorites also appear in Quick Open.
+- A connection favorite with no paths opens the profile's own folder. A favorite whose connection was
+  deleted shows a notice. Mounted shares (SMB, AFP, NFS) resolve paths under the mount point.
+- Stored as the `favorites` Defaults key (JSON). Model and list helpers are in `Core/Favorites`.
+- Not done: reordering favorites by drag within the list; the dialogs have not been driven by hand
+  on the desktop. Unit tests cover the model, persistence and opening a connection favorite.

@@ -54,6 +54,15 @@ struct BrowserView: View {
       transfers.preferences = value
     }
     .onAppear {
+      extensionPoints.favorites = [
+        ClosureQuickOpenSource { [settings, browser, connections] in
+          settings.favorites.allItems.map { item in
+            QuickOpenItem(id: "favorite:\(item.id)", title: item.name, kind: .favorite) {
+              Task { await connections.openFavorite(item, in: browser) }
+            }
+          }
+        }
+      ]
       extensionPoints.renamePresets = [
         ClosureQuickOpenSource { [settings, browser] in
           settings.renamePresets.map { preset in
@@ -143,6 +152,8 @@ struct BrowserView: View {
       case .viewOptions: ViewOptionsSheet(pane: browser.activePane)
       case .toolbar: ToolbarCustomizationSheet(settings: settings, registry: registry)
       case .sidebar: SidebarEditorSheet(settings: settings)
+      case .favorites:
+        FavoritesManagerSheet(settings: settings, connections: connections, browser: browser)
       }
     }
     .alert(
@@ -247,7 +258,9 @@ struct BrowserView: View {
     let provider = localProvider
     let commands = ClosureQuickOpenSource {
       registry.commands.filter {
-        !$0.id.hasPrefix("go.recent") && !$0.id.hasPrefix("go.connections") && $0.id != "quickOpen"
+        !$0.id.hasPrefix("go.recent") && !$0.id.hasPrefix("go.connections")
+          && ($0.id == "go.favorites.manage" || !$0.id.hasPrefix("go.favorites."))
+          && $0.id != "quickOpen"
       }
       .map { command in
         let shortcut = registry.effectiveShortcut(for: command.id)?.display

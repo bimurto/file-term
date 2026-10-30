@@ -294,6 +294,38 @@ func makeRemoteProvider(
     await reveal(connection, in: browser)
   }
 
+  /// Opens a favorite. A connection favorite connects first unless it is already open, then shows
+  /// `path` (or the profile's own folder). Failures are shown as the browser notice.
+  func openFavorite(_ item: FavoriteItem, path: String? = nil, in browser: BrowserModel) async {
+    switch item.target {
+    case .local(let folder):
+      await browser.navigate(
+        to: Location(providerID: "local", path: path ?? folder), in: browser.activePaneID)
+    case .connection(let profileID, let paths):
+      guard let profile = profiles.first(where: { $0.id == profileID }) else {
+        browser.notice = "The connection for “\(item.name)” no longer exists."
+        return
+      }
+      do {
+        if !open.contains(where: { $0.id == profile.id }) { try await connect(profile) }
+        guard let connection = open.first(where: { $0.id == profile.id }) else { return }
+        let pane = placementPane(in: browser)
+        guard let remotePath = path ?? paths.first else {
+          await browser.navigate(to: connection.root, in: pane)
+          return
+        }
+        // Mounted shares (SMB, AFP, NFS) are local folders, so their paths sit under the mount.
+        let target =
+          connection.mountURL.map {
+            Location(providerID: connection.root.providerID, path: $0.path + remotePath)
+          } ?? Location(providerID: connection.root.providerID, path: remotePath)
+        await browser.navigate(to: target, in: pane)
+      } catch {
+        browser.notice = error.localizedDescription
+      }
+    }
+  }
+
   func disconnect(_ connection: OpenConnection, in browser: BrowserModel, home: Location)
     async throws
   {

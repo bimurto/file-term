@@ -67,7 +67,8 @@ import UniformTypeIdentifiers
   private lazy var registry = CommandRegistry(
     commands: makeCommands(),
     dynamicCommands: { [unowned self] in
-      recentCommands() + connectionCommands() + syncFavoriteCommands() + openWithCommands()
+      recentCommands() + connectionCommands() + favoriteCommands() + syncFavoriteCommands()
+        + openWithCommands()
     },
     shortcutOverrides: settings.shortcutOverrides,
     context: { [unowned self] in
@@ -496,6 +497,16 @@ import UniformTypeIdentifiers
         handler: { [weak self] in
           guard let self else { return }
           NotificationCenter.default.post(name: .fileTermConnect, object: browser)
+        }),
+      AppCommand(
+        id: "go.favorites.manage", title: "Manage Favorites…", menuPath: ["Go"],
+        isEnabled: { $0.hasBrowserWindow },
+        disabledReason: { _ in "Open the browser window first." },
+        handler: { [weak self] in
+          guard let self else { return }
+          NotificationCenter.default.post(
+            name: .fileTermBrowserOptions, object: browser,
+            userInfo: ["kind": BrowserOptionsSheet.favorites.rawValue])
         }),
       AppCommand(
         id: "view.twoPanes", title: "Show Two Panes", menuPath: ["View"],
@@ -986,6 +997,46 @@ import UniformTypeIdentifiers
       })
     NotificationCenter.default.post(
       name: .fileTermBatchRename, object: controller.browser, userInfo: ["model": model])
+  }
+
+  /// Go › Favorites: top-level favorites and groups as submenus. A connection with several saved
+  /// paths gets a submenu with one entry per path.
+  private func favoriteCommands() -> [AppCommand] {
+    func commands(for item: FavoriteItem, in menu: [String]) -> [AppCommand] {
+      func command(_ id: String, _ title: String, _ menu: [String], path: String?) -> AppCommand {
+        AppCommand(
+          id: id, title: title, menuPath: menu, isEnabled: { $0.hasBrowserWindow },
+          disabledReason: { _ in "Open the browser window first." },
+          handler: { [weak self] in
+            guard let self else { return }
+            let model = browser
+            Task { await self.connections.openFavorite(item, path: path, in: model) }
+          })
+      }
+      if case .connection(_, let paths) = item.target, paths.count > 1 {
+        return paths.enumerated().map { index, path in
+          command("go.favorites.item.\(item.id).\(index)", path, menu + [item.name], path: path)
+        }
+      }
+      return [command("go.favorites.item.\(item.id)", item.name, menu, path: nil)]
+    }
+    let root = ["Go", "Favorites"]
+    var result: [AppCommand] = []
+    for node in settings.favorites {
+      switch node {
+      case .item(let item): result += commands(for: item, in: root)
+      case .group(let group):
+        for item in group.items { result += commands(for: item, in: root + [group.name]) }
+      }
+    }
+    if result.isEmpty {
+      result.append(
+        AppCommand(
+          id: "go.favorites.empty", title: "No Favorites", menuPath: root,
+          isEnabled: { _ in false },
+          disabledReason: { _ in "Use Go › Manage Favorites… to add one." }, handler: {}))
+    }
+    return result
   }
 
   private func syncFavoriteCommands() -> [AppCommand] {

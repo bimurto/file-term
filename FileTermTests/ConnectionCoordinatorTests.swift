@@ -457,6 +457,34 @@ private actor ScriptedSFTP: ValidatingProvider {
     #expect(coordinator.textEncoding(for: Location(providerID: "local", path: "/")) == nil)
   }
 
+  @Test func connectionFavoriteConnectsOnceAndOpensTheChosenPath() async throws {
+    let (coordinator, registry) = try makeRemote()
+    let browser = BrowserModel(registry: registry)
+    let profile = dav()
+    try coordinator.save(profile, password: "")
+    let favorite = FavoriteItem(
+      name: "Site", target: .connection(profileID: profile.id, paths: ["/files", "/other"]))
+    let id = "webdav.\(profile.id.uuidString)"
+
+    await coordinator.openFavorite(favorite, path: "/other", in: browser)
+    #expect(browser.secondPane.location == Location(providerID: id, path: "/other"))
+    #expect(coordinator.open.count == 1)
+
+    // Already open: no second connection, the first saved path is the default.
+    await coordinator.openFavorite(favorite, in: browser)
+    #expect(browser.secondPane.location == Location(providerID: id, path: "/files"))
+    #expect(coordinator.open.count == 1)
+  }
+
+  @Test func favoriteWithADeletedConnectionShowsANotice() async throws {
+    let (coordinator, registry) = try makeRemote()
+    let browser = BrowserModel(registry: registry)
+    let favorite = FavoriteItem(
+      name: "Gone", target: .connection(profileID: UUID(), paths: []))
+    await coordinator.openFavorite(favorite, in: browser)
+    #expect(browser.notice?.contains("no longer exists") == true)
+  }
+
   @Test func sftpProviderIsBuiltFromTheProfile() throws {
     let profile = sftpProfile()
     let provider = try makeRemoteProvider(profile, password: "pw")

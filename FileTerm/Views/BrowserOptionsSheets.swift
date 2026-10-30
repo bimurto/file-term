@@ -2,7 +2,7 @@ import FileTermCore
 import SwiftUI
 
 enum BrowserOptionsSheet: String, Identifiable {
-  case viewOptions, toolbar, sidebar
+  case viewOptions, toolbar, sidebar, favorites
   var id: String { rawValue }
 }
 

@@ -5,6 +5,11 @@ import Testing
 @testable import FileTerm
 
 @MainActor struct WorkspaceSettingsTests {
+  @Test func defaultToolbarHasTheFavoritesButton() {
+    #expect(WorkspacePreferences().toolbarItems.contains("go.favorites.manage"))
+    #expect(ToolbarSymbols.symbol(for: "go.favorites.manage") == "star")
+  }
+
   @Test func defaultToolbarHasTheDeleteButton() {
     #expect(WorkspacePreferences().toolbarItems.contains("file.trash"))
     #expect(ToolbarSymbols.symbol(for: "file.trash") == "trash")
