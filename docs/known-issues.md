@@ -34,5 +34,3 @@ Details are in [M15](milestones/M15-context-menus.md).
 | Issue | Status | Detail |
 |---|---|---|
 | The right-click UI tests have never run | Seen | `FileTermUITests/ContextMenuUITests.swift` stopped with "Timed out while enabling automation mode". It may need approval on screen. It also doesn't cover the sidebar yet. |
-| New files were added to the Xcode project by hand | Seen | `xcodegen` wasn't installed, so `FileContextMenu.swift` and `ContextMenuUITests.swift` were added directly to `project.pbxproj`. Regenerating from `project.yml` hasn't been tried. |
-| `Localizable.xcstrings` has large uncommitted changes | Seen | It was already modified before M15, and its diff grew during M15 builds, so review it separately from code changes. |
