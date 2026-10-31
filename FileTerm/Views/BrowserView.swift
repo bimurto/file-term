@@ -469,6 +469,7 @@ struct BrowserView: View {
           "Preview", systemImage: "sidebar.right",
           description: Text("Select a local item to inspect its metadata and preview its contents.")
         )
+        .frame(maxHeight: .infinity)
       }
     }.accessibilityIdentifier("panel.Preview")
   }
