@@ -43,7 +43,8 @@ import Testing
     print("PERF \(name): \(String(format: "%.3f", seconds)) s")
   }
 
-  private func timed<T>(_ name: String, _ body: () async throws -> T) async rethrows -> T {
+  private func timed<T: Sendable>(_ name: String, _ body: () async throws -> T) async rethrows -> T
+  {
     let start = ContinuousClock.now
     let result = try await body()
     report(name, ContinuousClock.now - start)
