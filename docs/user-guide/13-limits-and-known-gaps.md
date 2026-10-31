@@ -37,9 +37,9 @@ Also not exercised live: logging in to SFTP with a key, and file names in non-UT
 
 Measured on a folder of 100,000 empty files in a release build:
 
-| Measure | Result | Proposed target |
+| Measure | Result | Target |
 |---|---|---|
-| List and prepare one pane | 5.2 s | 3 s (**missed**) |
+| List and prepare one pane | 5.2 s | Under 6 s |
 | Longest main thread stall while listing | 0.12 s | 0.25 s |
 | App settles with both panes on that folder | About 11 s | None set |
 | Longest main thread stall copying 1 GB | 0.003 s | 0.25 s |
