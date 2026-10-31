@@ -239,6 +239,7 @@
 		CAB3CDBE025DFBAE3B2C9267 /* RemoteEditCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteEditCoordinator.swift; sourceTree = "<group>"; };
 		CC95DBFA6B2D09F772E31575 /* FilePreviewContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewContentView.swift; sourceTree = "<group>"; };
 		CDCFB06361D11DA221744D7C /* PaneTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneTabBar.swift; sourceTree = "<group>"; };
+		D36776821C02040D328423AB /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		D52FF1895899C689387FBE0D /* forklift.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = forklift.json; sourceTree = "<group>"; };
 		D8039C31BEB9E425384F2870 /* Settings */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Settings; path = .build/vendor/Settings; sourceTree = SOURCE_ROOT; };
 		D95BB1CA363DF7CCFD68C601 /* AdditionalCapabilitiesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdditionalCapabilitiesUITests.swift; sourceTree = "<group>"; };
@@ -291,6 +292,14 @@
 				410B5096592C683AC7CB3C20 /* sand.json */,
 			);
 			path = Themes;
+			sourceTree = "<group>";
+		};
+		1301B120AC0AB4C10D5BE80A /* dev */ = {
+			isa = PBXGroup;
+			children = (
+				D36776821C02040D328423AB /* Signing.xcconfig */,
+			);
+			path = dev;
 			sourceTree = "<group>";
 		};
 		4A746ACA209D921EEDAD0D99 /* Packages */ = {
@@ -387,6 +396,7 @@
 		AFC66C9763FDF4B3A6C473B3 = {
 			isa = PBXGroup;
 			children = (
+				1301B120AC0AB4C10D5BE80A /* dev */,
 				D7AE16DF908609B4A0122B6D /* FileTerm */,
 				FD2C5834FF37BD48DDB048D2 /* FileTermTests */,
 				D20642C27DED9F5B8CE1E5CF /* FileTermUITests */,
@@ -803,6 +813,7 @@
 		};
 		2230026235A15F628F34EC51 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D36776821C02040D328423AB /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -834,7 +845,6 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -955,6 +965,7 @@
 		};
 		CF979E2094E2B21807BAE480 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D36776821C02040D328423AB /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -986,7 +997,6 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";

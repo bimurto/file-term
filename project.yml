@@ -5,12 +5,14 @@ options:
     macOS: "14.0"
   createIntermediateGroups: true
   developmentLanguage: en
+configFiles:
+  Debug: dev/Signing.xcconfig
+  Release: dev/Signing.xcconfig
 settings:
   base:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     CODE_SIGN_STYLE: Manual
-    CODE_SIGN_IDENTITY: "-"
     ENABLE_APP_SANDBOX: NO
     ENABLE_HARDENED_RUNTIME: NO
 packages:

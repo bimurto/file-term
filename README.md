@@ -69,6 +69,24 @@ or Apple developer account is needed for the ad-hoc development build.
 `project.yml` is the source of truth for the generated Xcode project. Regenerate
 after adding files or changing build settings. Do not edit downloaded packages.
 
+### Keep folder permissions across rebuilds
+
+An ad-hoc signature changes with every build, so macOS asks again for Desktop,
+Documents and Downloads. A local certificate keeps the signature stable:
+
+1. In Keychain Access, choose **Certificate Assistant → Create a Certificate**.
+   Name it `FileTerm Dev` and set the type to **Code Signing**.
+2. Create `dev/Signing.local.xcconfig`. Git ignores this file:
+
+   ```
+   CODE_SIGN_IDENTITY = FileTerm Dev
+   ```
+
+3. Rebuild, then grant the prompts one last time.
+
+If the build can't find the identity, open the certificate in Keychain Access and
+set **Trust → Code Signing** to **Always Trust**.
+
 ## Verify
 
 ```sh
