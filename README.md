@@ -87,6 +87,15 @@ Documents and Downloads. A local certificate keeps the signature stable:
 If the build can't find the identity, open the certificate in Keychain Access and
 set **Trust → Code Signing** to **Always Trust**.
 
+### Create a DMG
+
+```sh
+bash scripts/create-dmg.sh
+```
+
+This writes `.build/FileTerm.dmg`. It isn't notarized, so Gatekeeper blocks it on
+other Macs.
+
 ## Verify
 
 ```sh
