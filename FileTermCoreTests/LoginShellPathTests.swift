@@ -55,6 +55,21 @@ struct LoginShellPathTests {
     #expect(ContinuousClock.now - start < .seconds(3))
   }
 
+  @Test func theMissingProgramCheckUsesThePathToolsRunWith() async throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let program = folder.appendingPathComponent("only-here")
+    try Data("#!/bin/sh\n".utf8).write(to: program)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: program.path)
+    let check = Prerequisite.commandLineProgram("only-here")
+    #expect(Prerequisites.live(path: folder.path).missing(check) == nil)
+    #expect(Prerequisites.live(path: "/usr/bin").missing(check) != nil)
+
+    let path = try #require(await LoginShellPath.environment()["PATH"])
+    #expect(Prerequisites.live.searchPath == path.split(separator: ":").map(String.init))
+  }
+
   @Test func theRealLookupKeepsSystemFolders() async {
     let environment = await LoginShellPath.environment()
     if let path = environment["PATH"] {

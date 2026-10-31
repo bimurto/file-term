@@ -14,7 +14,7 @@ public enum Prerequisite: Hashable, Sendable {
 public struct Prerequisites: Sendable {
   private let fileExists: @Sendable (String) -> Bool
   private let isExecutable: @Sendable (String) -> Bool
-  private let searchPath: [String]
+  let searchPath: [String]
   private let compareToolInstalled: @Sendable (CompareTool) -> Bool
 
   public init(
@@ -28,13 +28,19 @@ public struct Prerequisites: Sendable {
     self.compareToolInstalled = compareToolInstalled
   }
 
-  /// Uses the same `PATH` that tools inherit when they run through `/bin/sh`.
-  public static let live = Prerequisites(
-    fileExists: { FileManager.default.fileExists(atPath: $0) },
-    isExecutable: { FileManager.default.isExecutableFile(atPath: $0) },
-    searchPath: (ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")
-      .split(separator: ":").map(String.init),
-    compareToolInstalled: { $0.isInstalled })
+  /// Uses the same `PATH` that tools run with: the login shell's once it has been found.
+  public static var live: Prerequisites {
+    live(
+      path: LoginShellPath.loadedEnvironment["PATH"] ?? ProcessInfo.processInfo.environment["PATH"])
+  }
+
+  static func live(path: String?) -> Prerequisites {
+    Prerequisites(
+      fileExists: { FileManager.default.fileExists(atPath: $0) },
+      isExecutable: { FileManager.default.isExecutableFile(atPath: $0) },
+      searchPath: (path ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init),
+      compareToolInstalled: { $0.isInstalled })
+  }
 
   /// What is missing for each prerequisite that is not met, in order.
   public func missing(_ prerequisites: [Prerequisite]) -> [String] {
