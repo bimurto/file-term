@@ -79,7 +79,7 @@ extension FileOperationCoordinator {
   }
 }
 
-private final class SelectAll: NSObject {
+@MainActor private final class SelectAll: NSObject {
   var boxes: [NSButton] = []
   @objc func toggle(_ sender: NSButton) {
     for box in boxes { box.state = sender.state }
