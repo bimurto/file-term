@@ -5,6 +5,7 @@ import FileTermCore
   private let registry: CommandRegistry
   private var paths: [ObjectIdentifier: [String]] = [:]
   private let servicesMenu = NSMenu(title: NSLocalizedString("Services", comment: "Menu title"))
+  private static let helpTitle = "Help"
 
   init(registry: CommandRegistry) { self.registry = registry }
 
@@ -18,7 +19,14 @@ import FileTermCore
       bar.addItem(root)
       if title == "Window" { NSApp.windowsMenu = menu }
     }
+    let help = makeMenu(path: [Self.helpTitle])
+    let root = NSMenuItem(
+      title: NSLocalizedString(Self.helpTitle, comment: "Menu title"), action: nil,
+      keyEquivalent: "")
+    root.submenu = help
+    bar.addItem(root)
     NSApp.mainMenu = bar
+    NSApp.helpMenu = help
   }
 
   private func makeMenu(path: [String]) -> NSMenu {
@@ -73,7 +81,52 @@ import FileTermCore
     for item in menu.items { if let child = item.submenu { forget(child) } }
   }
 
+  /// Help items aren't commands, because one link per command would flood Quick Open and the
+  /// shortcut list. Each app menu gets a submenu of links.
+  private func populateHelp(_ menu: NSMenu, path: [String]) {
+    if path.count == 1 {
+      menu.addItem(helpItem("FileTerm Help", url: HelpLinks.home))
+      menu.addItem(.separator())
+      var seen: Set<String> = []
+      for command in registry.commands {
+        guard let title = command.menuPath.first, seen.insert(title).inserted else { continue }
+        let item = NSMenuItem(
+          title: NSLocalizedString(title, comment: "Menu title"), action: nil, keyEquivalent: "")
+        item.submenu = makeMenu(path: path + [title])
+        menu.addItem(item)
+      }
+      return
+    }
+    var anchors: Set<String> = []
+    for command in registry.commands where command.menuPath.first == path.last {
+      guard anchors.insert(HelpLinks.anchor(forCommand: command.id)).inserted,
+        let url = HelpLinks.url(forCommand: command.id)
+      else { continue }
+      // A generated family is named after its submenu, such as Recent Folders.
+      let isFamily = HelpLinks.anchor(forCommand: command.id) != command.id
+      let title = isFamily && command.menuPath.count > 1 ? command.menuPath.last! : command.title
+      menu.addItem(helpItem(NSLocalizedString(title, comment: "Menu command"), url: url))
+    }
+  }
+
+  private func helpItem(_ title: String, url: URL) -> NSMenuItem {
+    let item = NSMenuItem(title: title, action: #selector(openHelp(_:)), keyEquivalent: "")
+    item.target = self
+    item.toolTip = url.absoluteString
+    item.representedObject = url
+    return item
+  }
+
+  @objc private func openHelp(_ sender: NSMenuItem) {
+    guard let url = sender.representedObject as? URL else { return }
+    NSWorkspace.shared.open(url)
+  }
+
   private func populate(_ menu: NSMenu, path: [String]) {
+    if path.first == Self.helpTitle {
+      populateHelp(menu, path: path)
+      return
+    }
     var submenus: Set<String> = []
     for command in registry.commands where command.menuPath.starts(with: path) {
       if command.menuPath.count > path.count {

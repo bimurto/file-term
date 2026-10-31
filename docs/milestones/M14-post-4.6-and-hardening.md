@@ -82,4 +82,6 @@
   - Going further means loading tags and file kinds after the listing, about 1.5 s of what's left.
 
 ### M14.13 Documentation
-- [ ] A user guide mirroring the source chapters, plus an in-app help link for each command.
+- [x] A user guide mirroring the source chapters, plus an in-app help link for each command.
+  - The guide is in `docs/user-guide/`. Help links open it on GitHub, so they work only once it's pushed to `main`.
+  - Generated commands, such as one per recent folder, share one entry per family.

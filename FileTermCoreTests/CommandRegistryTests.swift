@@ -3,6 +3,15 @@ import Testing
 @testable import FileTermCore
 
 @MainActor struct CommandRegistryTests {
+  @Test func generatedCommandsShareOneHelpEntryAndOthersHaveTheirOwn() {
+    #expect(HelpLinks.anchor(forCommand: "file.newTab") == "file.newTab")
+    #expect(HelpLinks.anchor(forCommand: "go.recent./private/a b") == "go.recent")
+    #expect(HelpLinks.anchor(forCommand: "window.tab3") == "window.tab")
+    #expect(HelpLinks.anchor(forCommand: "go.favorites.item.1.2") == "go.favorites.item")
+    #expect(HelpLinks.url(forCommand: "file.newTab")?.fragment == "file.newTab")
+    #expect(HelpLinks.url(forCommand: "file.newTab")?.path.hasSuffix("/commands.md") == true)
+  }
+
   @Test func statesBuildTheCommandsOnceAndMatchPerCommandAnswers() {
     var builds = 0
     let command = { (id: String, enabled: Bool, checked: Bool) in

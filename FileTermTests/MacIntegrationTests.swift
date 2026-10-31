@@ -22,6 +22,81 @@ import Testing
     return submenu.items.map(\.title)
   }
 
+  private func guideFolder() -> URL {
+    URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+      .appendingPathComponent("docs/user-guide")
+  }
+
+  @Test func everyCommandInEveryMenuHasAnEntryInTheCommandReference() async throws {
+    #expect(await eventually { NSApp.mainMenu?.item(withTitle: "File") != nil })
+    let reference = try String(
+      contentsOf: guideFolder().appendingPathComponent("commands.md"), encoding: .utf8)
+    var ids: Set<String> = []
+    func collect(_ menu: NSMenu) {
+      for item in menu.items {
+        if let id = item.representedObject as? String { ids.insert(id) }
+        if let child = item.submenu { collect(child) }
+      }
+    }
+    for root in NSApp.mainMenu?.items ?? [] where root.title != "Help" {
+      if let menu = root.submenu { collect(menu) }
+    }
+    #expect(ids.count > 100)
+    let missing = ids.map { HelpLinks.anchor(forCommand: $0) }
+      .filter { !reference.contains("<a id=\"\($0)\"></a>") }
+    #expect(Set(missing).isEmpty, "\(Set(missing).sorted())")
+  }
+
+  /// A test machine has no connections or workspaces, so the menus can't show these.
+  @Test(arguments: [
+    "go.connections.open.1", "go.connections.saved.1", "go.connections.edit.1",
+    "go.connections.disconnect.1", "go.connections.empty", "go.favorites.item.1",
+    "go.favorites.empty", "go.workspaces.load.1", "commands.syncFavorite.1", "tools.run.1",
+    "go.recent.empty", "file.openWith.other",
+  ])
+  func generatedCommandsHaveAnEntryInTheCommandReference(id: String) throws {
+    let reference = try String(
+      contentsOf: guideFolder().appendingPathComponent("commands.md"), encoding: .utf8)
+    #expect(reference.contains("<a id=\"\(HelpLinks.anchor(forCommand: id))\"></a>"))
+  }
+
+  @Test func theGuideLinksResolveAndNameNoPathsFromThisMachine() throws {
+    let folder = guideFolder()
+    let pages = try FileManager.default.contentsOfDirectory(
+      at: folder, includingPropertiesForKeys: nil
+    ).filter { $0.pathExtension == "md" }
+    #expect(pages.count == 15)
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    let link = try NSRegularExpression(pattern: #"\]\(([^)#\s]+\.md)(?:#[^)]*)?\)"#)
+    for page in pages {
+      let text = try String(contentsOf: page, encoding: .utf8)
+      #expect(!text.contains(home), "\(page.lastPathComponent)")
+      #expect(!text.contains("ForkLift"), "\(page.lastPathComponent)")
+      let range = NSRange(text.startIndex..., in: text)
+      for match in link.matches(in: text, range: range) {
+        let target = try #require(Range(match.range(at: 1), in: text))
+        let file = folder.appendingPathComponent(String(text[target]))
+        #expect(
+          FileManager.default.fileExists(atPath: file.path),
+          "\(page.lastPathComponent) links to \(text[target])")
+      }
+    }
+  }
+
+  @Test func theHelpMenuLinksToTheGuideAndEachCommand() async throws {
+    #expect(await eventually { NSApp.mainMenu?.item(withTitle: "Help") != nil })
+    let help = try #require(NSApp.mainMenu?.item(withTitle: "Help")?.submenu)
+    #expect(NSApp.helpMenu === help)
+    help.delegate?.menuNeedsUpdate?(help)
+    #expect(help.item(withTitle: "FileTerm Help")?.representedObject as? URL == HelpLinks.home)
+    let file = try #require(help.item(withTitle: "File")?.submenu)
+    let newTab = try #require(file.item(withTitle: "New Tab"))
+    #expect(newTab.isEnabled)
+    #expect((newTab.representedObject as? URL)?.fragment == "file.newTab")
+    // Links aren't commands, so they don't appear in Quick Open or the shortcut list.
+    #expect(!(newTab.representedObject is String))
+  }
+
   @Test func theAppMenuOffersUpdatesAndServices() async throws {
     // Twice, because the menu is rebuilt each time it opens.
     for _ in 0..<2 {
