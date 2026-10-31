@@ -26,7 +26,7 @@ Each protocol was to be tested for connect, list, upload, download, rename and d
 | Backblaze B2 | Passed | Against a stand-in server, not Backblaze's own service |
 | SMB | Passed | Through a real macOS mount |
 | NFS | Not run | The test server couldn't start in the test setup |
-| WebDAV over HTTPS | Not run | No test server |
+| WebDAV over HTTPS | Passed | Against a local test server with its own certificate. An untrusted certificate is refused. |
 | AFP | Not run | No test server, and macOS 26 has no AFP client |
 | VNC | Not applicable | Screen sharing can't list or transfer files |
 | Rackspace, Google Drive, OneDrive, Dropbox | Not run | Not built |

@@ -19,9 +19,20 @@ public actor WebDAVProvider: ValidatingProvider {
     id: String, baseURL: URL, username: String?, password: String?,
     configuration: URLSessionConfiguration = .ephemeral
   ) {
+    self.init(
+      id: id, baseURL: baseURL, username: username, password: password,
+      configuration: configuration, trustedCertificate: nil)
+  }
+
+  /// `trustedCertificate`, DER data, is for test servers: it replaces the system's trusted roots.
+  init(
+    id: String, baseURL: URL, username: String?, password: String?,
+    configuration: URLSessionConfiguration = .ephemeral, trustedCertificate: Data?
+  ) {
     self.id = id
     self.baseURL = baseURL
-    authentication = WebDAVAuthenticator(username: username, password: password)
+    authentication = WebDAVAuthenticator(
+      username: username, password: password, trustedCertificate: trustedCertificate)
     session = URLSession(configuration: configuration, delegate: authentication, delegateQueue: nil)
   }
 
@@ -197,11 +208,13 @@ public actor WebDAVProvider: ValidatingProvider {
 
 private final class WebDAVAuthenticator: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
   private let credential: URLCredential?
+  private let trustedCertificate: Data?
 
-  init(username: String?, password: String?) {
+  init(username: String?, password: String?, trustedCertificate: Data?) {
     credential = username.flatMap { name in
       name.isEmpty ? nil : URLCredential(user: name, password: password ?? "", persistence: .none)
     }
+    self.trustedCertificate = trustedCertificate
   }
 
   func urlSession(
@@ -209,6 +222,20 @@ private final class WebDAVAuthenticator: NSObject, URLSessionTaskDelegate, @unch
     completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
   ) {
     let method = challenge.protectionSpace.authenticationMethod
+    if method == NSURLAuthenticationMethodServerTrust, let trustedCertificate,
+      let trust = challenge.protectionSpace.serverTrust
+    {
+      guard
+        let certificate = SecCertificateCreateWithData(nil, trustedCertificate as CFData),
+        SecTrustSetAnchorCertificates(trust, [certificate] as CFArray) == errSecSuccess,
+        SecTrustEvaluateWithError(trust, nil)
+      else {
+        completionHandler(.cancelAuthenticationChallenge, nil)
+        return
+      }
+      completionHandler(.useCredential, URLCredential(trust: trust))
+      return
+    }
     guard
       method == NSURLAuthenticationMethodHTTPBasic
         || method == NSURLAuthenticationMethodHTTPDigest,

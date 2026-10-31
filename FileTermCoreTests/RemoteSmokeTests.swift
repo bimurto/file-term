@@ -96,6 +96,37 @@ struct RemoteSmokeTests {
     try await smoke(provider, in: "/")
   }
 
+  private func webDAVOverHTTPS(trustedCertificate: Data?) -> WebDAVProvider {
+    WebDAVProvider(
+      id: "davs", baseURL: URL(string: "https://127.0.0.1:8443")!, username: Self.user,
+      password: Self.secret, trustedCertificate: trustedCertificate)
+  }
+
+  /// The certificate `webdav-https` made for itself, as DER data.
+  private func testCertificate() throws -> Data {
+    let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("dev/data/webdav-tls/cert.pem")
+    let body = try String(contentsOf: file, encoding: .utf8).split(separator: "\n")
+      .filter { !$0.hasPrefix("-----") }.joined()
+    return try #require(Data(base64Encoded: body))
+  }
+
+  @Test func webDAVOverTLS() async throws {
+    let provider = webDAVOverHTTPS(trustedCertificate: try testCertificate())
+    try await provider.validate()
+    try await smoke(provider, in: "/")
+  }
+
+  /// What a real connection does, because the test certificate isn't one the system trusts.
+  @Test func webDAVRefusesACertificateThatIsNotTrusted() async throws {
+    await #expect(
+      throws: FileSystemError.io(
+        "The server's certificate is not trusted, so the connection was not made.")
+    ) {
+      try await webDAVOverHTTPS(trustedCertificate: nil).validate()
+    }
+  }
+
   @Test func amazonS3() async throws { try await smoke(s3(id: "s3"), in: "/test") }
 
   /// Uses the S3 stand-in, so this covers FileTerm's B2 path but not Backblaze's own service.

@@ -52,7 +52,7 @@
   | Backblaze B2 | Passed | Against the `s3` stand-in, so not Backblaze's own service. |
   | SMB | Passed | Through the real NetFS mount, on port 1445. |
   | NFS | Not run | The `nfs` container can't load its kernel module under Colima. |
-  | WebDAV over HTTPS | Not run | No test server. |
+  | WebDAV over HTTPS | Passed | Through a TLS proxy in `dev/docker-compose.yml`. The test trusts the proxy's own certificate through a test-only option, so a certificate macOS trusts by itself wasn't exercised. An untrusted certificate is refused. |
   | AFP | Not run | No test server, and macOS 26 has no AFP client. |
   | VNC | Not applicable | Screen sharing can't list or transfer files. |
   | Rackspace, Google Drive, OneDrive, Dropbox | Not run | Providers aren't built yet. |
