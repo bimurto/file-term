@@ -6,6 +6,9 @@ struct FavoritesManagerSheet: View {
   @Bindable var settings: AppSettings
   let connections: ConnectionCoordinator
   let browser: BrowserModel
+  /// What a sidebar menu opened this sheet for.
+  var reveal: UUID? = nil
+  var editsRevealed = false
   @Environment(\.dismiss) private var dismiss
   @State private var selected: UUID?
   @State private var draft: FavoriteDraft?
@@ -55,6 +58,10 @@ struct FavoritesManagerSheet: View {
       }
     }
     .padding(20).frame(width: 560)
+    .onAppear {
+      selected = reveal
+      if editsRevealed { edit() }
+    }
     .sheet(item: $draft) { value in
       FavoriteEditor(draft: value, profiles: connections.profiles) { save($0) }
     }

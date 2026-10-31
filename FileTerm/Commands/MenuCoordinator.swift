@@ -55,7 +55,7 @@ import FileTermCore
       let states = registry.states()
       for item in menu.items {
         guard let id = item.representedObject as? String, let state = states[id] else { continue }
-        apply(state, to: item)
+        Self.apply(state, to: item)
       }
       return
     }
@@ -160,7 +160,7 @@ import FileTermCore
         case .control: $0.insert(.control)
         }
       }
-      apply(registry.state(of: command), to: item)
+      Self.apply(registry.state(of: command), to: item)
       menu.addItem(item)
     }
     if path == ["FileTerm"] { insertServices(in: menu) }
@@ -188,11 +188,11 @@ import FileTermCore
     for item in menu.items {
       if let child = item.submenu { updateEnabling(in: child, states: states) }
       guard let id = item.representedObject as? String, let state = states[id] else { continue }
-      apply(state, to: item)
+      Self.apply(state, to: item)
     }
   }
 
-  private func apply(_ state: CommandRegistry.CommandState, to item: NSMenuItem) {
+  static func apply(_ state: CommandRegistry.CommandState, to item: NSMenuItem) {
     item.isEnabled = state.disabledReason == nil
     item.toolTip = state.disabledReason
     item.setAccessibilityHelp(state.disabledReason)

@@ -168,7 +168,8 @@ import Testing
     browser.activePaneID = .first
 
     let window = controller.window
-    #expect(window.validRequestor(forSendType: .fileURL, returnType: nil) as? NSWindow !== window)
+    // With nothing selected, Services get the folder being shown.
+    #expect(window.validRequestor(forSendType: .fileURL, returnType: nil) as? NSWindow === window)
     browser.activePane.selection = [provider.location(for: file)]
     #expect(window.validRequestor(forSendType: .fileURL, returnType: nil) as? NSWindow === window)
     #expect(

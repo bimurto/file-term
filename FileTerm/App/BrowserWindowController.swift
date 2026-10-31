@@ -26,8 +26,13 @@ import SwiftUI
     window = BrowserWindow(
       registry: registry,
       selectedFiles: { [weak browser] in
-        (browser?.activePane.selectedEntries ?? []).filter { $0.location.providerID == "local" }
-          .map { URL(fileURLWithPath: $0.location.path) }
+        guard let pane = browser?.activePane else { return [] }
+        // With nothing selected, Services get the folder being shown.
+        let locations =
+          pane.selection.isEmpty
+          ? [pane.location].compactMap { $0 } : pane.selectedEntries.map(\.location)
+        return locations.filter { $0.providerID == "local" }
+          .map { URL(fileURLWithPath: $0.path) }
       },
       contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
       styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false

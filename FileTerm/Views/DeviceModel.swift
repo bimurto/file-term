@@ -77,6 +77,11 @@ actor NativeVolumeService: VolumeService {
 
   func ejectSelected() async {
     guard canEject, let volume = selectedVolume else { return }
+    await eject(volume)
+  }
+
+  func eject(_ volume: MountedVolume) async {
+    guard volume.isEjectable, !isEjecting else { return }
     isEjecting = true
     errorMessage = nil
     defer { isEjecting = false }

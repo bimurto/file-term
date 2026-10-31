@@ -42,12 +42,16 @@ Every menu command, grouped by top-level menu. Submenu paths are named in the de
 | <a id="file.openInTerminal"></a>Open in Terminal | — | Opens the active local folder in the external terminal app from Settings › General. | [Ch 10](10-favorites-tools-editing-and-git.md) |
 | <a id="file.packageContents"></a>Show Package Contents | — | Browses inside a selected package as a folder. | [Ch 4](04-creating-copying-and-moving.md) |
 | <a id="file.getInfo"></a>Get Info | ⌘I | Opens an inspector window for each selected local item. | [Ch 5](05-metadata-preview-and-utilities.md) |
+| <a id="file.openInNewTab"></a>Open in New Tab | — | Opens each selected folder in a new tab. | [Ch 4](04-creating-copying-and-moving.md) |
+| <a id="file.openInNewWindow"></a>Open in New Window | — | Opens each selected folder in a new window. | [Ch 4](04-creating-copying-and-moving.md) |
+| <a id="file.revealInFinder"></a>Reveal in Finder | — | Shows the selected local items in Finder, or the current folder when nothing is selected. | [Ch 4](04-creating-copying-and-moving.md) |
+| <a id="file.tag"></a>Tags | — | File › Tags: turns a tag on or off for the selected local items. | [Ch 4](04-creating-copying-and-moving.md) |
 | <a id="file.share"></a>Share… | — | Opens the macOS share picker for selected local items. | [Ch 11](11-appearance-settings-and-macos.md) |
 | <a id="file.tags"></a>Tags… | — | Opens the inspector, where tags can be edited. Local. | [Ch 5](05-metadata-preview-and-utilities.md) |
-| <a id="file.quickLook"></a>Quick Look | ⌘Y | Opens Quick Look for the selected local items. | [Ch 5](05-metadata-preview-and-utilities.md) |
+| <a id="file.quickLook"></a>Quick Look | ⌘Y | Opens Quick Look for the selected local items, or the current folder when nothing is selected. | [Ch 5](05-metadata-preview-and-utilities.md) |
 | <a id="file.slideshow"></a>Slideshow | — | Plays the selected images. Needs at least one local image. | [Ch 5](05-metadata-preview-and-utilities.md) |
 | <a id="file.print"></a>Print… | ⌘P | Prints one selected local image, PDF or text file. | [Ch 5](05-metadata-preview-and-utilities.md) |
-| <a id="file.copyPath"></a>Copy Path formats | — | File › Copy Path: copies paths as UNIX, URL, Percent-Decoded URL, Name, Terminal or Windows. Local. | [Ch 5](05-metadata-preview-and-utilities.md) |
+| <a id="file.copyPath"></a>Copy Path formats | — | File › Copy Path: copies paths as UNIX, URL, Percent-Decoded URL, Name, Terminal or Windows, for the selected local items or the current folder. Local. | [Ch 5](05-metadata-preview-and-utilities.md) |
 | <a id="file.makeAlias"></a>Make Alias | — | Creates a Finder alias next to each selected item. | [Ch 5](05-metadata-preview-and-utilities.md) |
 | <a id="file.makeAliasTo"></a>Make Alias to | — | Creates a Finder alias in the other pane's folder. | [Ch 5](05-metadata-preview-and-utilities.md) |
 | <a id="file.makeSymlink"></a>Make Symlink | — | Creates a symbolic link next to each selected item. | [Ch 5](05-metadata-preview-and-utilities.md) |
@@ -89,6 +93,7 @@ Every menu command, grouped by top-level menu. Submenu paths are named in the de
 | <a id="view.sidebar"></a>Show Sidebar | — | Shows or hides the sidebar. | [Ch 2](02-views-windows-and-tabs.md) |
 | <a id="view.tabBar"></a>Show Tab Bar | — | Shows or hides each pane's tab bar. | [Ch 2](02-views-windows-and-tabs.md) |
 | <a id="view.recentFolders"></a>Show Recent Folders | — | Shows or hides the sidebar's Recent Folders section. | [Ch 1](01-navigation-and-panes.md) |
+| <a id="view.favorites"></a>Show Favorites | — | Shows or hides the sidebar's Favorites section. | [Ch 10](10-favorites-tools-editing-and-git.md) |
 | <a id="view.tags"></a>Show Tags | — | Shows or hides the sidebar's Tags section. | [Ch 11](11-appearance-settings-and-macos.md) |
 | <a id="view.workspaces"></a>Show Workspaces | — | Shows or hides the sidebar's Workspaces section. | [Ch 12](12-additional-capabilities.md) |
 | <a id="view.iCloudDrive"></a>Show iCloud Drive | — | Shows or hides the sidebar's iCloud section. | [Ch 12](12-additional-capabilities.md) |

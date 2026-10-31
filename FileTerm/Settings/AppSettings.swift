@@ -2,6 +2,7 @@ import Defaults
 import FileTermCore
 import Foundation
 import Observation
+import SwiftUI
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
   case general = "General"
@@ -47,7 +48,7 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
 
 enum BrowserChrome: String, CaseIterable {
   case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders, tags
-  case workspaces, iCloudDrive
+  case workspaces, iCloudDrive, favorites
   var title: String {
     switch self {
     case .pathBar: "Path Bar"
@@ -61,6 +62,7 @@ enum BrowserChrome: String, CaseIterable {
     case .tags: "Tags"
     case .workspaces: "Workspaces"
     case .iCloudDrive: "iCloud Drive"
+    case .favorites: "Favorites"
     }
   }
   /// The sidebar section this chrome item shows or hides.
@@ -70,6 +72,7 @@ enum BrowserChrome: String, CaseIterable {
     case "tags": .tags
     case "workspaces": .workspaces
     case "iCloudDrive": .iCloudDrive
+    case "favorites": .favorites
     default: .recentFolders
     }
   }
@@ -158,6 +161,16 @@ enum BrowserChrome: String, CaseIterable {
   var hiddenChrome: Set<String> {
     didSet { Defaults[chromeKey] = hiddenChrome }
   }
+  /// Single sidebar rows hidden with Hide from Sidebar. See `SidebarItemKey`.
+  var hiddenSidebarItems: Set<String> {
+    didSet { Defaults[hiddenSidebarItemsKey] = hiddenSidebarItems }
+  }
+  @ObservationIgnored private let hiddenSidebarItemsKey: Defaults.Key<Set<String>>
+  /// Which list view columns are shown, in what order and how wide.
+  var listColumns: TableColumnCustomization<FileEntry> {
+    didSet { Defaults[listColumnsKey] = (try? JSONEncoder().encode(listColumns)) ?? Data() }
+  }
+  @ObservationIgnored private let listColumnsKey: Defaults.Key<Data>
   private(set) var recentFolders: [String] {
     didSet { Defaults[recentKey] = recentFolders }
   }
@@ -283,6 +296,12 @@ enum BrowserChrome: String, CaseIterable {
       "hiddenChrome", default: [BrowserChrome.deviceInfo.rawValue], suite: suite)
     recentKey = Defaults.Key("recentFolders", default: [], suite: suite)
     hiddenChrome = Defaults[chromeKey]
+    hiddenSidebarItemsKey = Defaults.Key("hiddenSidebarItems", default: [], suite: suite)
+    hiddenSidebarItems = Defaults[hiddenSidebarItemsKey]
+    listColumnsKey = Defaults.Key("listColumns", default: Data(), suite: suite)
+    listColumns =
+      (try? JSONDecoder().decode(
+        TableColumnCustomization<FileEntry>.self, from: Defaults[listColumnsKey])) ?? .init()
     recentFolders = Array(Defaults[recentKey].filter { $0.hasPrefix("/") }.prefix(20))
     goToFolderHistoryKey = Defaults.Key("goToFolderHistory", default: [], suite: suite)
     goToFolderHistory = Array(

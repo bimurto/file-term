@@ -22,6 +22,8 @@ struct BrowserView: View {
   @State private var searchQuery = SearchQuery()
   @FocusState private var searchFocused: Bool
   @State private var extensionPoints = QuickOpenExtensionPoints()
+  @State private var favoriteManagerRequest: FavoriteManagerRequest?
+  @State private var favoriteToDelete: FavoriteItem?
 
   var body: some View {
     VStack(spacing: 0) {
@@ -147,6 +149,11 @@ struct BrowserView: View {
         let kind = notification.userInfo?["kind"] as? String
       else { return }
       optionsSheet = BrowserOptionsSheet(rawValue: kind)
+    }
+    .sheet(item: $favoriteManagerRequest) { request in
+      FavoritesManagerSheet(
+        settings: settings, connections: connections, browser: browser,
+        reveal: request.favorite, editsRevealed: request.edits)
     }
     .sheet(item: $optionsSheet) { sheet in
       switch sheet {
@@ -328,8 +335,12 @@ struct BrowserView: View {
     List {
       ForEach(settings.workspace.sidebarSections, id: \.self) { section in
         if section == "devices" && settings.isVisible(.devices) {
-          Section("Devices") {
-            ForEach(devices.volumes) { volume in
+          Section {
+            ForEach(
+              devices.volumes.filter {
+                !settings.hiddenSidebarItems.contains(SidebarItemKey.volume($0))
+              }
+            ) { volume in
               Button {
                 devices.selectedVolumeID = volume.id
                 open(localProvider.location(for: volume.url))
@@ -349,11 +360,14 @@ struct BrowserView: View {
                     devices.selectedVolumeID == volume.id ? Color.accentColor.opacity(0.15) : .clear
                   )
               }.buttonStyle(.plain).help(volume.url.path)
+                .contextMenu { volumeMenu(volume) }
             }
+          } header: {
+            sectionHeader("Devices", chrome: .devices)
           }
         }
         if section == "recents" && settings.isVisible(.recentFolders) {
-          Section("Recent Folders") {
+          Section {
             ForEach(settings.recentFolders, id: \.self) { path in
               Button {
                 devices.selectedVolumeID = nil
@@ -365,10 +379,12 @@ struct BrowserView: View {
                 ).lineLimit(1)
               }.buttonStyle(.plain).help(path)
             }
+          } header: {
+            sectionHeader("Recent Folders", chrome: .recentFolders)
           }
         }
         if section == "tags" && settings.isVisible(.tags) {
-          Section("Tags") {
+          Section {
             ForEach(settings.tags) { tag in
               Button {
                 showFiles(tagged: tag)
@@ -380,12 +396,14 @@ struct BrowserView: View {
                 }
               }.buttonStyle(.plain).accessibilityIdentifier("sidebarTag.\(tag.name)")
             }
+          } header: {
+            sectionHeader("Tags", chrome: .tags)
           }
         }
         if section == "iCloudDrive" && settings.isVisible(.iCloudDrive)
           && FileManager.default.fileExists(atPath: FavoriteItem.iCloudDrivePath)
         {
-          Section("iCloud") {
+          Section {
             Button {
               devices.selectedVolumeID = nil
               open(Location(providerID: localProvider.id, path: FavoriteItem.iCloudDrivePath))
@@ -393,12 +411,14 @@ struct BrowserView: View {
               Label("iCloud Drive", systemImage: "icloud").lineLimit(1)
             }.buttonStyle(.plain).help(FavoriteItem.iCloudDrivePath)
               .accessibilityIdentifier("sidebarICloudDrive")
+          } header: {
+            sectionHeader("iCloud", chrome: .iCloudDrive)
           }
         }
         if section == "workspaces" && settings.isVisible(.workspaces)
           && !settings.savedWorkspaces.isEmpty
         {
-          Section("Workspaces") {
+          Section {
             ForEach(settings.savedWorkspaces) { workspace in
               Button {
                 _ = registry.execute("go.workspaces.load.\(workspace.id)")
@@ -414,6 +434,30 @@ struct BrowserView: View {
               }
               .accessibilityIdentifier("workspace.\(workspace.name)")
             }
+          } header: {
+            sectionHeader("Workspaces", chrome: .workspaces)
+          }
+        }
+        if section == "favorites" && settings.isVisible(.favorites)
+          && !visibleFavorites(settings.favorites.allItems).isEmpty
+        {
+          Section {
+            ForEach(settings.favorites) { node in
+              switch node {
+              case .item(let item):
+                if !visibleFavorites([item]).isEmpty { favoriteRow(item) }
+              case .group(let group):
+                if !visibleFavorites(group.items).isEmpty {
+                  DisclosureGroup(group.name) {
+                    ForEach(visibleFavorites(group.items)) { favoriteRow($0) }
+                  }
+                }
+              }
+            }
+          } header: {
+            sectionHeader("Favorites", chrome: .favorites) {
+              Button("Reveal in Favorite Manager") { revealFavorite(nil) }
+            }
           }
         }
       }
@@ -421,6 +465,93 @@ struct BrowserView: View {
     .listStyle(.sidebar)
     .background(Color(themeHex: settings.theme.sidebar) ?? .clear)
     .accessibilityIdentifier("navigationSidebar")
+    .confirmationDialog(
+      "Delete “\(favoriteToDelete?.name ?? "")” from Favorites?",
+      isPresented: Binding(
+        get: { favoriteToDelete != nil }, set: { if !$0 { favoriteToDelete = nil } })
+    ) {
+      Button("Delete", role: .destructive) {
+        if let item = favoriteToDelete {
+          settings.favorites = settings.favorites.removing(item.id)
+        }
+      }
+      .accessibilityIdentifier("confirmDeleteFavorite")
+    }
+  }
+
+  private func sectionHeader(
+    _ title: LocalizedStringKey, chrome: BrowserChrome,
+    @ViewBuilder extra: () -> some View = { EmptyView() }
+  ) -> some View {
+    let extra = extra()
+    return Text(title)
+      .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+      .contextMenu {
+        Button("Hide from Sidebar") {
+          if settings.isVisible(chrome) { settings.toggle(chrome) }
+        }
+        extra
+      }
+      .accessibilityIdentifier("sidebarHeader.\(chrome.rawValue)")
+  }
+
+  @ViewBuilder private func volumeMenu(_ volume: MountedVolume) -> some View {
+    let location = localProvider.location(for: volume.url)
+    Button("Open in New Tab") { openInNewTab(location) }
+    Button("Open in New Window") { openInNewWindow(["location": location]) }
+    if volume.isEjectable {
+      Divider()
+      Button("Eject") { Task { await devices.eject(volume) } }
+    }
+    Divider()
+    Button("Hide from Sidebar") {
+      settings.hiddenSidebarItems.insert(SidebarItemKey.volume(volume))
+    }
+  }
+
+  private func visibleFavorites(_ items: [FavoriteItem]) -> [FavoriteItem] {
+    items.filter { !settings.hiddenSidebarItems.contains(SidebarItemKey.favorite($0)) }
+  }
+
+  private func favoriteRow(_ item: FavoriteItem) -> some View {
+    let symbol: String
+    if case .local = item.target { symbol = "folder" } else { symbol = "network" }
+    return Button {
+      devices.selectedVolumeID = nil
+      Task { await connections.openFavorite(item, in: browser) }
+    } label: {
+      Label(item.name, systemImage: symbol).lineLimit(1)
+    }
+    .buttonStyle(.plain)
+    .contextMenu {
+      Button("Open in New Tab") {
+        browser.newTab(in: browser.activePaneID)
+        Task { await connections.openFavorite(item, in: browser) }
+      }
+      Button("Open in New Window") { openInNewWindow(["favorite": item]) }
+      Button("Reveal in Favorite Manager") { revealFavorite(item.id) }
+      Divider()
+      Button("Edit") { revealFavorite(item.id, edit: true) }
+      Button("Delete") { favoriteToDelete = item }
+      Button("Hide from Sidebar") {
+        settings.hiddenSidebarItems.insert(SidebarItemKey.favorite(item))
+      }
+    }
+    .accessibilityIdentifier("sidebarFavorite.\(item.name)")
+  }
+
+  private func revealFavorite(_ id: UUID?, edit: Bool = false) {
+    favoriteManagerRequest = FavoriteManagerRequest(favorite: id, edits: edit)
+  }
+
+  private func openInNewTab(_ location: Location) {
+    let id = browser.activePaneID
+    browser.newTab(in: id)
+    Task { await browser.navigate(to: location, in: id) }
+  }
+
+  private func openInNewWindow(_ target: [String: Any]) {
+    NotificationCenter.default.post(name: .fileTermOpenInNewWindow, object: nil, userInfo: target)
   }
 
   private func open(_ location: Location) {
@@ -474,6 +605,13 @@ struct BrowserView: View {
     }.accessibilityIdentifier("panel.Preview")
   }
 
+}
+
+/// What a sidebar menu wants the Favorite Manager to show when it opens.
+private struct FavoriteManagerRequest: Identifiable {
+  let id = UUID()
+  let favorite: UUID?
+  let edits: Bool
 }
 
 private struct BrowserPaneView: View {
@@ -589,16 +727,19 @@ private struct BrowserPaneView: View {
   }
 
   private var fileList: some View {
-    FileContentView(pane: pane, paneID: paneID, browser: browser, provider: localProvider)
-      .id(pane.id)
-      .dropDestination(for: URL.self) { urls, _ in
-        let files = urls.filter(\.isFileURL)
-        guard !files.isEmpty, pane.location != nil, pane.searchScope == nil else { return false }
-        NotificationCenter.default.post(
-          name: .fileTermDropFiles, object: pane,
-          userInfo: ["urls": files, "optionPressed": NSEvent.modifierFlags.contains(.option)])
-        return true
-      }
+    FileContentView(
+      pane: pane, paneID: paneID, browser: browser, provider: localProvider, registry: registry,
+      settings: settings
+    )
+    .id(pane.id)
+    .dropDestination(for: URL.self) { urls, _ in
+      let files = urls.filter(\.isFileURL)
+      guard !files.isEmpty, pane.location != nil, pane.searchScope == nil else { return false }
+      NotificationCenter.default.post(
+        name: .fileTermDropFiles, object: pane,
+        userInfo: ["urls": files, "optionPressed": NSEvent.modifierFlags.contains(.option)])
+      return true
+    }
   }
 }
 
@@ -664,4 +805,5 @@ extension Notification.Name {
   static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")
   static let fileTermFind = Notification.Name("FileTerm.find")
   static let fileTermDropFiles = Notification.Name("FileTerm.dropFiles")
+  static let fileTermOpenInNewWindow = Notification.Name("FileTerm.openInNewWindow")
 }

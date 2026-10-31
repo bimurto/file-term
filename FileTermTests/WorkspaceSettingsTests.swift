@@ -41,10 +41,14 @@ import Testing
     var preferences = WorkspacePreferences()
     preferences.sidebarOrder = ["recents", "devices"]
     #expect(
-      preferences.sidebarSections == ["recents", "devices", "tags", "iCloudDrive", "workspaces"])
+      preferences.sidebarSections == [
+        "recents", "devices", "tags", "iCloudDrive", "workspaces", "favorites",
+      ])
     preferences.sidebarOrder = ["workspaces", "iCloudDrive", "tags", "devices", "recents"]
     #expect(
-      preferences.sidebarSections == ["workspaces", "iCloudDrive", "tags", "devices", "recents"])
+      preferences.sidebarSections == [
+        "workspaces", "iCloudDrive", "tags", "devices", "recents", "favorites",
+      ])
   }
 
   @Test func customizationViewPreferencesAndSessionSettingsPersist() throws {

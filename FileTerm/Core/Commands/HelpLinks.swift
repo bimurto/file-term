@@ -12,6 +12,7 @@ public enum HelpLinks {
     "go.connections.saved.", "go.connections.disconnect.", "go.workspaces.load.", "tools.run.",
     "commands.syncFavorite.", "file.openWith.", "commands.git.", "view.textEncoding.",
     "view.sort.", "view.group.", "window.tab", "file.copyPath.", "edit.text.", "file.iCloud.",
+    "file.tag.",
   ]
 
   public static func anchor(forCommand id: String) -> String {

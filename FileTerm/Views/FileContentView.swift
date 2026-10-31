@@ -14,6 +14,9 @@ struct FileContentView: View {
   let paneID: PaneID
   let browser: BrowserModel
   let provider: LocalFileSystemProvider
+  let registry: CommandRegistry
+  let settings: AppSettings
+  @Environment(CloudFileActions.self) private var cloudFiles: CloudFileActions?
   @State private var anchor: Location?
   private static let iconGridSpace = "iconGridContent"
   @FocusState private var iconGridFocused: Bool
@@ -29,11 +32,15 @@ struct FileContentView: View {
       case .icons: iconGrid
       case .columns:
         HierarchyColumnsView(
-          pane: pane, provider: provider, open: open, select: select,
-          showPackageContents: showPackageContents)
+          pane: pane, provider: provider, open: open, select: select)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(
+      FileContextMenuHost(
+        pane: pane, paneID: paneID, browser: browser, registry: registry, settings: settings,
+        cloudFiles: cloudFiles)
+    )
     .overlay {
       if pane.visibleEntries.isEmpty && !pane.isLoading && !(pane.searchScope?.isRunning ?? false) {
         ContentUnavailableView(
@@ -56,8 +63,15 @@ struct FileContentView: View {
       })
   }
 
+  private var columnCustomization: Binding<TableColumnCustomization<FileEntry>> {
+    Binding(get: { settings.listColumns }, set: { settings.listColumns = $0 })
+  }
+
   private var fileList: some View {
-    Table(of: FileEntry.self, selection: $pane.selection, sortOrder: sortOrder) {
+    Table(
+      of: FileEntry.self, selection: $pane.selection, sortOrder: sortOrder,
+      columnCustomization: columnCustomization
+    ) {
       TableColumn("Name", sortUsing: EntryOrder(field: .name)) { entry in
         HStack(spacing: 6) {
           FileIcon(entry: entry, localProvider: provider)
@@ -66,6 +80,7 @@ struct FileContentView: View {
         .opacity(entry.isHidden ? 0.5 : 1)
         .accessibilityValue(entry.isHidden ? "Hidden" : "")
       }.width(min: 100, ideal: 220)
+        .customizationID("name").disabledCustomizationBehavior(.visibility)
       metadataColumns
     } rows: {
       if pane.viewOptions.groupField == .none {
@@ -84,14 +99,7 @@ struct FileContentView: View {
         }
       }
     }
-    .contextMenu(forSelectionType: Location.self) { locations in
-      if locations.count == 1, let location = locations.first,
-        let entry = pane.visibleEntries.first(where: { $0.location == location })
-      {
-        FileEntryContextMenu(
-          pane: pane, entry: entry, provider: provider, open: open,
-          showPackageContents: showPackageContents)
-      }
+    .contextMenu(forSelectionType: Location.self) { _ in
     } primaryAction: { locations in
       if locations.count > 1 {
         // Return with several items selected opens Batch Rename.
@@ -110,23 +118,27 @@ struct FileContentView: View {
   private var metadataColumns: some TableColumnContent<FileEntry, EntryOrder> {
     TableColumn("Size", sortUsing: EntryOrder(field: .size)) { entry in
       Text(entry.size.map { $0.formatted(.byteCount(style: .file)) } ?? "—").monospacedDigit()
-    }.width(70)
+    }.width(70).customizationID("size")
     TableColumn("Kind", sortUsing: EntryOrder(field: .kind)) { Text($0.kindLabel) }.width(100)
+      .customizationID("kind")
     TableColumn("Modified", sortUsing: EntryOrder(field: .modified)) { Text(date($0.modifiedAt)) }
-      .width(160)
+      .width(160).customizationID("modified")
     TableColumn("Created", sortUsing: EntryOrder(field: .created)) { Text(date($0.createdAt)) }
-      .width(160)
+      .width(160).customizationID("created")
     TableColumn("Added", sortUsing: EntryOrder(field: .added)) { Text(date($0.addedAt)) }.width(160)
+      .customizationID("added")
     TableColumn("Last Opened", sortUsing: EntryOrder(field: .opened)) { Text(date($0.openedAt)) }
-      .width(160)
+      .width(160).customizationID("opened")
     TableColumn("Tags", sortUsing: EntryOrder(field: .tags)) {
       Text($0.tags.joined(separator: ", "))
-    }.width(120)
+    }.width(120).customizationID("tags")
     TableColumn("Owner", sortUsing: EntryOrder(field: .owner)) { Text($0.owner ?? "—") }.width(100)
+      .customizationID("owner")
     TableColumn("Group", sortUsing: EntryOrder(field: .group)) { Text($0.group ?? "—") }.width(100)
+      .customizationID("group")
     TableColumn("Permissions", sortUsing: EntryOrder(field: .permissions)) { entry in
       Text(entry.permissions.map { String(format: "%03o", $0) } ?? "—")
-    }.width(100)
+    }.width(100).customizationID("permissions")
   }
 
   private func date(_ date: Date?) -> String {
@@ -174,11 +186,7 @@ struct FileContentView: View {
                     guard pane.renamingLocation != entry.location else { return }
                     select(entry)
                   }
-                  .contextMenu {
-                    FileEntryContextMenu(
-                      pane: pane, entry: entry, provider: provider, open: open,
-                      showPackageContents: showPackageContents)
-                  }
+                  .background(ContextMenuAnchor(entry: entry, pane: pane, open: open))
                   .onDrag { fileDragProvider(entry) ?? NSItemProvider() }
                   .accessibilityElement(children: .contain)
                   .accessibilityIdentifier("icon.\(entry.name)")
@@ -312,12 +320,10 @@ struct FileContentView: View {
       return
     } else if let url = try? provider.url(for: entry.location) {
       NSWorkspace.shared.open(url)
+    } else {
+      pane.selection = [entry.id]
+      registry.execute("file.open")
     }
-  }
-
-  private func showPackageContents(_ entry: FileEntry) {
-    browser.activePaneID = paneID
-    Task { await browser.enterFolder(entry.location, in: paneID) }
   }
 }
 
@@ -333,42 +339,6 @@ private func isPackage(_ entry: FileEntry, provider: LocalFileSystemProvider) ->
     || NSWorkspace.shared.isFilePackage(atPath: url.path)
 }
 
-private struct FileEntryContextMenu: View {
-  let pane: PaneModel
-  let entry: FileEntry
-  let provider: LocalFileSystemProvider
-  let open: (FileEntry) -> Void
-  let showPackageContents: (FileEntry) -> Void
-  @Environment(CloudFileActions.self) private var cloudFiles: CloudFileActions?
-
-  var body: some View {
-    Button("Open") { open(entry) }
-    Button("Rename") {
-      pane.selection = [entry.id]
-      NotificationCenter.default.post(name: .init("FileTerm.BeginRename"), object: pane)
-    }
-    if isPackage(entry, provider: provider) {
-      Button("Show Package Contents") { showPackageContents(entry) }
-    }
-    if let cloudFiles, entry.location.providerID == "local" {
-      let path = entry.location.path
-      switch ICloudFiles.state(of: URL(fileURLWithPath: path)) {
-      case .cloudOnly: Button("Download Now") { cloudFiles.downloadNow([path]) }
-      case .downloaded:
-        Button("Remove Download (Keeps File in iCloud)") { cloudFiles.removeDownload([path]) }
-      case .notInICloud: EmptyView()
-      }
-      switch cloudFiles.dropboxLinkState(path) {
-      case .ready:
-        Button("Copy Dropbox Link") { Task { await cloudFiles.copyDropboxLink(path) } }
-      case .unavailable(let reason):
-        Button("Copy Dropbox Link") {}.disabled(true).help(reason)
-      case .outsideDropbox: EmptyView()
-      }
-    }
-  }
-}
-
 private struct HierarchyColumn: Identifiable {
   var id: Location { location }
   let location: Location
@@ -382,7 +352,6 @@ private struct HierarchyColumnsView: View {
   let provider: LocalFileSystemProvider
   let open: (FileEntry) -> Void
   let select: (FileEntry) -> Void
-  let showPackageContents: (FileEntry) -> Void
   @State private var columns: [HierarchyColumn] = []
   @State private var root: Location?
 
@@ -436,11 +405,7 @@ private struct HierarchyColumnsView: View {
                             select(entry)
                           }
                         }
-                        .contextMenu {
-                          FileEntryContextMenu(
-                            pane: pane, entry: entry, provider: provider, open: open,
-                            showPackageContents: showPackageContents)
-                        }
+                        .background(ContextMenuAnchor(entry: entry, pane: pane, open: open))
                         .onDrag { fileDragProvider(entry) ?? NSItemProvider() }
                         .accessibilityAddTraits(.isButton)
                         .accessibilityLabel(entry.name)

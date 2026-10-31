@@ -82,7 +82,7 @@ import UniformTypeIdentifiers
     dynamicCommands: { [unowned self] in
       recentCommands() + connectionCommands() + favoriteCommands() + savedWorkspaceCommands()
         + syncFavoriteCommands()
-        + toolCommands() + openWithCommands()
+        + toolCommands() + openWithCommands() + tagCommands()
     },
     shortcutOverrides: settings.shortcutOverrides,
     context: { [unowned self] in
@@ -121,6 +121,19 @@ import UniformTypeIdentifiers
     registry.onShortcutOverridesChanged = { [weak self] overrides in
       self?.settings.shortcutOverrides = overrides
       self?.menuCoordinator?.install()
+    }
+    NotificationCenter.default.addObserver(
+      forName: .fileTermOpenInNewWindow, object: nil, queue: .main
+    ) { [weak self] notification in
+      let location = notification.userInfo?["location"] as? Location
+      let favorite = notification.userInfo?["favorite"] as? FavoriteItem
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        Task {
+          await self.newWindow(opening: location)
+          if let favorite { await self.connections.openFavorite(favorite, in: self.browser) }
+        }
+      }
     }
     NotificationCenter.default.addObserver(
       forName: .init("FileTerm.BeginRename"), object: nil, queue: .main
@@ -314,7 +327,21 @@ import UniformTypeIdentifiers
       inUse: windows.reduce(into: Set<String>()) { $0.formUnion($1.browser.openProviderIDs) })
   }
 
-  private func newWindow(restoring snapshot: WindowSnapshot? = nil) async {
+  private func openInNewTabs(_ folders: [Location]) {
+    let model = browser
+    let paneID = model.activePaneID
+    Task {
+      for folder in folders {
+        model.newTab(in: paneID)
+        await model.navigate(to: folder, in: paneID)
+      }
+    }
+  }
+
+  /// A remote folder stays in the provider it came from, so a new window can open it too.
+  private func newWindow(
+    restoring snapshot: WindowSnapshot? = nil, opening folder: Location? = nil
+  ) async {
     let model = BrowserModel(
       registry: providerRegistry, viewPreferences: settings.viewPreferences)
     let deviceModel = DeviceModel(service: volumeService)
@@ -361,10 +388,15 @@ import UniformTypeIdentifiers
       ?? settings.workspace.startingDirectory
     let home = provider.location(for: FileManager.default.homeDirectoryForCurrentUser)
     let initial: Location
-    do { initial = try await provider.resolveFolderPath(path) } catch {
-      initial = home
-      model.notice =
-        "Starting Directory could not be opened. Opened Home instead. " + error.localizedDescription
+    if let folder {
+      initial = folder
+    } else {
+      do { initial = try await provider.resolveFolderPath(path) } catch {
+        initial = home
+        model.notice =
+          "Starting Directory could not be opened. Opened Home instead. "
+          + error.localizedDescription
+      }
     }
     if let snapshot {
       await model.restore(snapshot.browser, fallback: initial)
@@ -775,13 +807,13 @@ import UniformTypeIdentifiers
             if NSApp.keyWindow?.firstResponder is NSTextView { return true }
             if NSApp.keyWindow?.firstResponder is TerminalView { return id != "cut" }
             guard let self, browserIsFront else { return false }
-            if id == "copy" { return !browser.activePane.selection.isEmpty }
+            if id == "copy" { return !fileOperations.localURLs(browser.activePane).isEmpty }
             if id == "paste" {
               return browser.activePane.location != nil && !fileOperations.clipboardURLs.isEmpty
             }
             return false
           },
-          disabledReason: { _ in "Select files, copy file URLs, or focus a text field." },
+          disabledReason: { _ in "Select local files, copy file URLs, or focus a text field." },
           handler: { [weak self] in
             if NSApp.keyWindow?.firstResponder is NSTextView
               || NSApp.keyWindow?.firstResponder is TerminalView
@@ -859,6 +891,16 @@ import UniformTypeIdentifiers
       .map { URL(fileURLWithPath: $0.location.path) }
   }
 
+  /// The selected items, or the current folder when nothing is selected.
+  private var selectedLocalURLsOrFolder: [URL] {
+    if browser.activePane.selection.isEmpty, let folder = browser.activePane.location,
+      folder.providerID == provider.id
+    {
+      return [URL(fileURLWithPath: folder.path)]
+    }
+    return selectedLocalURLs
+  }
+
   private func linkDisabledReason(_ kind: LocalLinkKind, otherPane: Bool) -> String? {
     let destination = otherPane ? browser.targetPane?.location : browser.activePane.location
     guard let destination, destination.providerID == provider.id else {
@@ -931,10 +973,13 @@ import UniformTypeIdentifiers
         }, disabledReason: { _ in reason }, handler: action)
     }
     var result = [
-      command("file.getInfo", "Get Info", key: "i") { [weak self] in
-        guard let self else { return }
-        filePreviews.showInfo(selectedLocalURLs)
-      },
+      command(
+        "file.getInfo", "Get Info", key: "i", needsSelection: false,
+        condition: { [weak self] in self?.selectedLocalURLsOrFolder.isEmpty == false },
+        action: { [weak self] in
+          guard let self else { return }
+          filePreviews.showInfo(selectedLocalURLsOrFolder)
+        }),
       command("file.share", "Share…") { [weak self] in
         guard let self, let view = browserWindow?.contentView else { return }
         NSSharingServicePicker(items: selectedLocalURLs)
@@ -944,10 +989,20 @@ import UniformTypeIdentifiers
         guard let self else { return }
         filePreviews.showInfo(selectedLocalURLs)
       },
-      command("file.quickLook", "Quick Look", key: DefaultShortcuts.quickLook.key) { [weak self] in
-        guard let self else { return }
-        filePreviews.showQuickLook(selectedLocalURLs)
-      },
+      command(
+        "file.quickLook", "Quick Look", key: DefaultShortcuts.quickLook.key, needsSelection: false,
+        condition: { [weak self] in self?.selectedLocalURLsOrFolder.isEmpty == false },
+        action: { [weak self] in
+          guard let self else { return }
+          filePreviews.showQuickLook(selectedLocalURLsOrFolder)
+        }),
+      command(
+        "file.revealInFinder", "Reveal in Finder", needsSelection: false,
+        condition: { [weak self] in self?.selectedLocalURLsOrFolder.isEmpty == false },
+        action: { [weak self] in
+          guard let self else { return }
+          NSWorkspace.shared.activateFileViewerSelecting(selectedLocalURLsOrFolder)
+        }),
       command(
         "file.slideshow", "Slideshow",
         condition: { [weak self] in
@@ -993,11 +1048,15 @@ import UniformTypeIdentifiers
       (.name, "Name"), (.terminal, "Terminal"), (.windows, "Windows"),
     ] {
       result.append(
-        command("file.copyPath.\(format.rawValue)", title, menu: ["File", "Copy Path"]) {
+        command(
+          "file.copyPath.\(format.rawValue)", title, menu: ["File", "Copy Path"],
+          needsSelection: false,
+          condition: { [weak self] in self?.selectedLocalURLsOrFolder.isEmpty == false }
+        ) {
           [weak self] in
           guard let self else { return }
           do {
-            let text = try selectedLocalURLs.map {
+            let text = try selectedLocalURLsOrFolder.map {
               try CopyPathFormatter.string(for: $0, format: format)
             }.joined(separator: "\n")
             NSPasteboard.general.clearContents()
@@ -1375,6 +1434,29 @@ import UniformTypeIdentifiers
         guard let self else { return }
         fileOperations.open(browser)
       })
+    let selectedFolders: () -> [Location] = { [weak self] in
+      guard let self else { return [] }
+      return browser.activePane.selectedEntries.filter { $0.kind == .directory }.map(\.location)
+    }
+    result.append(
+      command(
+        "file.openInNewTab", "Open in New Tab", menu: ["File"], selection: true, anyProvider: true,
+        condition: { !selectedFolders().isEmpty },
+        reason: { "Select a folder." }
+      ) { [weak self] in
+        guard let self else { return }
+        openInNewTabs(selectedFolders())
+      })
+    result.append(
+      command(
+        "file.openInNewWindow", "Open in New Window", menu: ["File"], selection: true,
+        anyProvider: true, condition: { !selectedFolders().isEmpty },
+        reason: { "Select a folder." }
+      ) { [weak self] in
+        for folder in selectedFolders() {
+          Task { await self?.newWindow(opening: folder) }
+        }
+      })
     result.append(
       command("file.openWith.other", "Other…", menu: ["File", "Open With"], selection: true) {
         [weak self] in
@@ -1684,9 +1766,52 @@ import UniformTypeIdentifiers
     return result
   }
 
+  private func tagCommands() -> [AppCommand] {
+    let selection: () -> [FileEntry] = { [weak self] in
+      self?.browser.activePane.selectedEntries ?? []
+    }
+    return settings.tags.map { tag in
+      AppCommand(
+        id: "file.tag." + tag.name, title: tag.name, menuPath: ["File", "Tags"],
+        isEnabled: { [weak self] _ in
+          guard let self, browserIsFront else { return false }
+          let entries = selection()
+          return !entries.isEmpty && selectedLocalURLs.count == entries.count
+        },
+        disabledReason: { _ in "Select local items in the browser first." },
+        isChecked: { _ in
+          let entries = selection()
+          return !entries.isEmpty && entries.allSatisfy(tag.isOn)
+        },
+        handler: { [weak self] in
+          guard let self else { return }
+          let entries = selection()
+          let turnOn = !entries.allSatisfy(tag.isOn)
+          let urls = selectedLocalURLs
+          let model = browser
+          Task {
+            let service = FileMetadataService()
+            do {
+              for url in urls {
+                let metadata = try await service.load(url)
+                let others = metadata.tags.filter {
+                  ($0.components(separatedBy: "\n").first ?? $0)
+                    .caseInsensitiveCompare(tag.name) != .orderedSame
+                }
+                try await service.apply(
+                  .tags(turnOn ? others + [tag.name] : others), to: metadata)
+              }
+            } catch { model.notice = error.localizedDescription }
+            await model.refreshAll()
+          }
+        })
+    }
+  }
+
   private func openWithCommands() -> [AppCommand] {
     let entries = browser.activePane.selectedEntries
-    guard let first = entries.first else { return [] }
+    guard let first = entries.first, entries.allSatisfy({ $0.location.providerID == provider.id })
+    else { return [] }
     var applications = Set(
       NSWorkspace.shared.urlsForApplications(toOpen: URL(fileURLWithPath: first.location.path)))
     for entry in entries.dropFirst() {

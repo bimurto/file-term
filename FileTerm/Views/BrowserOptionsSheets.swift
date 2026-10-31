@@ -130,6 +130,21 @@ struct ToolbarCustomizationSheet: View {
   }
 }
 
+/// Names a single sidebar row for `AppSettings.hiddenSidebarItems`.
+enum SidebarItemKey {
+  static func volume(_ volume: MountedVolume) -> String { "volume:" + volume.url.path }
+  static func favorite(_ item: FavoriteItem) -> String { "favorite:" + item.id.uuidString }
+
+  static func title(of key: String, favorites: [FavoriteNode]) -> String {
+    if key.hasPrefix("volume:") {
+      let path = String(key.dropFirst("volume:".count))
+      return URL(fileURLWithPath: path).lastPathComponent
+    }
+    let id = UUID(uuidString: String(key.dropFirst("favorite:".count)))
+    return id.flatMap { favorites.item($0)?.name } ?? key
+  }
+}
+
 struct SidebarEditorSheet: View {
   @Bindable var settings: AppSettings
   @Environment(\.dismiss) private var dismiss
@@ -157,6 +172,17 @@ struct SidebarEditorSheet: View {
           } label: {
             Image(systemName: "arrow.down")
           }.help("Move later")
+        }
+      }
+      if !settings.hiddenSidebarItems.isEmpty {
+        Text("Hidden Items").font(.subheadline)
+        ForEach(settings.hiddenSidebarItems.sorted(), id: \.self) { key in
+          HStack {
+            Text(SidebarItemKey.title(of: key, favorites: settings.favorites)).lineLimit(1)
+            Spacer()
+            Button("Show") { settings.hiddenSidebarItems.remove(key) }
+              .accessibilityIdentifier("showSidebarItem.\(key)")
+          }
         }
       }
       HStack {

@@ -11,7 +11,7 @@ Go › Manage Favorites… opens the manager. Changes save immediately.
 
 New Favorite Group adds a group, and you drag a favorite onto it to file it there. Move Out takes it back out. Groups don't nest. Edit and Delete act on the selected row.
 
-Favorites appear in Go › Favorites and in Quick Open.
+Favorites appear in Go › Favorites, in Quick Open and in the sidebar. Right-click one in the sidebar to open it in a new tab or window, edit it, delete it or hide it.
 
 ## Favorite paths
 

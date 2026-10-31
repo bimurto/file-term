@@ -18,7 +18,18 @@ File › New File (⌥⇧⌘N) creates an empty file named "untitled" and starts
 
 Opening a file from a connection downloads a temporary copy first. Edits to that copy aren't sent back. To edit a remote file, use Commands › Edit ([chapter 10](10-favorites-tools-editing-and-git.md#remote-editing)).
 
-Right-click an item for a short menu with Open and Rename, plus Show Package Contents, iCloud and Dropbox actions when they apply.
+## Right-click menus
+
+Right-clicking an item selects it, unless it's already part of a selection. The menu then acts on everything selected. Unavailable items stay visible but dimmed, and their tooltip says why.
+
+- **On a file:** Open, Open With, Move to Trash, Get Info, Rename, Compress, Duplicate, Make Alias, Quick Look, Reveal in Finder, Share, Copy, Copy Path, Show View Options, tags and Services. Show Package Contents, iCloud and Dropbox items appear when they apply.
+- **On a folder:** the same, plus Open in New Tab and Contents, which lists what's inside.
+- **On several items:** the same, with New Folder with Selection first.
+- **On empty space:** New Folder, New File, Get Info, Quick Look, Copy Path, Show View Options and Services, for the current folder.
+- **On a remote item:** Delete… replaces Move to Trash, because a server delete is permanent.
+- **On a column header:** choose which columns the list shows.
+
+The color dots turn a tag on or off. The first seven tags in Settings › Tags appear there, and every tag is in File › Tags.
 
 ## Copy to
 
