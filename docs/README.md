@@ -2,6 +2,8 @@
 
 This roadmap breaks [ForkLift_Features_and_Usage_Guide.md](../data/ForkLift_Features_and_Usage_Guide.md) (ForkLift 4.6 build 469) into milestones you can implement one at a time. Each milestone has its own file with small, testable work items.
 
+Open problems in the app are listed in [Known issues](known-issues.md).
+
 ## How to read the milestone files
 
 - **Item ID** — `M<milestone>.<item>`, e.g. `M04.03`.
@@ -29,6 +31,7 @@ This roadmap breaks [ForkLift_Features_and_Usage_Guide.md](../data/ForkLift_Feat
 | M12 | [Appearance, settings & macOS integration](milestones/M12-appearance-settings-macos.md) | Ch. 11 | M02 |
 | M13 | [Additional documented capabilities](milestones/M13-additional-capabilities.md) | Ch. 12 | M11, M12 |
 | M14 | [Post-4.6 additions & release hardening](milestones/M14-post-4.6-and-hardening.md) | Ch. 12–13 | All |
+| M15 | [Context menus](milestones/M15-context-menus.md) | Observed in the installed app | M04, M05, M08, M11 |
 
 > M07 (transfers) comes before M08 (connections) because remote protocols use the transfer queue, conflict policies and logging. Chapter 7 is therefore built before Chapter 6.
 
@@ -45,6 +48,8 @@ flowchart LR
   M11 --> M13
   M12 --> M13
   M13 --> M14
+  M05 --> M15
+  M11 --> M15
 ```
 
 ## Rules that apply to every milestone
