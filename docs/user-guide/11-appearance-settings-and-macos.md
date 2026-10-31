@@ -57,7 +57,7 @@ macOS adds its own entries to the Edit menu, such as Dictation and Emoji & Symbo
 
 ## Help
 
-The Help menu opens this guide in your web browser. FileTerm Help opens the start page. Below it, one submenu per app menu links each command to its row in the [command reference](commands.md). You need an internet connection to read the guide this way.
+The Help menu opens this guide in your web browser. FileTerm Help opens the start page. Below it, one submenu per app menu links each command to its row in the [command reference](commands.md), under names such as New Tab Help. You need an internet connection to read the guide this way.
 
 ## Permissions and notifications
 

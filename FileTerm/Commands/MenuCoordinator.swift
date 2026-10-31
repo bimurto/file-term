@@ -105,7 +105,11 @@ import FileTermCore
       // A generated family is named after its submenu, such as Recent Folders.
       let isFamily = HelpLinks.anchor(forCommand: command.id) != command.id
       let title = isFamily && command.menuPath.count > 1 ? command.menuPath.last! : command.title
-      menu.addItem(helpItem(NSLocalizedString(title, comment: "Menu command"), url: url))
+      // A distinct title, so menu search doesn't offer a link as if it were the command itself.
+      let link = String(
+        format: NSLocalizedString("%@ Help", comment: "Help link for a command"),
+        NSLocalizedString(title, comment: "Menu command"))
+      menu.addItem(helpItem(link, url: url))
     }
   }
 

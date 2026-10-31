@@ -90,7 +90,8 @@ import Testing
     help.delegate?.menuNeedsUpdate?(help)
     #expect(help.item(withTitle: "FileTerm Help")?.representedObject as? URL == HelpLinks.home)
     let file = try #require(help.item(withTitle: "File")?.submenu)
-    let newTab = try #require(file.item(withTitle: "New Tab"))
+    #expect(file.item(withTitle: "New Tab") == nil)
+    let newTab = try #require(file.item(withTitle: "New Tab Help"))
     #expect(newTab.isEnabled)
     #expect((newTab.representedObject as? URL)?.fragment == "file.newTab")
     // Links aren't commands, so they don't appear in Quick Open or the shortcut list.
