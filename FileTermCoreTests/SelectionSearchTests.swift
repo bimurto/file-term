@@ -15,6 +15,30 @@ struct SelectionOpsTests {
     entry("dir", kind: .directory),
   ]
 
+  @Test func wildcardsMatchWholeNames() {
+    let cases: [(String, String, Bool)] = [
+      ("*.txt", "a.txt", true), ("*.TXT", "a.txt", true), ("*.txt", "a.txt.bak", false),
+      ("a?c", "abc", true), ("a?c", "ac", false), ("a*", "a", true), ("*a*b*", "xaybz", true),
+      ("*b", "ab", true), ("*b", "ba", false), ("**", "", true), ("a*b*c", "aXbYbZc", true),
+      ("a*bc", "abcbc", true), ("a*bc", "abcb", false), ("[a]*", "[a]b", true),
+      ("(x)?", "(x)y", true), ("a.c*", "abc", false),
+      ("*", "new\nline.txt", true), ("*.txt", "new\nline.txt", true),
+      ("\u{e9}*", "e\u{301}a", true), ("e\u{301}*", "\u{e9}a", true), ("?a", "e\u{301}a", true),
+    ]
+    for (pattern, name, expected) in cases {
+      #expect(PatternMatcher(pattern).matches(name) == expected, "\(pattern) on \(name)")
+    }
+  }
+
+  @Test func aWildcardWithManyStarsCannotStallOnALongName() {
+    let name = String(repeating: "a", count: 255)
+    let start = ContinuousClock.now
+    for _ in 0..<1_000 {
+      #expect(!PatternMatcher("*a*a*a*a*a*a*a*a*a*a*a*ab").matches(name))
+    }
+    #expect(ContinuousClock.now - start < .seconds(5))
+  }
+
   @Test func invertSwapsSelectedAndUnselected() {
     let selected: Set<Location> = [entries[0].id, entries[1].id]
     let inverted = SelectionOps.invert(all: entries, selected: selected)
