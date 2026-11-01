@@ -273,6 +273,17 @@ import Testing
     #expect(await destination.text("/one.txt") == "1")
   }
 
+  @Test func totalBytesSurvivesServerSizesThatOverflow() async throws {
+    let memory = MemoryProvider(id: "mem")
+    await memory.seedDirectory("/d")
+    await memory.seedFile("/d/a", "x")
+    await memory.seedFile("/d/b", "y")
+    await memory.seedFile("/c", "z")
+    await memory.configure(statSizeLies: .max)
+    let total = await engine([memory]).totalBytes(of: [at(memory, "/d"), at(memory, "/c")])
+    #expect(total == .max)
+  }
+
   @Test func totalBytesSumsNestedFolders() async throws {
     let memory = MemoryProvider(id: "mem")
     await memory.seedDirectory("/d")

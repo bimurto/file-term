@@ -47,7 +47,7 @@ public actor ProviderTransfer {
   public func totalBytes(of sources: [Location]) async -> Int64? {
     do {
       var total: Int64 = 0
-      for source in sources { total += try await size(of: source) }
+      for source in sources { total = Self.adding(total, try await size(of: source)) }
       return total
     } catch { return nil }
   }
@@ -275,7 +275,8 @@ public actor ProviderTransfer {
     guard entry.kind == .directory else { return entry.kind == .file ? entry.size ?? 0 : 0 }
     var total: Int64 = 0
     for child in try await source.list(location, includeHidden: true) {
-      total += child.kind == .directory ? try await size(of: child.location) : child.size ?? 0
+      let size = child.kind == .directory ? try await size(of: child.location) : child.size ?? 0
+      total = Self.adding(total, size)
     }
     return total
   }
@@ -290,6 +291,12 @@ public actor ProviderTransfer {
   static func parentPath(_ path: String) -> String {
     let parent = (path as NSString).deletingLastPathComponent
     return parent.isEmpty ? "/" : parent
+  }
+
+  /// Sizes come from the server, so a sum stops at the maximum instead of trapping.
+  private static func adding(_ first: Int64, _ second: Int64) -> Int64 {
+    let (sum, overflow) = first.addingReportingOverflow(second)
+    return overflow ? .max : sum
   }
 
   static func child(_ folder: Location, _ name: String) -> Location {
