@@ -61,6 +61,41 @@ struct SyncTests {
     #expect(summary(try await t.analyze(options)) == ["delete:right:orphan.txt"])
   }
 
+  @Test func anOrphanFolderHoldingWhatTheScanLeftOutIsKept() async throws {
+    let t = try Trees()
+    try t.file(t.right, "old/visible.txt")
+    try t.file(t.right, "old/.secret")
+    try t.file(t.right, "excluded/visible.txt")
+    try t.file(t.right, "excluded/keep.log")
+    try t.file(t.right, "deep/inner/visible.txt")
+    try t.file(t.right, "deep/inner/.secret")
+    try t.file(t.right, "linked/visible.txt")
+    try FileManager.default.createSymbolicLink(
+      at: t.right.appendingPathComponent("linked/link"),
+      withDestinationURL: t.right.appendingPathComponent("old"))
+    try t.file(t.right, "clean/visible.txt")
+    var options = SyncOptions()
+    options.deleteOrphans = true
+    options.excludes = [SyncFilter(pattern: "*.log")]
+    #expect(
+      Set(summary(try await t.analyze(options))) == [
+        "delete:right:clean",
+        "delete:right:old/visible.txt",
+        "delete:right:excluded/visible.txt",
+        "delete:right:deep/inner/visible.txt",
+        "delete:right:linked/visible.txt",
+      ])
+  }
+
+  @Test func withHiddenItemsOnAnOrphanFolderIsOneDelete() async throws {
+    let t = try Trees()
+    try t.file(t.right, "old/.secret")
+    var options = SyncOptions()
+    options.deleteOrphans = true
+    options.hidden = true
+    #expect(summary(try await t.analyze(options)) == ["delete:right:old"])
+  }
+
   @Test func orphanFolderIsOneDeleteWithoutItsChildren() async throws {
     let t = try Trees()
     try t.file(t.right, "old/a.txt")
