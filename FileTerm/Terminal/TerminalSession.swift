@@ -387,6 +387,13 @@ struct ClipboardOSCFilter {
   private var dropping = false
   private var utf8Remaining = 0
 
+  /// SwiftTerm reads the OSC number as a decimal, so `052` also means 52.
+  private static func isClipboardSequence(_ sequence: [UInt8]) -> Bool {
+    let body = sequence.first == 0x9d ? sequence.dropFirst() : sequence.dropFirst(2)
+    let digits = body.prefix { $0 >= 48 && $0 <= 57 }
+    return digits.drop { $0 == 48 }.elementsEqual([53, 50])
+  }
+
   mutating func consume(_ bytes: ArraySlice<UInt8>) -> [UInt8] {
     var output: [UInt8] = []
     for byte in bytes {
@@ -404,10 +411,7 @@ struct ClipboardOSCFilter {
         if byte == 7 || (byte == 0x9c && !continuation) || byte == 0x18 || byte == 0x1a
           || (escaped && byte == 0x5c)
         {
-          let isClipboard =
-            pending.starts(with: [27, 93, 53, 50, 59])
-            || pending.starts(with: [0x9d, 53, 50, 59])
-          if !dropping && !isClipboard { output += pending }
+          if !dropping && !Self.isClipboardSequence(pending) { output += pending }
           pending.removeAll(keepingCapacity: true)
           inOSC = false
           dropping = false
