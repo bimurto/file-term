@@ -197,6 +197,20 @@ struct SSHSessionCommand: Equatable {
     terminateSessions()
   }
 
+  /// Replaces this tab's ended shell with a new one.
+  func startNewShell() {
+    guard let id = currentID, let record = records.removeValue(forKey: id) else { return }
+    record.session.onDirectory = nil
+    record.session.onReady = nil
+    record.reverseTask?.cancel()
+    record.session.close()
+    refresh()
+    Task { @MainActor [weak self] in
+      await Task.yield()
+      self?.currentSession?.focus()
+    }
+  }
+
   func closePanel() {
     panel.isVisible = false
     restorePaneFocus()
@@ -512,7 +526,11 @@ struct SSHSessionCommand: Equatable {
     if let index = side.flatMap({ browser.tabs($0).tabs.firstIndex { $0.id == record.pane.id } }) {
       linkedPaneTitle += " · Tab \(index + 1)"
     }
-    if !isLinked {
+    if case .exited = record.session.status {
+      status = "Shell exited"
+    } else if case .failed = record.session.status {
+      status = "Shell didn’t start"
+    } else if !isLinked {
       status = "Unlinked"
     } else if record.pane.searchScope != nil {
       status = "Paused · Search results"

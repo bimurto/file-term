@@ -181,7 +181,7 @@ final class TerminalSession {
   }
 
   fileprivate func userInput() {
-    guard !closed else { return }
+    guard !closed, terminalView.process.running else { return }
     defer { onStateChange?() }
     // Even backspace, arrow keys and Ctrl-U latch; only a genuine next prompt resets this.
     hasPendingInput = true
@@ -190,6 +190,8 @@ final class TerminalSession {
   }
 
   fileprivate func submittedInput() {
+    // Keys typed after the shell exits must not make it look busy again.
+    guard !closed, terminalView.process.running else { return }
     atPrompt = false
     isBusy = true
     status = .busy

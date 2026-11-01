@@ -95,7 +95,7 @@ Nothing is uploaded before you answer. Each upload appears in Activities and Log
 
 **External terminal:** File › Open in Terminal opens the active local folder in the app chosen in Settings › General › Terminal application: Terminal (the default), iTerm, Ghostty or Warp.
 
-**Built-in terminal:** View › Show Terminal (`` ⌃` ``) opens a panel docked below or to the right of the panes. `` ⌃⌥` `` moves focus between pane and terminal. Each tab has its own shell session. Hiding the panel keeps sessions running. Close Terminal Sessions, closing a tab or closing the window ends them.
+**Built-in terminal:** View › Show Terminal (`` ⌃` ``) opens a panel docked below or to the right of the panes. `` ⌃⌥` `` moves focus between pane and terminal. Each tab has its own shell session. Hiding the panel keeps sessions running. Close Terminal Sessions, closing a tab or closing the window ends them. If a shell exits, the panel says so and offers New Shell.
 
 With shell integration on, pane and terminal follow each other's folder only at an empty shell prompt. A running command or unsubmitted text pauses this.
 

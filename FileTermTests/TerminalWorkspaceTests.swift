@@ -142,6 +142,32 @@ import Testing
     #expect(session.status == .closed)
   }
 
+  @Test(arguments: ["/bin/zsh", "/bin/bash"])
+  func anExitedShellSaysSoAndCanBeReplaced(shell: String) async throws {
+    let fixture = try await Fixture.make(shell: shell)
+    defer { fixture.cleanup() }
+    let workspace = fixture.workspace
+    workspace.toggleVisibility()
+    let session = try #require(workspace.currentSession)
+    try await wait { session.canSendDirectory }
+    #expect(session.sendCommand(" exit"))
+    try await wait { !session.terminalView.process.running && workspace.status == "Shell exited" }
+    // Typing into the dead terminal must not bring back the busy state.
+    session.terminalView.send(source: session.terminalView, data: Array("ls\r".utf8)[...])
+    guard case .exited = session.status else {
+      Issue.record("Status became \(session.status)")
+      return
+    }
+    #expect(workspace.status == "Shell exited")
+    #expect(!session.isBusy)
+    workspace.startNewShell()
+    let replacement = try #require(workspace.currentSession)
+    #expect(replacement !== session)
+    try await wait { replacement.canSendDirectory && workspace.status == "Linked" }
+    workspace.closeAll()
+    try await wait { !replacement.terminalView.process.running }
+  }
+
   @Test func unsupportedShellLaunchesButSynchronizationStaysSafelyPaused() async throws {
     let fixture = try await Fixture.make(shell: "/bin/sh")
     defer { fixture.cleanup() }
