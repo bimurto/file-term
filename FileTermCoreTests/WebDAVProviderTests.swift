@@ -156,6 +156,19 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     #expect(withHidden.count == 3)
   }
 
+  @Test func namesAreDecodedOnlyOnce() async throws {
+    let body = """
+      <D:multistatus xmlns:D="DAV:">
+      <D:response><D:href>/docs/</D:href><D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response>
+      <D:response><D:href>/docs/a%2520b.txt</D:href><D:propstat><D:prop><D:resourcetype/></D:prop></D:propstat></D:response>
+      </D:multistatus>
+      """
+    let dav = provider { _ in .init(status: 207, body: body) }
+    let entries = try await dav.list(Location(providerID: "webdav.test", path: "/docs"))
+    #expect(entries.map(\.name) == ["a%20b.txt"])
+    #expect(entries.first?.location.path == "/docs/a%20b.txt")
+  }
+
   @Test func sendsDepthAndEncodesPaths() async throws {
     let body = multistatus("D", root: "/my docs/")
     let dav = provider { _ in .init(status: 207, body: body) }

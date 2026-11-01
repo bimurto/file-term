@@ -360,8 +360,8 @@ enum WebDAVMultistatus {
       let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
       switch name {
       case "href" where current != nil && current?.path.isEmpty == true:
-        let path = URL(string: value)?.path ?? value
-        current?.path = path.removingPercentEncoding ?? path
+        // `URL.path` is already decoded; decoding again turns `a%2520b` into `a b`.
+        current?.path = URL(string: value)?.path ?? value.removingPercentEncoding ?? value
       case "getcontentlength": current?.size = Int64(value)
       case "getlastmodified": current?.modified = Self.httpDate(value)
       case "creationdate": current?.created = ISO8601DateFormatter().date(from: value)
