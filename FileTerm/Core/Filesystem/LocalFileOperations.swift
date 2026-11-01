@@ -123,11 +123,12 @@ public actor LocalFileOperations {
   // Internal syscall seams allow deterministic EXDEV/deletion-failure tests without mounts.
   init(
     rename: @escaping @Sendable (URL, URL) throws -> Void,
-    remove: @escaping @Sendable (URL) throws -> Void
+    remove: @escaping @Sendable (URL) throws -> Void,
+    trash: @escaping @Sendable (URL) throws -> URL = { try LocalFileOperations.moveToTrash($0) }
   ) {
     renameItem = rename
     removeItem = remove
-    trashItem = { try Self.moveToTrash($0) }
+    trashItem = trash
   }
 
   // Lets tests undo copies without filling the real Trash.
@@ -412,6 +413,7 @@ public actor LocalFileOperations {
     try local(destination)
     let source = canonical(source)
     var destination = canonical(destination)
+    var displaced: URL?
     try safe(source, destination)
     // Fail for missing/unreadable sources even if a conflict would otherwise be skipped.
     _ = try await cooperativeSignature(source)
@@ -476,19 +478,61 @@ public actor LocalFileOperations {
           completed = true
           return nil
         }
-        try await recordMove(destination, storageURL(), in: &context.transaction)
+        displaced = try await displace(destination, in: &context.transaction)
       case .replace:
-        try await recordMove(destination, storageURL(), in: &context.transaction)
+        displaced = try await displace(destination, in: &context.transaction)
       }
     }
-    if move {
-      try await recordMove(source, destination, in: &context.transaction)
-    } else {
-      try await copy(source, to: destination, in: &context.transaction)
+    do {
+      if move {
+        try await recordMove(source, destination, in: &context.transaction)
+      } else {
+        try await copy(source, to: destination, in: &context.transaction)
+      }
+    } catch {
+      if let displaced { restore(displaced, to: destination, in: &context.transaction) }
+      throw error
     }
     outcomes.succeeded += 1
     completed = true
     return destination
+  }
+
+  /// Replaced items go to the Trash, which survives a quit or a crash. On a volume with no Trash
+  /// they go to a hidden folder beside the item, so putting them back never needs another copy.
+  private func displace(_ destination: URL, in transaction: inout Transaction) async throws -> URL {
+    try await checkpoint()
+    let fingerprint = try await cooperativeSignature(destination)
+    let displaced: URL
+    do {
+      displaced = try trashItem(destination)
+    } catch {
+      displaced = try storageURL(onVolumeOf: destination)
+      do { try renameItem(destination, displaced) } catch {
+        removeEmptyRecoveryFolder(of: displaced)
+        throw error
+      }
+    }
+    transaction.steps.append(Step(from: destination, to: displaced, signature: fingerprint))
+    transaction.cursor += 1
+    return displaced
+  }
+
+  /// Runs after a failed replace, including a cancelled one, so it has no cancellation checks. If
+  /// the new item did land, the old one stays displaced and Undo can still bring it back.
+  private func restore(_ displaced: URL, to destination: URL, in transaction: inout Transaction) {
+    guard (try? Self.exclusiveRename(displaced, destination)) != nil else { return }
+    removeEmptyRecoveryFolder(of: displaced)
+    if transaction.steps.last?.to == displaced {
+      transaction.steps.removeLast()
+      transaction.cursor -= 1
+    }
+  }
+
+  private func removeEmptyRecoveryFolder(of item: URL) {
+    let folder = item.deletingLastPathComponent()
+    guard folder.lastPathComponent.hasPrefix(".FileTerm-recovery-") else { return }
+    _ = folder.withUnsafeFileSystemRepresentation { Darwin.rmdir($0!) }
   }
 
   private func copy(_ source: URL, to destination: URL, in transaction: inout Transaction)
