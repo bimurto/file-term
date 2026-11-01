@@ -376,6 +376,10 @@ enum BrowserChrome: String, CaseIterable {
       ([location.path] + recentFolders.filter { $0 != location.path }).prefix(20))
   }
 
+  func forgetVisit(_ path: String) {
+    recentFolders.removeAll { $0 == path }
+  }
+
   func recordGoToFolder(_ path: String) {
     goToFolderHistory = Array(([path] + goToFolderHistory.filter { $0 != path }).prefix(20))
   }

@@ -56,6 +56,8 @@ import Observation
   public private(set) var errorMessage: String?
   /// The folder macOS or a server refused to open, while `errorMessage` describes that refusal.
   public private(set) var deniedLocation: Location?
+  /// Why this tab left a folder that was deleted. Stays through refreshes until the next navigation.
+  public private(set) var movedNotice: String?
   public private(set) var navigationRevision = UUID()
   private var history: [Location] = []
   private var historyIndex = -1
@@ -280,6 +282,7 @@ import Observation
     isLoading = true
     errorMessage = nil
     deniedLocation = nil
+    if !refreshing { movedNotice = nil }
     do {
       guard let provider = registry.provider(for: destination.providerID) else {
         throw FileSystemError.unsupportedOperation
@@ -316,11 +319,35 @@ import Observation
       return true
     } catch {
       guard navigationRevision == request else { return false }
+      if refreshing, error as? FileSystemError == .notFound,
+        let ancestor = await nearestOpenAncestor(of: destination),
+        navigationRevision == request
+      {
+        let moved = await load(ancestor, historyIndex: nil)
+        if moved {
+          isPinned = false
+          let name = (destination.path as NSString).lastPathComponent
+          movedNotice = "“\(name)” no longer exists. This tab moved to \(ancestor.path)."
+        }
+        return moved
+      }
       isLoading = false
       if !(error is CancellationError) { errorMessage = error.localizedDescription }
       if error as? FileSystemError == .permissionDenied { deniedLocation = destination }
       return false
     }
+  }
+
+  private func nearestOpenAncestor(of missing: Location) async -> Location? {
+    guard let provider = registry.provider(for: missing.providerID) else { return nil }
+    var candidate = missing.parent
+    while let folder = candidate {
+      if (try? await provider.list(folder, includeHidden: viewPreferences.showHidden)) != nil {
+        return folder
+      }
+      candidate = folder.parent
+    }
+    return nil
   }
 }
 

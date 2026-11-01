@@ -461,8 +461,13 @@ import UniformTypeIdentifiers
           let model = browser
           let id = model.activePaneID
           Task {
-            await model.navigate(
+            let opened = await model.navigate(
               to: Location(providerID: self.provider.id, path: path), in: id)
+            if !opened,
+              model.pane(id).errorMessage == FileSystemError.notFound.localizedDescription
+            {
+              self.settings.forgetVisit(path)
+            }
           }
         })
     }
