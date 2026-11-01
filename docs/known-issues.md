@@ -21,9 +21,7 @@ Problems in the app as it stands on 2026-11-01. Missing features and untested pr
 |---|---|---|
 | Moves from APFS to exFAT or FAT should always fail | From the code | The copy check includes modification time and permissions, which those volumes don't keep, so it reports changed contents. Checksum copies fail the same way. M04.06 is checked. |
 | Inline rename can't change only the case | From the code | Renaming `a.txt` to `A.txt` on case-insensitive APFS throws `destinationExists`. Only `renameBatch` handles this. |
-| A failed batch rename isn't rolled back | From the code | If a later step fails, for example a name taken since the preview, swapped files stay under hidden `.fileterm-rename-<uuid>` names. |
 | Sockets and FIFOs block folder operations | From the code | The folder signature throws on them, so Trash, Rename and Move refuse the folder. Trash also hashes everything first, with no way to cancel. |
-| A remote Copy to as… name isn't validated | From the code | An empty name targets the folder itself, and Replace then deletes it. Local copies check the name. |
 
 ## Remote locations and sync
 
@@ -31,10 +29,7 @@ Problems in the app as it stands on 2026-11-01. Missing features and untested pr
 |---|---|---|
 | SFTP and FTP errors are never retried | From the code | `TransferQueue.isTemporary` recognizes only URL and POSIX errors, so their timeouts and lost connections fail at once and get the wrong hint. M07.07 and M07.11 are checked. |
 | SFTP symlink loops recurse | From the code | `SFTPProvider` reports a link to a folder as a folder, so `ln -s .. up` recurses in sync and in folder copies until the path limit. M09 says links are skipped. |
-| WebDAV names are decoded twice | From the code | `a%20b.txt` is listed as `a b.txt`, so operations hit the wrong file or fail. |
 | A folder-level Replace on S3 fails if the old folder has contents | From the code | Replace renames the old folder aside first, and S3 can't rename a folder with contents. Nothing is lost, and the job reports the error. |
-| Sync treats names that differ only in case as separate items | From the code | SFTP `Foo` and `foo` synced to APFS are two adds, and the second silently replaces the first. A destination symlink is also replaced under an add row. |
-| Two Edits during a download make two copies | From the code | `RemoteEditCoordinator` registers the session only after the download, so the copies overwrite each other. Guide chapter 10 says editing again reopens the existing copy. |
 | Folder copies from some S3 servers may report a false change | Not confirmed | Listings with millisecond dates, as on MinIO, are compared with whole-second dates, giving "changed while copied". |
 | FTP servers without MLSD may lose dotfiles in folder copies | Not confirmed | The LIST fallback ignores `includeHidden`, so dotfiles are dropped from copies or overwritten with no prompt, and the check fails on the hidden temporary file. |
 
@@ -44,7 +39,6 @@ These came from the review on 2026-11-01. The threat is a malicious server, file
 
 | Issue | Status | Detail |
 |---|---|---|
-| Tool placeholders inside quotes can run code from a file name | From the code | `UserTool` substitutes values already wrapped in single quotes, so in `"$SOURCE_PATH"` or `'$SOURCE_PATH'` that quoting stops protecting the value, and `$(...)` in a file name runs through `/bin/sh -c`. Until this is fixed, write placeholders bare: `$SOURCE_PATH`. Tracking quotes won't cover nested `$(...)`, so the fix needs a design that passes values as variables, and lists like `$SOURCE_SELECTION_PATHS` need several words. |
 | Downloaded and extracted files have no quarantine mark | From the code | Nothing sets `com.apple.quarantine`, and `bsdtar` drops it when extracting (probed). Gatekeeper's first-launch check doesn't run on an app taken from an extracted archive or opened from a server. Fixing it means marking files at each place that writes them: extraction, `download()` and `ProviderTransfer`. |
 | Release builds are ad-hoc signed and not notarized | From the code | `dev/Signing.xcconfig` sets `CODE_SIGN_IDENTITY = -`, and `scripts/create-dmg.sh` has no signing or notarization step. Users must bypass Gatekeeper and can't verify the DMG. The app also has no sandbox. This needs a Developer ID account. |
 | Server listings have no size limit | From the code | An endless listing or folder tree can use up memory or hang a job (`SFTPProvider`, `FTPProvider`, `WebDAVProvider`). The caps on entries, bytes and depth haven't been chosen. |
