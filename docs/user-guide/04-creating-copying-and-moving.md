@@ -101,6 +101,8 @@ On connections, folder conflicts offer Merge, Keep Both, Skip and Stop, without 
 
 Edit › Undo (⌘Z) and Redo (⇧⌘Z) reverse local file operations such as local copies, moves, renames and Move to Trash. They're unavailable while another file operation runs. In a text field they act on the text.
 
+Undoing a copy or a duplicate moves it to the Trash, and Redo brings it back unless the Trash was emptied. On a volume with no Trash, Undo fails and the copy stays where it is.
+
 These can't be undone:
 
 - Delete… on local items.

@@ -39,7 +39,7 @@ struct TransferControlTests {
     for name in ["b", "c"] {
       try Data("old".utf8).write(to: merged.appendingPathComponent(name))
     }
-    let operations = LocalFileOperations()
+    let operations = LocalFileOperations.withFakeTrash()
     await operations.setTransferControl(TransferControl())
     await #expect(throws: CancellationError.self) {
       try await operations.transfer(sources: [source], to: target, move: false) { conflict in
@@ -164,7 +164,7 @@ struct TransferControlTests {
     try fm.createSymbolicLink(
       atPath: source.appendingPathComponent("link").path, withDestinationPath: "missing")
     let control = TransferControl()
-    let operations = LocalFileOperations()
+    let operations = LocalFileOperations.withFakeTrash()
     await operations.setTransferControl(control, verification: .checksum)
     let copied = try #require(
       try await operations.transfer(sources: [source], to: target, move: false).first)

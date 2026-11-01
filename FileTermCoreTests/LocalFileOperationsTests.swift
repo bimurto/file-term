@@ -59,6 +59,61 @@ struct LocalFileOperationsTests {
     }
   #endif
 
+  #if os(macOS)
+    @Test func undoingACopyUsesTheTrashAndRedoBringsItBack() async throws {
+      let root = try sandbox()
+      defer { try? FileManager.default.removeItem(at: root) }
+      let source = root.appendingPathComponent("trash-copy-\(UUID().uuidString).txt")
+      try Data("copy me".utf8).write(to: source)
+      let engine = LocalFileOperations()
+      let copy = try #require(try await engine.duplicate(sources: [source]).first)
+      try await engine.undo()
+      #expect(!FileManager.default.fileExists(atPath: copy.path))
+      try await engine.redo()
+      #expect(try String(contentsOf: copy, encoding: .utf8) == "copy me")
+    }
+  #endif
+
+  @Test func copiesLeaveNoRecoveryFolderBehind() async throws {
+    let root = try sandbox()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = root.appendingPathComponent("note.txt")
+    try Data("text".utf8).write(to: source)
+    let target = root.appendingPathComponent("target")
+    try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+    let engine = LocalFileOperations.withFakeTrash()
+    func recoveryFolders(in folder: URL) throws -> [String] {
+      try FileManager.default.contentsOfDirectory(atPath: folder.path)
+        .filter { $0.hasPrefix(".FileTerm-recovery-") }
+    }
+    _ = try await engine.duplicate(sources: [source])
+    _ = try await engine.transfer(sources: [source], to: target, move: false)
+    #expect(try recoveryFolders(in: root).isEmpty)
+    #expect(try recoveryFolders(in: target).isEmpty)
+    try await engine.undo()
+    try await engine.undo()
+    #expect(try recoveryFolders(in: root).isEmpty)
+    #expect(try recoveryFolders(in: target).isEmpty)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: target.path).isEmpty)
+    try await engine.redo()
+    try await engine.redo()
+    #expect(
+      try String(contentsOf: target.appendingPathComponent("note.txt"), encoding: .utf8) == "text")
+    #expect(try recoveryFolders(in: target).isEmpty)
+  }
+
+  @Test func undoOfACopyKeepsTheCopyWhenItCannotBeTrashed() async throws {
+    let root = try sandbox()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = root.appendingPathComponent("note.txt")
+    try Data("text".utf8).write(to: source)
+    let engine = LocalFileOperations(trash: { _ in throw CocoaError(.featureUnsupported) })
+    let copy = try #require(try await engine.duplicate(sources: [source]).first)
+    await #expect(throws: CocoaError(.featureUnsupported)) { try await engine.undo() }
+    #expect(FileManager.default.fileExists(atPath: copy.path))
+    #expect(await engine.historyState().canUndo)
+  }
+
   @Test func crossDeviceUndoRemovalFailureRetainsCopiesAndCanRetry() async throws {
     let root = try sandbox()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -161,7 +216,7 @@ struct LocalFileOperationsTests {
     try Data("new".utf8).write(to: source)
     let destination = target.appendingPathComponent("source")
     try Data("old".utf8).write(to: destination)
-    let engine = LocalFileOperations()
+    let engine = LocalFileOperations.withFakeTrash()
     _ = try await engine.transfer(sources: [source], to: target, move: false) { _ in
       ConflictResolution(decision: .replace)
     }
@@ -181,7 +236,7 @@ struct LocalFileOperationsTests {
     defer { try? FileManager.default.removeItem(at: root) }
     let source = root.appendingPathComponent("note.txt")
     try Data("text".utf8).write(to: source)
-    let engine = LocalFileOperations()
+    let engine = LocalFileOperations.withFakeTrash()
     let copies = try await engine.duplicate(sources: [source, source])
     #expect(Set(copies).count == 2)
     #expect(copies.allSatisfy { $0.pathExtension == "txt" && $0 != source })
@@ -243,7 +298,7 @@ struct LocalFileOperationsTests {
     let target = root.appendingPathComponent("target")
     try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
     try Data("payload".utf8).write(to: source)
-    let engine = LocalFileOperations()
+    let engine = LocalFileOperations.withFakeTrash()
     let moved = try await engine.transfer(sources: [source], to: target, move: true)
     #expect(!FileManager.default.fileExists(atPath: source.path))
     try await engine.undo()
@@ -307,4 +362,18 @@ struct LocalFileOperationsTests {
 private actor ConflictCalls {
   var count = 0
   func record() { count += 1 }
+}
+
+extension LocalFileOperations {
+  /// Undo of a copy lands in a throwaway folder, so tests don't fill the real Trash.
+  static func withFakeTrash() -> LocalFileOperations {
+    LocalFileOperations(trash: { url in
+      let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+        "FileTerm-fake-trash-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+      let destination = folder.appendingPathComponent(url.lastPathComponent)
+      try exclusiveRename(url, destination)
+      return destination
+    })
+  }
 }
