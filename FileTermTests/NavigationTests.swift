@@ -5,6 +5,34 @@ import Testing
 @testable import FileTerm
 
 @MainActor struct NavigationTests {
+  @Test func loweringTheRecentFolderLimitTrimsTheStoredList() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let settings = AppSettings(suite: suite)
+    settings.recentFolderLimit = 30
+    for index in 0..<25 {
+      settings.recordVisit(Location(providerID: "local", path: "/folder\(index)"))
+    }
+    #expect(settings.recentFolders.count == 25)
+    settings.recentFolderLimit = 3
+    #expect(settings.recentFolders == ["/folder24", "/folder23", "/folder22"])
+    #expect(AppSettings(suite: suite).recentFolders == settings.recentFolders)
+    settings.recentFolderLimit = 0
+    #expect(settings.recentFolderLimit == 1)
+    settings.recentFolderLimit = 500
+    #expect(settings.recentFolderLimit == 50)
+  }
+
+  @Test func aListSavedWithTheOldLimitIsTrimmedAtLaunch() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    suite.set((0..<20).map { "/folder\($0)" }, forKey: "recentFolders")
+    #expect(AppSettings(suite: suite).recentFolders.count == 10)
+    #expect(suite.stringArray(forKey: "recentFolders")?.count == 10)
+  }
+
   @Test func recentFoldersAreDeduplicatedCappedAndPersisted() throws {
     let name = "com.fileterm.tests.\(UUID().uuidString)"
     let suite = try #require(UserDefaults(suiteName: name))
@@ -17,9 +45,10 @@ import Testing
     settings.recordVisit(Location(providerID: "remote", path: "/ignored"))
     settings.toggle(.toolbar)
     let restored = AppSettings(suite: suite)
-    #expect(restored.recentFolders.count == 20)
+    #expect(restored.recentFolderLimit == 10)
+    #expect(restored.recentFolders.count == 10)
     #expect(restored.recentFolders.first == "/folder10")
-    #expect(Set(restored.recentFolders).count == 20)
+    #expect(Set(restored.recentFolders).count == 10)
     #expect(!restored.isVisible(.toolbar))
     #expect(restored.isVisible(.devices))
   }
@@ -177,7 +206,7 @@ private actor FakeVolumeService: VolumeService {
   var mounted = [
     MountedVolume(
       url: URL(fileURLWithPath: "/Volumes/Test"), name: "Test", isEjectable: true,
-      isInternal: false, capacity: 100, available: 50)
+      isInternal: false, isLocal: true, capacity: 100, available: 50)
   ]
   func volumes() -> [MountedVolume] { mounted }
   func availableCapacity(at location: Location) -> Int64? { 50 }

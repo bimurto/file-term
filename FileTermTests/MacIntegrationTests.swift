@@ -98,6 +98,42 @@ import Testing
     #expect(!(newTab.representedObject is String))
   }
 
+  @Test func everyMenuCommandHasAPlaceInTheMenuLayout() async throws {
+    #expect(await eventually { NSApp.mainMenu?.item(withTitle: "File") != nil })
+    var unlisted: [String] = []
+    func collect(_ menu: NSMenu, path: [String]) {
+      for item in menu.items {
+        if let id = item.representedObject as? String {
+          if !MenuLayout.isListed(id, in: path) { unlisted.append(id) }
+        } else if let child = item.submenu, item.title != "Services",
+          path != ["Edit"], path != ["Window"]
+        {
+          if !MenuLayout.isListed(item.title, in: path) { unlisted.append(item.title) }
+          collect(child, path: path + [item.title])
+        }
+      }
+    }
+    for root in NSApp.mainMenu?.items ?? [] where root.title != "Help" {
+      if let menu = root.submenu { collect(menu, path: [root.title]) }
+    }
+    #expect(unlisted.isEmpty, "Not in MenuLayout: \(unlisted)")
+  }
+
+  @Test func theFileMenuIsGroupedAndEndsWithCloseWindow() async throws {
+    #expect(await eventually { NSApp.mainMenu?.item(withTitle: "File") != nil })
+    let file = try #require(NSApp.mainMenu?.items.first { $0.title == "File" }?.submenu)
+    let ids = file.items.compactMap { $0.representedObject as? String }
+    #expect(!ids.contains("file.showBrowser"))
+    #expect(ids.last == "file.close")
+    #expect(file.items.contains { $0.isSeparatorItem })
+    let visible = file.items.filter { !$0.isHidden }
+    #expect(visible.first?.isSeparatorItem == false)
+    #expect(visible.last?.isSeparatorItem == false)
+    for (first, second) in zip(visible, visible.dropFirst()) {
+      #expect(!(first.isSeparatorItem && second.isSeparatorItem))
+    }
+  }
+
   @Test func theAppMenuOffersUpdatesAndServices() async throws {
     // Twice, because the menu is rebuilt each time it opens.
     for _ in 0..<2 {

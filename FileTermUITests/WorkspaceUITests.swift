@@ -242,7 +242,7 @@ final class WorkspaceUITests: XCTestCase {
     let restore = app.checkBoxes["Restore windows and tabs on startup"]
     XCTAssertTrue(restore.waitForExistence(timeout: 5))
     XCTAssertEqual((restore.value as? NSNumber)?.intValue, 0)
-    let directory = app.textFields.firstMatch
+    let directory = app.textFields["startingDirectory"]
     directory.click()
     directory.typeKey("a", modifierFlags: .command)
     directory.typeText(fixture.root.appendingPathComponent("Child").path)

@@ -51,6 +51,16 @@ struct FavoriteTests {
     #expect(list.replacing(.item(renamed)).allItems.map(\.name) == ["Papers"])
   }
 
+  @Test func addingSkipsATargetAlreadyInTheListOrAGroup() {
+    let path = FavoriteItem.Target.local(path: "/a")
+    let group = FavoriteGroup(name: "G", items: [FavoriteItem(name: "A", target: path)])
+    let nodes: [FavoriteNode] = [.group(group)]
+    #expect(nodes.adding(FavoriteItem(name: "Again", target: path)).count == 1)
+    let added = nodes.adding(FavoriteItem(name: "B", target: .local(path: "/b")))
+    #expect(added.count == 2)
+    #expect(added.allItems.last?.name == "B")
+  }
+
   @Test func iCloudDriveSitsInsideMobileDocuments() {
     #expect(FavoriteItem.iCloudDrivePath.hasSuffix("/Library/Mobile Documents/com~apple~CloudDocs"))
   }

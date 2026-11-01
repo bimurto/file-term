@@ -186,6 +186,31 @@ import Testing
     try await wait { !session.terminalView.process.running }
   }
 
+  @Test func toolbarActionsExplainWhyTheyAreUnavailable() async throws {
+    let fixture = try await Fixture.make()
+    defer { fixture.cleanup() }
+    let workspace = fixture.workspace
+    #expect(workspace.disabledReason(for: .link) == nil)
+    #expect(workspace.disabledReason(for: .clear) != nil)
+    #expect(workspace.disabledReason(for: .find) != nil)
+    #expect(workspace.disabledReason(for: .reveal) != nil)
+    #expect(workspace.disabledReason(for: .openSSH) != nil)
+    #expect(workspace.disabledReason(for: .insertSelection) != nil)
+
+    workspace.toggleVisibility()
+    let session = try #require(workspace.currentSession)
+    try await wait { session.canSendDirectory && session.directory != nil }
+    #expect(workspace.disabledReason(for: .clear) == nil)
+    #expect(workspace.disabledReason(for: .find) == nil)
+    #expect(workspace.disabledReason(for: .reveal) == nil)
+
+    let pane = fixture.browser.activePane
+    pane.selection = [Location(providerID: "local", path: "/tmp")]
+    #expect(workspace.disabledReason(for: .insertSelection) == nil)
+    workspace.closeAll()
+    try await wait { !session.terminalView.process.running }
+  }
+
   @Test func sshSessionIsTypedOnlyForAnSFTPPaneAndNeverLetsLocalCdReachIt() async throws {
     let fixture = try await Fixture.make(extraProviders: [RemoteStub(id: "sftp.test")])
     defer { fixture.cleanup() }

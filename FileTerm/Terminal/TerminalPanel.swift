@@ -8,6 +8,8 @@ struct TerminalPanel: View {
     VStack(spacing: 0) {
       header
       Divider()
+      toolbar
+      Divider()
       if let session = workspace.currentSession {
         TerminalContainer(session: session)
           .id(ObjectIdentifier(session))
@@ -104,17 +106,6 @@ struct TerminalPanel: View {
       .accessibilityIdentifier("terminalFollowMode")
       Menu {
         Toggle("Reverse Sync", isOn: $workspace.reverseSync)
-        Button(workspace.isLinked ? "Unlink Terminal" : "Link Terminal") {
-          workspace.toggleLinked()
-        }
-        Button("Reveal Directory in Pane") { workspace.revealDirectory() }
-        Button("Open SSH Session") { workspace.openSSHSession() }
-          .disabled(!workspace.canOpenSSH)
-        Button("Insert Selected Paths") { workspace.insertSelection() }
-        Divider()
-        Button("Clear Terminal") { workspace.perform(command: "terminal.clear") }
-        Button("Find in Terminal") { workspace.perform(command: "terminal.find") }
-        Divider()
         Picker("Dock", selection: $workspace.panel.dock) {
           ForEach(TerminalDock.allCases) { dock in Text(dock.title).tag(dock) }
         }
@@ -123,13 +114,6 @@ struct TerminalPanel: View {
       }
       .menuStyle(.borderlessButton).fixedSize()
       .help("Terminal options").accessibilityLabel("Terminal options")
-      Button {
-        workspace.toggleLinked()
-      } label: {
-        Image(systemName: workspace.isLinked ? "lock.fill" : "lock.open")
-      }
-      .help(workspace.isLinked ? "Unlink terminal from pane" : "Link terminal to pane")
-      .accessibilityLabel(workspace.isLinked ? "Unlink terminal" : "Link terminal")
       Button {
         workspace.syncNow()
       } label: {
@@ -140,6 +124,51 @@ struct TerminalPanel: View {
       .accessibilityLabel("Sync terminal now")
     }
     .controlSize(.small)
+  }
+
+  private var toolbar: some View {
+    HStack(spacing: 6) {
+      toolbarButton(
+        .link, symbol: workspace.isLinked ? "lock.fill" : "lock.open",
+        title: workspace.isLinked ? "Unlink Terminal" : "Link Terminal"
+      ) { workspace.toggleLinked() }
+      toolbarButton(.reveal, symbol: "folder", title: "Reveal Directory in Pane") {
+        workspace.revealDirectory()
+      }
+      Divider().frame(height: 14).padding(.horizontal, 3)
+      toolbarButton(.openSSH, symbol: "network", title: "Open SSH Session") {
+        workspace.openSSHSession()
+      }
+      toolbarButton(.insertSelection, symbol: "text.insert", title: "Insert Selected Paths") {
+        workspace.insertSelection()
+      }
+      Divider().frame(height: 14).padding(.horizontal, 3)
+      toolbarButton(.clear, symbol: "eraser", title: "Clear Terminal") {
+        workspace.perform(command: "terminal.clear")
+      }
+      toolbarButton(.find, symbol: "magnifyingglass", title: "Find in Terminal") {
+        workspace.perform(command: "terminal.find")
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(.horizontal, 10)
+    .padding(.vertical, 4)
+    .background(.bar)
+    .accessibilityIdentifier("terminalToolbar")
+  }
+
+  private func toolbarButton(
+    _ action: TerminalAction, symbol: String, title: String, perform: @escaping () -> Void
+  ) -> some View {
+    let reason = workspace.disabledReason(for: action)
+    return Button(action: perform) {
+      Image(systemName: symbol).frame(width: 20, height: 18)
+    }
+    .buttonStyle(.borderless)
+    .disabled(reason != nil)
+    .help(reason ?? title)
+    .accessibilityLabel(title)
+    .accessibilityIdentifier("terminalToolbar.\(action.rawValue)")
   }
 
   private var closeButton: some View {

@@ -8,7 +8,7 @@ Problems in the app as it stands on 2026-11-01. Missing features and untested pr
 
 | Issue | Status | Detail |
 |---|---|---|
-| A scrollbar sometimes appears under the toolbar | Seen | It moves the toolbar up about 8 points and comes and goes between launches. A build from before M15 does it too, so M15 didn't cause it. The cause isn't known. The toolbar asks for hidden scroll indicators in `BrowserView`. |
+| A scrollbar sometimes appeared under the toolbar | Probably fixed | It moved the toolbar up about 8 points and came and went between launches, and the cause was never found. The toolbar no longer scrolls since M16.11, so it shouldn't return. Not confirmed over repeated launches. |
 | Copy Dropbox Link shows on every local item without Dropbox | Seen | With no Dropbox set up, the right-click menu shows the item dimmed instead of hiding it. The earlier short menu used the same logic. |
 | Share opens in the window's corner | From the code | `file.share` shows the picker at `.zero` of the window's content view, not at the clicked item. |
 | Tags… doesn't open a tag editor of its own | From the code | `file.tags` calls the same `showInfo` as Get Info. |

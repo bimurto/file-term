@@ -51,7 +51,7 @@ Go to Folder works with local folders only. For a remote location, use Go › Fa
 
 ## Recent Folders and connections
 
-Go › Recent Folders lists the last 20 local folders you visited, newest first. The same list appears in the sidebar, under Recent Folders, and in Quick Open. Visits to remote folders aren't recorded.
+Go › Recent Folders lists the local folders you visited most recently, newest first. It keeps 10 by default, and Settings › General changes the limit, from 1 to 50. The same list appears in the sidebar, under Recent Folders, and in Quick Open. Visits to remote folders aren't recorded.
 
 Go › Connections lists open and saved connections. See [chapter 6](06-connections-and-remote-locations.md#open-connections-and-saved-connections).
 

@@ -23,7 +23,6 @@ Every menu command, grouped by top-level menu. Submenu paths are named in the de
 
 | Command | Shortcut | What it does | Guide chapter |
 |---|---|---|---|
-| <a id="file.showBrowser"></a>Show Browser Window | — | Brings a browser window forward, or opens one if none exists. | [Ch 2](02-views-windows-and-tabs.md) |
 | <a id="file.close"></a>Close Window | ⇧⌘W | Closes the frontmost window. | [Ch 2](02-views-windows-and-tabs.md) |
 | <a id="file.eject"></a>Eject | — | Ejects the volume selected in the sidebar's Devices section. | [Ch 1](01-navigation-and-panes.md) |
 | <a id="file.newWindow"></a>New FileTerm Window | ⌘N | Opens a new window at the Starting Directory. | [Ch 2](02-views-windows-and-tabs.md) |

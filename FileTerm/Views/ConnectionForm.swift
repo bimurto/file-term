@@ -41,6 +41,8 @@ import SwiftUI
   }
 
   func save() -> Bool {
+    // Only favorites appear in Go › Connections, so a connection saved here must be one.
+    if !isEditing { profile.isFavorite = true }
     do {
       try coordinator.save(profile, password: password)
       errorMessage = nil
@@ -116,9 +118,9 @@ struct ConnectionFormSheet: View {
         }
         Spacer()
         Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
-        if model.isEditing {
-          Button("Save") { if model.save() { dismiss() } }
-        }
+        Button("Save") { if model.save() { dismiss() } }
+          .disabled(kind.usesServer && kind != .s3 && model.profile.server.isEmpty)
+          .accessibilityIdentifier("connectionSave")
         Button("Connect") {
           Task { if await model.connect() { dismiss() } }
         }

@@ -46,6 +46,10 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: None
             LSItemContentTypes: [public.folder, public.item]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.fileterm.remote-item
+            UTTypeDescription: FileTerm remote item
+            UTTypeConformsTo: [public.data]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.fileterm.app

@@ -768,13 +768,6 @@ import UniformTypeIdentifiers
         }
       ),
       AppCommand(
-        id: "file.showBrowser", title: "Show Browser Window", menuPath: ["File"],
-        isEnabled: { _ in true }, disabledReason: { _ in "" },
-        handler: { [weak self] in
-          self?.showBrowser()
-        }
-      ),
-      AppCommand(
         id: "file.close", title: "Close Window", menuPath: ["File"], shortcut: "w",
         shortcutModifiers: [.command, .shift],
         isEnabled: { $0.hasKeyWindow }, disabledReason: { _ in "No window is open." },

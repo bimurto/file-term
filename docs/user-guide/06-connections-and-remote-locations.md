@@ -19,11 +19,11 @@ Dropbox's Copy Dropbox Link command is separate, and it does work with a Dropbox
 
 ## Connection form
 
-1. Choose Go › Connect… or click the toolbar button.
+1. Choose Go › Connect… or click the globe button in the toolbar.
 2. Choose a Protocol.
 3. Fill in the server and account fields. Their labels change with the protocol.
 4. Optional: tick Add to Favorites to save the connection under Go › Connections.
-5. Click Connect.
+5. Click Connect, or click Save to add it to Go › Connections without connecting.
 
 Opening or editing the form never connects. Only the Connect button does. Passwords are stored only in your keychain. When you edit a saved connection, leaving the password empty keeps the saved one.
 

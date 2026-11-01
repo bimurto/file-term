@@ -68,6 +68,12 @@ struct OpenConnection: Identifiable, Equatable {
   var id: UUID { profile.id }
 }
 
+enum FavoriteDrop: Equatable {
+  case add(FavoriteItem)
+  case refuse(String)
+  case ignore
+}
+
 /// An SSH server FileTerm has not seen before, with the keys it presented.
 struct HostKeyChallenge: Equatable {
   let target: SSHTarget
@@ -335,6 +341,39 @@ func makeRemoteProvider(
         browser.notice = error.localizedDescription
       }
     }
+  }
+
+  /// What dragging a folder at `location` onto the sidebar adds. Folders from a connection need a
+  /// saved profile, because a favorite reopens through it.
+  func favoriteDrop(forFolder location: Location) -> FavoriteDrop {
+    let name = (location.path as NSString).lastPathComponent
+    let connection: OpenConnection
+    let path: String
+    if location.providerID == "local" {
+      let mount = open.first { connection in
+        guard let mount = connection.mountURL?.path else { return false }
+        return location.path == mount || location.path.hasPrefix(mount + "/")
+      }
+      guard let mount, let mountPath = mount.mountURL?.path else {
+        return .add(FavoriteItem(name: name, target: .local(path: location.path)))
+      }
+      connection = mount
+      path = String(location.path.dropFirst(mountPath.count))
+    } else {
+      guard let match = open.first(where: { $0.root.providerID == location.providerID }) else {
+        return .ignore
+      }
+      connection = match
+      path = location.path
+    }
+    guard profiles.contains(where: { $0.id == connection.id }) else {
+      return .refuse(
+        "“\(name)” wasn’t added. Save the connection to \(connection.profile.displayName) first.")
+    }
+    return .add(
+      FavoriteItem(
+        name: path.isEmpty ? connection.profile.displayName : name,
+        target: .connection(profileID: connection.id, paths: path.isEmpty ? [] : [path])))
   }
 
   func disconnect(_ connection: OpenConnection, in browser: BrowserModel, home: Location)
