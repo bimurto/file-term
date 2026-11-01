@@ -288,6 +288,65 @@ struct SyncTests {
     }
   }
 
+  // MARK: Names a case-insensitive disk sees as one item
+
+  private func entry(_ path: String, _ kind: FileEntry.Kind = .file) -> FileEntry {
+    FileEntry(
+      location: Location(providerID: "local", path: "/" + path),
+      name: (path as NSString).lastPathComponent, kind: kind, size: 1)
+  }
+
+  @Test func addsDifferingOnlyInCaseAreRefused() {
+    let actions = SyncAnalyzer.compare(
+      left: ["Foo": entry("Foo"), "foo": entry("foo"), "other": entry("other")], right: [:],
+      options: SyncOptions())
+    let refused = actions.filter { !$0.isRunnable }
+    #expect(Set(refused.map(\.relativePath)) == ["Foo", "foo"])
+    #expect(refused.allSatisfy { $0.kind == .conflict && !$0.isChecked })
+    #expect(actions.first { $0.relativePath == "other" }?.kind == .add)
+  }
+
+  @Test func anAddClashingWithAnExistingNameIsRefusedWithItsOrphanDelete() {
+    var options = SyncOptions()
+    options.deleteOrphans = true
+    let actions = SyncAnalyzer.compare(
+      left: ["Foo": entry("Foo")], right: ["foo": entry("foo")], options: options)
+    #expect(actions.count == 2)
+    #expect(actions.allSatisfy { $0.kind == .conflict && !$0.isRunnable })
+  }
+
+  @Test func itemsInsideAClashingFolderAreRefused() {
+    let actions = SyncAnalyzer.compare(
+      left: ["Foo": entry("Foo", .directory), "Foo/new.txt": entry("Foo/new.txt")],
+      right: ["foo": entry("foo", .directory)], options: SyncOptions())
+    #expect(actions.count == 2)
+    #expect(actions.allSatisfy { !$0.isRunnable })
+  }
+
+  @Test func updatesOfMatchingNamesAreNotRefused() {
+    let actions = SyncAnalyzer.compare(
+      left: ["a.txt": entry("a.txt")], right: ["a.txt": entry("a.txt")],
+      options: {
+        var options = SyncOptions()
+        options.updateWhenSizeDiffers = true
+        return options
+      }())
+    #expect(actions.isEmpty)
+  }
+
+  @Test func anAddOntoALinkIsRefused() async throws {
+    let trees = try Trees()
+    try trees.file(trees.left, "a.txt")
+    try trees.file(trees.left, "b.txt")
+    let elsewhere = try trees.file(trees.right, "elsewhere.txt", "keep")
+    try FileManager.default.createSymbolicLink(
+      at: trees.right.appendingPathComponent("a.txt"), withDestinationURL: elsewhere)
+    let actions = try await trees.analyze(SyncOptions())
+    let row = try #require(actions.first { $0.relativePath == "a.txt" })
+    #expect(row.kind == .conflict && !row.isRunnable && !row.isChecked)
+    #expect(actions.first { $0.relativePath == "b.txt" }?.kind == .add)
+  }
+
   @Test func localCopyKeepsTheModificationDateSoTheNextAnalysisIsClean() async throws {
     let t = try Trees()
     let date = Date(timeIntervalSince1970: 1_500_000)

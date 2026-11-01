@@ -122,4 +122,41 @@ public enum RenameSequencer {
     }
     return first + direct + last
   }
+
+  /// Runs the steps in order. If one fails or is cancelled, the finished ones are renamed back, so
+  /// no item stays under a temporary name. Throws `PartialTransferError` if that isn't possible.
+  public static func perform(
+    _ steps: [RenameStep], before: @Sendable () async throws -> Void,
+    rename: @escaping @Sendable (RenameStep) async throws -> Void
+  ) async throws {
+    var finished: [RenameStep] = []
+    do {
+      for step in steps {
+        try await before()
+        try await rename(step)
+        finished.append(step)
+      }
+    } catch {
+      let reversals = finished.reversed().map { step in
+        let folder = (step.path as NSString).deletingLastPathComponent
+        return RenameStep(
+          path: (folder as NSString).appendingPathComponent(step.name),
+          name: (step.path as NSString).lastPathComponent)
+      }
+      // A new task, because a cancelled one would also stop the calls that put the names back.
+      let stranded = await Task {
+        var stranded: [String] = []
+        for reversal in reversals {
+          do { try await rename(reversal) } catch { stranded.append(reversal.path) }
+        }
+        return stranded
+      }.value
+      guard stranded.isEmpty else {
+        throw PartialTransferError(
+          "\(error.localizedDescription) These items couldn't be renamed back: "
+            + stranded.joined(separator: ", ") + ".")
+      }
+      throw error
+    }
+  }
 }

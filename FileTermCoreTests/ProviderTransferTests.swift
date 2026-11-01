@@ -65,6 +65,19 @@ import Testing
     #expect(await first.text("/report.txt") == "quarterly")
   }
 
+  @Test(arguments: ["", ".", "..", "a/b"])
+  func aNewNameThatIsNotOneItemLeavesTheDestinationAlone(name: String) async throws {
+    let first = MemoryProvider(id: "one")
+    let second = MemoryProvider(id: "two")
+    await first.seedFile("/report.txt", "quarterly")
+    await second.seedFile("/folder/kept.txt", "kept")
+    let transfer = engine([first, second]) { _ in ConflictResolution(decision: .replace) }
+    let summary = try await transfer.copy(
+      sources: [at(first, "/report.txt")], to: at(second, "/folder"), newName: name)
+    #expect(summary.skipped == 1)
+    #expect(await second.text("/folder/kept.txt") == "kept")
+  }
+
   @Test func neverShowsTemporaryNamesAfterSuccessOrFailure() async throws {
     let first = MemoryProvider(id: "one")
     let second = MemoryProvider(id: "two")

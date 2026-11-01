@@ -43,8 +43,8 @@ import SwiftUI
 
   @discardableResult
   func run(_ tool: UserTool, context: ToolCommandBuilder.Context, source: Location) -> UUID? {
-    let lines = ToolCommandBuilder.expand(tool, context: context)
-    guard !lines.isEmpty else { return nil }
+    let commands = ToolCommandBuilder.expand(tool, context: context)
+    guard !commands.isEmpty else { return nil }
     let directory = source.providerID == "local" ? source.path : NSHomeDirectory()
     let queue = fileOperations.transfers
     let reference = JobReference()
@@ -55,16 +55,17 @@ import SwiftUI
     ) { [weak self] control in
       var results: [ToolRunResult] = []
       var summary = TransferSummary()
-      for line in lines {
+      for command in commands {
         try await control.checkpoint()
         let output = try await ProcessRunner.capture(
-          "/bin/sh", ["-c", line], directory: directory,
-          environment: LoginShellPath.environment())
+          "/bin/sh", ["-c", command.line], directory: directory,
+          environment: LoginShellPath.environment().merging(command.environment) { $1 })
         results.append(
           ToolRunResult(
-            command: line, status: output.status, stdout: output.stdout, stderr: output.stderr))
+            command: command.displayLine, status: output.status, stdout: output.stdout,
+            stderr: output.stderr))
         if let id = reference.id {
-          queue.log(id, "$ \(line)")
+          queue.log(id, "$ \(command.displayLine)")
           queue.log(id, "Exit code \(output.status)")
         }
         if output.status == 0 { summary.succeeded += 1 } else { summary.failed += 1 }
@@ -72,7 +73,7 @@ import SwiftUI
       await self?.fileOperations.refresh?()
       if tool.showOutput { self?.showOutput(results, title: tool.name) }
       if let last = results.last(where: { $0.status != 0 }) {
-        throw Failure(failed: summary.failed, total: lines.count, status: last.status)
+        throw Failure(failed: summary.failed, total: commands.count, status: last.status)
       }
       return summary
     }

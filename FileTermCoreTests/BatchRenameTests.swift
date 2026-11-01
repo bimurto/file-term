@@ -237,4 +237,94 @@ struct BatchRenameTests {
       RenamePreset.self, from: JSONEncoder().encode(preset))
     #expect(decoded == preset)
   }
+
+  @Test func aFailedLocalBatchRenamePutsEveryNameBack() async throws {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let a = dir.appendingPathComponent("a.txt")
+    let b = dir.appendingPathComponent("b.txt")
+    let c = dir.appendingPathComponent("c.txt")
+    try "A".write(to: a, atomically: true, encoding: .utf8)
+    try "B".write(to: b, atomically: true, encoding: .utf8)
+    try "C".write(to: c, atomically: true, encoding: .utf8)
+    try "T".write(to: dir.appendingPathComponent("taken.txt"), atomically: true, encoding: .utf8)
+    let operations = LocalFileOperations()
+
+    // The swap moves a and b to temporary names before c hits the taken name.
+    await #expect(throws: LocalFileOperationError.self) {
+      try await operations.renameBatch([(a, "b.txt"), (b, "a.txt"), (c, "taken.txt")])
+    }
+
+    #expect(
+      Set(try FileManager.default.contentsOfDirectory(atPath: dir.path))
+        == ["a.txt", "b.txt", "c.txt", "taken.txt"])
+    #expect(try String(contentsOf: a, encoding: .utf8) == "A")
+    #expect(try String(contentsOf: b, encoding: .utf8) == "B")
+    #expect(await operations.historyState().canUndo == false)
+  }
+
+  private actor FakeNames {
+    var items: [String: String]
+    let refused: String
+    init(_ items: [String: String], refusing refused: String) {
+      self.items = items
+      self.refused = refused
+    }
+    func rename(_ step: RenameStep) throws {
+      if step.name == refused { throw FileSystemError.destinationExists }
+      let folder = (step.path as NSString).deletingLastPathComponent
+      items[(folder as NSString).appendingPathComponent(step.name)] = items.removeValue(
+        forKey: step.path)
+    }
+  }
+
+  @Test func performPutsFinishedStepsBackWhenOneFails() async throws {
+    let names = FakeNames(["/d/a": "A", "/d/b": "B", "/d/c": "C"], refusing: "bad")
+    let steps = [
+      RenameStep(path: "/d/a", name: "one"), RenameStep(path: "/d/b", name: "two"),
+      RenameStep(path: "/d/c", name: "bad"),
+    ]
+    await #expect(throws: FileSystemError.destinationExists) {
+      try await RenameSequencer.perform(steps, before: {}, rename: { try await names.rename($0) })
+    }
+    #expect(await names.items == ["/d/a": "A", "/d/b": "B", "/d/c": "C"])
+  }
+
+  @Test func performPutsFinishedStepsBackWhenCancelled() async throws {
+    let names = FakeNames(["/d/a": "A", "/d/b": "B"], refusing: "bad")
+    let steps = [RenameStep(path: "/d/a", name: "one"), RenameStep(path: "/d/b", name: "two")]
+    let calls = Counter()
+    let task = Task {
+      try await RenameSequencer.perform(
+        steps,
+        before: {
+          if await calls.next() == 2 { throw CancellationError() }
+        }
+      ) { step in
+        try Task.checkCancellation()
+        try await names.rename(step)
+      }
+    }
+    await #expect(throws: CancellationError.self) { try await task.value }
+    #expect(await names.items == ["/d/a": "A", "/d/b": "B"])
+  }
+
+  @Test func performReportsWhatItCouldNotPutBack() async throws {
+    let names = FakeNames(["/d/a": "A", "/d/b": "B"], refusing: "a")
+    let steps = [RenameStep(path: "/d/a", name: "one"), RenameStep(path: "/d/b", name: "a")]
+    do {
+      try await RenameSequencer.perform(steps, before: {}, rename: { try await names.rename($0) })
+      Issue.record("Expected a failure")
+    } catch let error as PartialTransferError {
+      #expect(error.message.contains("/d/one"))
+    }
+  }
+
+  private actor Counter {
+    var value = 0
+    func next() -> Int {
+      value += 1
+      return value
+    }
+  }
 }

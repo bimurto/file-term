@@ -10,6 +10,11 @@
 
 Each option change runs the analysis again. Items are compared by modification date and size, not by content, and dates within 2 seconds count as equal. Symbolic links and special files are skipped.
 
+Two kinds of row are listed as conflicts that can't run, so nothing gets replaced by accident. Rename the item or remove it to sync it:
+
+- **Name differs only in case:** `Foo` and `foo` would be one item on a disk that ignores case. This applies to every location, because FileTerm can't tell how each server treats case. Items inside such a folder are listed the same way.
+- **Link in the way:** the destination has a symbolic link or special file at that name.
+
 ## Direction
 
 - **Left → Right** and **Right → Left** change only the destination side.

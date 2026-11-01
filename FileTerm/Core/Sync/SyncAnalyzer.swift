@@ -19,17 +19,20 @@ public enum SyncAnalyzer {
     let (leftScan, rightScan) = try await (leftTree, rightTree)
     return compare(
       left: leftScan.entries, right: rightScan.entries, options: options,
-      keptLeft: leftScan.keptFolders, keptRight: rightScan.keptFolders)
+      keptLeft: leftScan.keptFolders, keptRight: rightScan.keptFolders,
+      linksLeft: leftScan.links, linksRight: rightScan.links)
   }
 
   /// Every file and folder below `root` that the options include (by relative path), and the
   /// folders holding something they leave out: hidden items, exclusions, links and special files.
-  /// Deleting one of those folders would delete what nobody was shown.
+  /// Deleting one of those folders would delete what nobody was shown. `links` are the relative
+  /// paths of the links and special files themselves, which an add must not land on.
   static func scan(
     _ root: Location, with provider: any FileSystemProvider, options: SyncOptions
-  ) async throws -> (entries: [String: FileEntry], keptFolders: Set<String>) {
+  ) async throws -> (entries: [String: FileEntry], keptFolders: Set<String>, links: Set<String>) {
     var result: [String: FileEntry] = [:]
     var kept: Set<String> = []
+    var links: Set<String> = []
     func keep(_ folder: String) {
       var path = folder
       while !path.isEmpty, kept.insert(path).inserted {
@@ -67,15 +70,17 @@ public enum SyncAnalyzer {
           queue.append((entry.location, relative))
         case .symbolicLink, .other:
           keep(prefix)
+          links.insert(relative)
         }
       }
     }
-    return (result, kept)
+    return (result, kept, links)
   }
 
   static func compare(
     left: [String: FileEntry], right: [String: FileEntry], options: SyncOptions,
-    keptLeft: Set<String> = [], keptRight: Set<String> = []
+    keptLeft: Set<String> = [], keptRight: Set<String> = [], linksLeft: Set<String> = [],
+    linksRight: Set<String> = []
   ) -> [SyncAction] {
     var actions: [SyncAction] = []
     let paths = Set(left.keys).union(right.keys).sorted()
@@ -102,9 +107,53 @@ public enum SyncAnalyzer {
       }
     }
     // Deleting a folder removes everything in it; its own rows would only repeat that.
-    return actions.filter { action in
+    let shown = actions.filter { action in
       !(action.kind == .delete
         && removedFolders.contains { action.relativePath.hasPrefix($0 + "/") })
+    }
+    let leftChecked = refusingClashes(
+      in: shown, on: .left, existing: Set(left.keys), links: linksLeft)
+    return refusingClashes(
+      in: leftChecked, on: .right, existing: Set(right.keys), links: linksRight)
+  }
+
+  /// Whether a disk ignores case isn't known for every provider, so names that differ only in case
+  /// are refused everywhere: on one that ignores it, the copy would replace the other item, and a
+  /// delete of the other name would then remove the copy. An add onto a link would replace the link.
+  private static func refusingClashes(
+    in actions: [SyncAction], on side: SyncAction.Side, existing: Set<String>, links: Set<String>
+  ) -> [SyncAction] {
+    let adds = actions.filter { $0.kind == .add && $0.towards == side }.map(\.relativePath)
+    var holders: [String: Set<String>] = [:]
+    for path in existing.union(links).union(adds) {
+      holders[path.lowercased(), default: []].insert(path)
+    }
+    var clashes: [String: String] = [:]
+    for path in adds {
+      let key = path.lowercased()
+      if holders[key, default: []].count > 1 {
+        clashes[key] = "name differs only in case"
+      } else if links.contains(path) {
+        clashes[key] = "link in the way"
+      }
+    }
+    guard !clashes.isEmpty else { return actions }
+    func refusal(for path: String) -> String? {
+      var current = path.lowercased()
+      while !current.isEmpty {
+        if let reason = clashes[current] { return reason }
+        current = (current as NSString).deletingLastPathComponent
+      }
+      return nil
+    }
+    return actions.map { action in
+      guard action.kind == .add || action.kind == .delete, action.towards == side,
+        let reason = refusal(for: action.relativePath)
+      else { return action }
+      return SyncAction(
+        relativePath: action.relativePath, kind: .conflict, towards: side, isDirectory: false,
+        left: action.left, right: action.right, isChecked: false, isRunnable: false,
+        refusal: reason)
     }
   }
 
