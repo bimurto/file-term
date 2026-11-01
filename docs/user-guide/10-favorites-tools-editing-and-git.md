@@ -59,7 +59,13 @@ Source means the active pane, and target means the other pane.
 | `$SOURCE_SELECTION_NAMES` | Selected items in the active pane, as names |
 | `$TARGET_SELECTION_NAMES` | Selected items in the other pane, as names |
 
-FileTerm quotes each value for the shell, so don't add your own quotes. A missing value becomes empty.
+FileTerm passes each value to the shell as a variable, so nothing in a file name can run as a command.
+
+- **No quotes:** `$SOURCE_PATH` is one word, even with spaces in the path, and each selected item in `$SOURCE_SELECTION_PATHS` is its own word. A missing value leaves no word.
+- **Double quotes:** `"$SOURCE_SELECTION_PATHS"` is one word, with the items joined by spaces. A missing value is empty.
+- **Single quotes:** `'$SOURCE_PATH'` stays as that text, as it does anywhere in a shell. Use double quotes to get the value.
+
+Don't pass a value to `eval`, or into a nested command as `sh -c "... $SOURCE_PATH"`, because that shell would read the file name as code. Inside `sh -c '...'`, write `"$SOURCE_PATH"`: the nested shell reads the variable safely.
 
 ## Your shell's PATH
 
