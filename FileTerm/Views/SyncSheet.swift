@@ -188,7 +188,8 @@ struct SyncSheet: View {
     case .add: return "Add \(arrow)"
     case .update: return "Update \(arrow)"
     case .delete: return "Delete \(action.towards == .right ? "right" : "left")"
-    case .conflict: return action.isRunnable ? "Conflict" : "Conflict (file vs folder)"
+    case .conflict:
+      return action.isRunnable ? "Conflict" : "Conflict (\(action.refusal ?? "file vs folder"))"
     }
   }
 

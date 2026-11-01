@@ -80,12 +80,16 @@ public struct SyncAction: Identifiable, Hashable, Sendable {
   public let left: FileEntry?
   public let right: FileEntry?
   public var isChecked: Bool
-  /// False for a file on one side against a folder on the other; those can only be reported.
+  /// False for a file against a folder, or a name that would land on another item; those can only
+  /// be reported.
   public let isRunnable: Bool
+  /// Why an unrunnable row can't run, when it isn't a file against a folder.
+  public let refusal: String?
 
   public init(
     relativePath: String, kind: Kind, towards: Side, isDirectory: Bool,
-    left: FileEntry?, right: FileEntry?, isChecked: Bool = true, isRunnable: Bool = true
+    left: FileEntry?, right: FileEntry?, isChecked: Bool = true, isRunnable: Bool = true,
+    refusal: String? = nil
   ) {
     self.relativePath = relativePath
     self.kind = kind
@@ -95,6 +99,7 @@ public struct SyncAction: Identifiable, Hashable, Sendable {
     self.right = right
     self.isChecked = isChecked && isRunnable
     self.isRunnable = isRunnable
+    self.refusal = refusal
   }
 
   /// The item that is copied; nil for a delete.
