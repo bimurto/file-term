@@ -48,6 +48,10 @@ public struct TransferJob: Identifiable, Sendable {
   public var attempts = 0
   public var canRetry = true
   public var startedAt: Date?
+  /// What to tell the user when this job fails, for those who don't have Activities open.
+  public var failureMessage: String {
+    "\(kind.rawValue.capitalized) failed: \(error ?? "Unknown error.")"
+  }
   public var eta: Double? {
     guard let totalBytes, bytesPerSecond > 0 else { return nil }
     return Double(max(0, totalBytes - bytesTransferred)) / bytesPerSecond
@@ -72,6 +76,8 @@ public struct TransferLogEntry: Identifiable, Sendable {
   public private(set) var jobs: [TransferJob] = []
   public private(set) var logs: [TransferLogEntry] = []
   public var preferences = TransferPreferences() { didSet { schedule() } }
+  /// Called when a job fails, not when it's cancelled.
+  @ObservationIgnored public var onFailure: ((TransferJob) -> Void)?
   @ObservationIgnored private var actions: [UUID: Action] = [:]
   @ObservationIgnored private var controls: [UUID: TransferControl] = [:]
   @ObservationIgnored private var tasks: [UUID: Task<Void, Never>] = [:]
@@ -272,6 +278,7 @@ public struct TransferLogEntry: Identifiable, Sendable {
             jobs[i].error = error.localizedDescription
             jobs[i].hint = Self.hint(for: error)
             log(id, "Failed: \(error.localizedDescription)")
+            onFailure?(jobs[i])
           }
         }
       }

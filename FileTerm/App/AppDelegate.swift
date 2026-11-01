@@ -188,6 +188,9 @@ import UniformTypeIdentifiers
     fileOperations.preferences = { [weak self] in self?.settings.transfers ?? TransferPreferences()
     }
     fileOperations.transfers.preferences = settings.transfers
+    fileOperations.transfers.onFailure = { [weak self] job in
+      self?.browser.notice = job.failureMessage
+    }
     fileOperations.onBatchRename = { [weak self] pane in self?.openBatchRename(pane) }
     fileOperations.detectsAppOnDelete = { [weak self] in self?.settings.detectAppOnDelete == true }
     fileOperations.archiveOpenBehavior = { [weak self] in
