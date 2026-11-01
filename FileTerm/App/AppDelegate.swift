@@ -1380,9 +1380,11 @@ import UniformTypeIdentifiers
 
   private func fileOperationCommands() -> [AppCommand] {
     func command(
-      _ id: String, _ title: String, menu: [String] = ["Commands"],
+      _ id: String, _ title: String, dynamicTitle: ((CommandContext) -> String)? = nil,
+      menu: [String] = ["Commands"],
       shortcut: Shortcut? = nil, selection: Bool = false, target: Bool = false,
       anyProvider: Bool = false,
+      isHiddenInMenu: @escaping (CommandContext) -> Bool = { _ in false },
       condition: @escaping () -> Bool = { true },
       reason: @escaping () -> String = {
         "Open a local folder and select the required items. Pane transfers need two panes. "
@@ -1391,7 +1393,7 @@ import UniformTypeIdentifiers
       action: @escaping () -> Void
     ) -> AppCommand {
       AppCommand(
-        id: id, title: title, menuPath: menu, shortcut: shortcut?.key,
+        id: id, title: title, dynamicTitle: dynamicTitle, menuPath: menu, shortcut: shortcut?.key,
         shortcutModifiers: shortcut?.modifiers ?? [.command],
         isEnabled: { [weak self] context in
           guard let self else { return false }
@@ -1404,7 +1406,7 @@ import UniformTypeIdentifiers
               || (anyProvider
                 ? context.targetLocation != nil : context.targetLocation?.providerID == "local"))
             && condition()
-        }, disabledReason: { _ in reason() }, handler: action)
+        }, disabledReason: { _ in reason() }, isHiddenInMenu: isHiddenInMenu, handler: action)
     }
     var result: [AppCommand] = []
     for (id, title, shortcut, directory, selected) in [
@@ -1676,6 +1678,10 @@ import UniformTypeIdentifiers
     result.append(
       command(
         "file.trash", "Move to Trash",
+        // A server has no Trash, so this deletes permanently there.
+        dynamicTitle: {
+          ($0.sourceLocation?.providerID ?? "local") == "local" ? "Move to Trash" : "Delete…"
+        },
         shortcut: Shortcut(key: "\u{7F}", command: true), selection: true, anyProvider: true
       ) { [weak self] in
         guard let self else { return }
@@ -1731,7 +1737,9 @@ import UniformTypeIdentifiers
       command(
         "commands.delete", "Delete…",
         shortcut: Shortcut(key: "\u{7F}", command: true, option: true), selection: true,
-        anyProvider: true
+        anyProvider: true,
+        // On a connection, file.trash already appears as Delete….
+        isHiddenInMenu: { ($0.sourceLocation?.providerID ?? "local") != "local" }
       ) { [weak self] in
         guard let self else { return }
         fileOperations.deletePermanently(browser.activePane, window: browserWindow)

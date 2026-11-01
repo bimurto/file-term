@@ -145,11 +145,13 @@ import FileTermCore
       }
       let shortcut = registry.effectiveShortcut(for: command.id)
       let item = NSMenuItem(
-        title: NSLocalizedString(command.title, comment: "Menu command"),
+        title: NSLocalizedString(registry.title(of: command), comment: "Menu command"),
         action: #selector(execute(_:)), keyEquivalent: shortcut?.key ?? "")
       item.target = self
       item.representedObject = command.id
       item.identifier = NSUserInterfaceItemIdentifier(command.id)
+      item.isHidden = registry.isHiddenInMenu(command)
+      item.allowsKeyEquivalentWhenHidden = true
       item.keyEquivalentModifierMask = (shortcut?.modifiers ?? []).reduce(
         into: NSEvent.ModifierFlags()
       ) {

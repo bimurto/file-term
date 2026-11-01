@@ -44,32 +44,40 @@ public struct CommandContext: Sendable {
 @MainActor public struct AppCommand: Identifiable {
   public let id: String
   public let title: String
+  /// Replaces `title` where the command's name depends on the current context.
+  public let dynamicTitle: ((CommandContext) -> String)?
   public let menuPath: [String]
   public let shortcut: String?
   public let shortcutModifiers: Set<ShortcutModifier>
   public let isEnabled: (CommandContext) -> Bool
   public let disabledReason: (CommandContext) -> String
   public let isChecked: (CommandContext) -> Bool
+  /// Leaves the command out of the main menu. Its shortcut keeps working.
+  public let isHiddenInMenu: (CommandContext) -> Bool
   public let handler: () -> Void
 
   public enum ShortcutModifier: Hashable { case command, shift, option, control }
 
   public init(
-    id: String, title: String, menuPath: [String], shortcut: String? = nil,
+    id: String, title: String, dynamicTitle: ((CommandContext) -> String)? = nil,
+    menuPath: [String], shortcut: String? = nil,
     shortcutModifiers: Set<ShortcutModifier> = [.command],
     isEnabled: @escaping (CommandContext) -> Bool,
     disabledReason: @escaping (CommandContext) -> String,
     isChecked: @escaping (CommandContext) -> Bool = { _ in false },
+    isHiddenInMenu: @escaping (CommandContext) -> Bool = { _ in false },
     handler: @escaping () -> Void
   ) {
     self.id = id
     self.title = title
+    self.dynamicTitle = dynamicTitle
     self.menuPath = menuPath
     self.shortcut = shortcut
     self.shortcutModifiers = shortcutModifiers
     self.isEnabled = isEnabled
     self.disabledReason = disabledReason
     self.isChecked = isChecked
+    self.isHiddenInMenu = isHiddenInMenu
     self.handler = handler
   }
 }
@@ -124,6 +132,12 @@ public struct CommandContext: Sendable {
   public func invalidate() { revision += 1 }
 
   public func command(_ id: String) -> AppCommand? { commands.first { $0.id == id } }
+
+  public func title(of command: AppCommand) -> String {
+    command.dynamicTitle?(context()) ?? command.title
+  }
+
+  public func isHiddenInMenu(_ command: AppCommand) -> Bool { command.isHiddenInMenu(context()) }
 
   /// What a menu item shows for a command.
   public struct CommandState {

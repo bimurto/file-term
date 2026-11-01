@@ -91,7 +91,7 @@ These work on SFTP, FTP, FTP-TLS, WebDAV, S3 and B2 connections:
 
 These work differently or not at all:
 
-- **Move to Trash and Delete…** permanently delete after a confirmation. A server has no Trash.
+- **Move to Trash** is named Delete… here. It and ⌥⌘⌫ permanently delete after a confirmation. A server has no Trash.
 - Duplicate, New File, New Folder With Selection, Open With and Undo are local only.
 - ⌘C doesn't put remote items on the clipboard, and remote items can't be dragged out of a pane. Use Copy to… instead.
 - Preview, Get Info, Quick Look and the other commands in [chapter 5](05-metadata-preview-and-utilities.md) are local only.

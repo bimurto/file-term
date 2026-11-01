@@ -58,6 +58,49 @@ private final class ChangeFlag: @unchecked Sendable { var value = false }
     }
   }
 
+  @Test func dynamicTitleFollowsTheContext() {
+    var source = Location(providerID: "local", path: "/")
+    let plain = AppCommand(
+      id: "plain", title: "Plain", menuPath: ["Go"], isEnabled: { _ in true },
+      disabledReason: { _ in "" }, handler: {})
+    let named = AppCommand(
+      id: "named", title: "Local", dynamicTitle: { $0.sourceLocation?.providerID ?? "none" },
+      menuPath: ["Go"], isEnabled: { _ in true }, disabledReason: { _ in "" }, handler: {})
+    let registry = CommandRegistry(
+      commands: [plain, named],
+      context: {
+        CommandContext(
+          hasBrowserWindow: true, hasKeyWindow: true, isLoading: false, sourceLocation: source)
+      })
+    #expect(registry.title(of: plain) == "Plain")
+    #expect(registry.title(of: named) == "local")
+    source = Location(providerID: "sftp", path: "/")
+    #expect(registry.title(of: named) == "sftp")
+  }
+
+  @Test func hiddenInMenuFollowsTheContext() {
+    var source = Location(providerID: "local", path: "/")
+    let plain = AppCommand(
+      id: "plain", title: "Plain", menuPath: ["Go"], isEnabled: { _ in true },
+      disabledReason: { _ in "" }, handler: {})
+    let remoteHidden = AppCommand(
+      id: "hidden", title: "Hidden", menuPath: ["Go"], isEnabled: { _ in true },
+      disabledReason: { _ in "" }, isHiddenInMenu: { $0.sourceLocation?.providerID != "local" },
+      handler: {})
+    let registry = CommandRegistry(
+      commands: [plain, remoteHidden],
+      context: {
+        CommandContext(
+          hasBrowserWindow: true, hasKeyWindow: true, isLoading: false, sourceLocation: source)
+      })
+    #expect(!registry.isHiddenInMenu(plain))
+    #expect(!registry.isHiddenInMenu(remoteHidden))
+    source = Location(providerID: "sftp", path: "/")
+    #expect(!registry.isHiddenInMenu(plain))
+    #expect(registry.isHiddenInMenu(remoteHidden))
+    #expect(registry.execute("hidden"))
+  }
+
   @Test func selectedEntriesSkipsTheScanWithoutASelection() async throws {
     let provider = LocalFileSystemProvider()
     let pane = PaneModel(providers: [provider])

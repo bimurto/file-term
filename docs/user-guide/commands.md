@@ -168,10 +168,10 @@ Every menu command, grouped by top-level menu. Submenu paths are named in the de
 | <a id="commands.compressOptions"></a>Compress With Options… | — | Asks for the format, name and destination first. Local. | [Ch 9](09-archives-deletion-and-comparison.md) |
 | <a id="commands.extract"></a>Extract | — | Unpacks selected archives next to them. Local. | [Ch 9](09-archives-deletion-and-comparison.md) |
 | <a id="commands.extractTo"></a>Extract to… | — | Asks for the destination first. Local. | [Ch 9](09-archives-deletion-and-comparison.md) |
-| <a id="file.trash"></a>Move to Trash | ⌘⌫ | Moves local items to the Trash. On a connection, deletes permanently after a confirmation. | [Ch 9](09-archives-deletion-and-comparison.md) |
+| <a id="file.trash"></a>Move to Trash | ⌘⌫ | Moves local items to the Trash. On a connection it's named Delete… and deletes permanently after a confirmation. | [Ch 9](09-archives-deletion-and-comparison.md) |
 | <a id="commands.compare"></a>Compare | — | Opens two local files in the external compare tool. | [Ch 9](09-archives-deletion-and-comparison.md) |
 | <a id="commands.appCleanup"></a>Delete App and Related Files… | — | Lists a selected app's related files, then moves the app and ticked files to the Trash. | [Ch 9](09-archives-deletion-and-comparison.md) |
-| <a id="commands.delete"></a>Delete… | ⌥⌘⌫ | Permanently deletes the selection after a confirmation. Can't be undone. | [Ch 9](09-archives-deletion-and-comparison.md) |
+| <a id="commands.delete"></a>Delete… | ⌥⌘⌫ | Permanently deletes the selection after a confirmation. Can't be undone. On a connection the menu lists only the ⌘⌫ Delete…, and ⌥⌘⌫ still works. | [Ch 9](09-archives-deletion-and-comparison.md) |
 | <a id="commands.checksum"></a>Calculate Checksum… | — | Calculates MD5, SHA-1 or SHA-256 for one local file. | [Ch 5](05-metadata-preview-and-utilities.md) |
 | <a id="commands.folderSizes"></a>Calculate All Folder Sizes | — | Works out the size of each local folder in the listing. | [Ch 5](05-metadata-preview-and-utilities.md) |
 | <a id="tools.run"></a>Your tools | — | Commands › Tools: runs a tool you defined in Settings › Tools. | [Ch 10](10-favorites-tools-editing-and-git.md) |

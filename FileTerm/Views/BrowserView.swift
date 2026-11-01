@@ -278,7 +278,7 @@ struct BrowserView: View {
         let shortcut = registry.effectiveShortcut(for: command.id)?.display
         let reason = registry.disabledReason(for: command.id)
         return QuickOpenItem(
-          id: "command:" + command.id, title: command.title,
+          id: "command:" + command.id, title: registry.title(of: command),
           subtitle: [command.menuPath.joined(separator: " › "), shortcut, reason]
             .compactMap { $0 }.joined(separator: " · "),
           kind: .command, isEnabled: reason == nil
@@ -313,7 +313,7 @@ struct BrowserView: View {
   }
 
   private func commandButton(_ id: String, symbol: String) -> some View {
-    let title = registry.command(id)?.title ?? id
+    let title = registry.command(id).map { registry.title(of: $0) } ?? id
     return Button {
       registry.execute(id)
     } label: {

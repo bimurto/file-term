@@ -8,7 +8,6 @@ Problems in the app as it stands on 2026-10-31. Missing features and untested pr
 
 | Issue | Status | Detail |
 |---|---|---|
-| Move to Trash deletes permanently on a connection | From the code | In the main menu, the toolbar and with ⌘⌫, `FileOperationCoordinator.trash` runs a permanent server delete under the Move to Trash title. The right-click menu already says Delete… instead. |
 | A scrollbar sometimes appears under the toolbar | Seen | It moves the toolbar up about 8 points and comes and goes between launches. A build from before M15 does it too, so M15 didn't cause it. The cause isn't known. The toolbar asks for hidden scroll indicators in `BrowserView`. |
 | Copy Dropbox Link shows on every local item without Dropbox | Seen | With no Dropbox set up, the right-click menu shows the item dimmed instead of hiding it. The earlier short menu used the same logic. |
 | Share opens in the window's corner | From the code | `file.share` shows the picker at `.zero` of the window's content view, not at the clicked item. |

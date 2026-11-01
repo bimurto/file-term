@@ -44,7 +44,7 @@ An archive on a connection is fully downloaded before it opens, so a large one t
 
 Commands › Move to Trash (⌘⌫) moves local items to the Trash without asking, and you can undo it.
 
-On a connection it's a permanent delete, after a confirmation. See [chapter 6](06-connections-and-remote-locations.md#working-in-a-remote-pane).
+On a connection it's named Delete… and is a permanent delete, after a confirmation. See [chapter 6](06-connections-and-remote-locations.md#working-in-a-remote-pane).
 
 FileTerm › Empty Trash… asks first, then has Finder empty the Trash on every volume. The first use shows a macOS permission prompt for controlling Finder. It can't be undone.
 
