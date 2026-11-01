@@ -166,6 +166,9 @@ extension FileOperationCoordinator {
   static func download(
     _ entry: FileEntry, provider: any FileSystemProvider, control: TransferControl
   ) async throws -> URL {
+    guard FileName.isSafe(entry.name) else {
+      throw FileSystemError.io("This item has an unsafe name, so it was not downloaded.")
+    }
     let folder = downloadsFolder.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let file = folder.appendingPathComponent(entry.name)

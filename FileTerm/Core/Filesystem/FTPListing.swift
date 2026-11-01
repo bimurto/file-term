@@ -25,7 +25,7 @@ enum FTPListing {
         }
         kind = .symbolicLink
       }
-      guard name != ".", name != ".." else { return nil }
+      guard FileName.isListable(name) else { return nil }
       return FileEntry(
         location: ProviderTransfer.child(folder, name), name: name, kind: kind,
         size: kind == .file ? facts["size"].flatMap { Int64($0) } : nil,
@@ -70,7 +70,7 @@ enum FTPListing {
     if kind == .symbolicLink, let arrow = name.range(of: " -> ") {
       name = String(name[..<arrow.lowerBound])
     }
-    guard name != ".", name != ".." else { return nil }
+    guard FileName.isListable(name) else { return nil }
     return FileEntry(
       location: ProviderTransfer.child(folder, name), name: name, kind: kind,
       size: kind == .file ? Int64(group(5)) : nil,
@@ -134,7 +134,7 @@ enum FTPListing {
       Range(match.range(at: index), in: line).map { String(line[$0]) } ?? ""
     }
     let name = group(8)
-    guard name != ".", name != ".." else { return nil }
+    guard FileName.isListable(name) else { return nil }
     let isDirectory = group(7).uppercased() == "<DIR>"
     var year = Int(group(3)) ?? 0
     if year < 100 { year += year < 70 ? 2000 : 1900 }

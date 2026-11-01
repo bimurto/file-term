@@ -730,8 +730,7 @@ public actor LocalFileOperations {
   }
 
   private func validate(_ name: String) throws {
-    guard !name.isEmpty, name != ".", name != "..", !name.contains("/"), !name.contains("\0"),
-      name.utf8.count <= 255
+    guard FileName.isSafe(name), name.utf8.count <= 255
     else { throw LocalFileOperationError.invalidName }
   }
 

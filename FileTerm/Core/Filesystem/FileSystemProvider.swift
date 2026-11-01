@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 public struct Location: Hashable, Codable, Sendable {
   public let providerID: String
@@ -51,6 +52,25 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
     self.group = group
     self.permissions = permissions
     self.isHidden = isHidden
+  }
+}
+
+/// Names that come from a server or an archive, which must stay one component of a local path.
+public enum FileName {
+  private static let logger = Logger(subsystem: "FileTerm", category: "RemoteNames")
+
+  public static func isSafe(_ name: String) -> Bool {
+    !name.isEmpty && name != "." && name != ".." && !name.contains("/") && !name.contains("\0")
+  }
+
+  /// Whether a listing keeps this name. `.` and `..` are routine in listings, so only other
+  /// rejected names are logged.
+  static func isListable(_ name: String) -> Bool {
+    if isSafe(name) { return true }
+    if name != "." && name != ".." {
+      logger.warning("Ignored an unsafe name in a listing: \(name, privacy: .public)")
+    }
+    return false
   }
 }
 

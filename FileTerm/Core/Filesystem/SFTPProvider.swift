@@ -130,7 +130,7 @@ public actor SFTPProvider: ValidatingProvider {
     }
     await closeHandle(handle)
     var entries: [FileEntry] = []
-    for name in names where name.filename != "." && name.filename != ".." {
+    for name in names where FileName.isListable(name.filename) {
       let location = ProviderTransfer.child(folder, name.filename)
       var attributes = name.attributes
       if attributes.isSymbolicLink,

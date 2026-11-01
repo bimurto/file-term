@@ -51,6 +51,23 @@ private final class OneChunk: FileByteReader, @unchecked Sendable {
 
 @Suite(.serialized)
 @MainActor struct ProviderCopyTests {
+  @Test func downloadRefusesANameThatLeavesTheTemporaryFolder() async throws {
+    let stub = RemoteStub()
+    await stub.seed("/evil", "server bytes")
+    let name = "escaped-\(UUID().uuidString).txt"
+    let entry = FileEntry(
+      location: Location(providerID: stub.id, path: "/evil"), name: "../" + name, kind: .file,
+      size: 12)
+    let escaped = FileOperationCoordinator.downloadsFolder.appendingPathComponent(name)
+    defer { try? FileManager.default.removeItem(at: escaped) }
+
+    await #expect(throws: FileSystemError.self) {
+      _ = try await FileOperationCoordinator.download(
+        entry, provider: stub, control: TransferControl())
+    }
+    #expect(!FileManager.default.fileExists(atPath: escaped.path))
+  }
+
   private func waitForCompletion(_ coordinator: FileOperationCoordinator, _ id: UUID) async {
     for _ in 0..<400 {
       if coordinator.transfers.jobs.first(where: { $0.id == id })?.state.isTerminal == true {

@@ -67,6 +67,7 @@ public actor WebDAVProvider: ValidatingProvider {
     return try WebDAVMultistatus.parse(data).compactMap { item -> FileEntry? in
       guard Self.trimmed(item.path) != own else { return nil }
       let entry = entry(for: item)
+      guard FileName.isListable(entry.name) else { return nil }
       return includeHidden || !entry.isHidden ? entry : nil
     }
   }

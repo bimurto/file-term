@@ -49,6 +49,23 @@ final class S3StubProtocol: URLProtocol, @unchecked Sendable {
 
   private func at(_ path: String) -> Location { Location(providerID: "s3.test", path: path) }
 
+  @Test func listingsDropKeysAndPrefixesThatLeaveTheFolder() async throws {
+    let provider = provider { _ in
+      S3StubProtocol.Reply(
+        body: """
+          <?xml version="1.0"?>
+          <ListBucketResult>
+          <IsTruncated>false</IsTruncated>
+          <CommonPrefixes><Prefix>../</Prefix></CommonPrefixes>
+          <Contents><Key>../../evil</Key><Size>1</Size></Contents>
+          <Contents><Key>ok.txt</Key><Size>1</Size></Contents>
+          </ListBucketResult>
+          """)
+    }
+    let entries = try await provider.list(at("/bucket"), includeHidden: true)
+    #expect(entries.map(\.name) == ["ok.txt"])
+  }
+
   private func xml(_ body: String) -> String {
     "<?xml version=\"1.0\"?>" + body
   }

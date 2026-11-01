@@ -59,7 +59,13 @@ public actor ProviderTransfer {
       for source in sources {
         if stopped { break }
         let entry = try await provider(source.providerID).stat(source)
-        try await copyItem(entry, to: Self.child(folder, newName ?? entry.name))
+        let name = newName ?? entry.name
+        guard FileName.isSafe(name) else {
+          outcomes.skipped += 1
+          log("Skipped \(source.path): unsafe name \(name)")
+          continue
+        }
+        try await copyItem(entry, to: Self.child(folder, name))
       }
     } catch is CancellationError {
       throw CancellationError()
@@ -163,6 +169,11 @@ public actor ProviderTransfer {
     }
     for child in try await source.list(entry.location, includeHidden: true) {
       if stopped { return }
+      guard FileName.isSafe(child.name) else {
+        outcomes.skipped += 1
+        log("Skipped an item with an unsafe name in \(entry.location.path): \(child.name)")
+        continue
+      }
       try await copyItem(child, to: Self.child(destination, child.name))
     }
     outcomes.succeeded += 1

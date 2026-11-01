@@ -79,6 +79,7 @@ public actor S3Provider: ValidatingProvider {
         bucket: bucket, prefix: prefix, delimiter: true, token: token, limit: 1000)
       for folder in page.prefixes {
         let name = String(folder.dropFirst(prefix.count).dropLast())
+        guard FileName.isListable(name) else { continue }
         entries.append(
           FileEntry(
             location: Location(providerID: id, path: "/\(bucket)/\(folder.dropLast())"),
@@ -86,6 +87,7 @@ public actor S3Provider: ValidatingProvider {
       }
       for object in page.objects where object.key != prefix && !object.key.hasSuffix("/") {
         let name = String(object.key.dropFirst(prefix.count))
+        guard FileName.isListable(name) else { continue }
         entries.append(
           FileEntry(
             location: Location(providerID: id, path: "/\(bucket)/\(object.key)"), name: name,

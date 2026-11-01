@@ -43,6 +43,24 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
       configuration: configuration)
   }
 
+  @Test func listingsDropParentFolderNames() async throws {
+    let provider = provider { _ in
+      StubURLProtocol.Reply(
+        status: 207,
+        body: """
+          <?xml version="1.0"?>
+          <D:multistatus xmlns:D="DAV:">
+          <D:response><D:href>/docs/</D:href><D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response>
+          <D:response><D:href>/docs/..</D:href><D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response>
+          <D:response><D:href>/docs/ok.txt</D:href><D:propstat><D:prop><D:resourcetype/></D:prop></D:propstat></D:response>
+          </D:multistatus>
+          """)
+    }
+    let entries = try await provider.list(
+      Location(providerID: "webdav.test", path: "/docs"), includeHidden: true)
+    #expect(entries.map(\.name) == ["ok.txt"])
+  }
+
   private func multistatus(_ prefix: String, root: String = "/docs/") -> String {
     let p = prefix.isEmpty ? "" : prefix + ":"
     let ns = prefix.isEmpty ? "xmlns=\"DAV:\"" : "xmlns:\(prefix)=\"DAV:\""
