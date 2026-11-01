@@ -193,6 +193,12 @@ import FileTermCore
     _ remote: Location, file: URL, remoteStamp: RemoteStamp, editors: [EditorMapping],
     notify: @escaping (String) -> Void
   ) {
+    // A second Edit during the download, or a retried job, must not start a second copy.
+    if let existing = sessions.first(where: { $0.remote == remote }) {
+      try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
+      reopen(existing, editors: editors)
+      return
+    }
     guard let stamp = Stamp(url: file) else { return }
     let session = Session(
       remote: remote, local: file, lastAttempt: stamp, remoteStamp: remoteStamp, notify: notify)

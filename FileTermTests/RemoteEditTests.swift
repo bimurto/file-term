@@ -251,6 +251,19 @@ private final class EditChunk: FileByteReader, @unchecked Sendable {
     #expect(try String(contentsOf: session.local, encoding: .utf8) == "unsaved local work")
   }
 
+  @Test func aSecondEditDuringTheDownloadUsesTheSameCopy() async throws {
+    let rig = await rig()
+    rig.edits.edit(rig.entry, editors: []) { rig.log.notices.append($0) }
+    rig.edits.edit(rig.entry, editors: []) { rig.log.notices.append($0) }
+    await settle(rig)
+    try await Task.sleep(for: .milliseconds(50))
+
+    let session = try #require(rig.edits.sessions.first)
+    #expect(rig.edits.sessions.count == 1)
+    #expect(rig.log.opened == [session.local, session.local])
+    #expect(FileManager.default.fileExists(atPath: session.local.path))
+  }
+
   @Test func aClosedConnectionEndsTheSessionInsteadOfUploading() async throws {
     let rig = await rig()
     let session = try await startEditing(rig)
