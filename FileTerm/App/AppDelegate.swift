@@ -36,6 +36,8 @@ import UniformTypeIdentifiers
   private var pendingOpenURLs: [URL] = []
   private var isReadyToOpenURLs = false
   private let folderWatcher = FolderWatcher()
+  private var pendingWatchedChanges: Set<String> = []
+  private var isRefreshingWatched = false
   private let fileOperations = FileOperationCoordinator()
   private let filePreviews = FilePreviewCoordinator()
   private let fileUtilities = FileUtilityCoordinator()
@@ -188,6 +190,9 @@ import UniformTypeIdentifiers
     fileOperations.preferences = { [weak self] in self?.settings.transfers ?? TransferPreferences()
     }
     fileOperations.transfers.preferences = settings.transfers
+    fileOperations.transfers.onFailure = { [weak self] job in
+      self?.browser.notice = job.failureMessage
+    }
     fileOperations.onBatchRename = { [weak self] pane in self?.openBatchRename(pane) }
     fileOperations.detectsAppOnDelete = { [weak self] in self?.settings.detectAppOnDelete == true }
     fileOperations.archiveOpenBehavior = { [weak self] in
@@ -219,7 +224,10 @@ import UniformTypeIdentifiers
     ) { [weak self] _ in
       MainActor.assumeIsolated {
         guard let self, self.settings.autoRefresh else { return }
-        Task { for controller in self.windows { await controller.browser.refreshAll() } }
+        Task {
+          for controller in self.windows { await controller.browser.refreshAll() }
+          self.syncWatcher()
+        }
       }
     }
     let restore = settings.workspace.restoreWindows || settings.workspace.keepWindowsOnce
@@ -458,8 +466,13 @@ import UniformTypeIdentifiers
           let model = browser
           let id = model.activePaneID
           Task {
-            await model.navigate(
+            let opened = await model.navigate(
               to: Location(providerID: self.provider.id, path: path), in: id)
+            if !opened,
+              model.pane(id).errorMessage == FileSystemError.notFound.localizedDescription
+            {
+              self.settings.forgetVisit(path)
+            }
           }
         })
     }
@@ -1860,15 +1873,27 @@ import UniformTypeIdentifiers
     folderWatcher.watch(paths)
   }
 
+  /// One pass at a time. A new refresh would cancel a running one, so a folder that keeps changing
+  /// and takes a while to list would otherwise never update.
   private func refreshWatched(_ changed: Set<String>) {
+    pendingWatchedChanges.formUnion(changed)
+    guard !isRefreshingWatched else { return }
+    isRefreshingWatched = true
     Task {
-      for controller in windows {
-        for id in PaneID.allCases {
-          for tab in controller.browser.tabs(id).tabs {
-            if let path = tab.location?.path, changed.contains(path) { await tab.refresh() }
+      while !pendingWatchedChanges.isEmpty {
+        let paths = pendingWatchedChanges
+        pendingWatchedChanges = []
+        for controller in windows {
+          for id in PaneID.allCases {
+            for tab in controller.browser.tabs(id).tabs {
+              if let path = tab.location?.path, paths.contains(path) { await tab.refresh() }
+            }
           }
         }
       }
+      isRefreshingWatched = false
+      // A tab whose folder was deleted has moved to another folder.
+      syncWatcher()
     }
   }
 

@@ -641,7 +641,7 @@ private struct BrowserPaneView: View {
         .frame(height: 30).padding(.horizontal, 8)
         Divider()
       }
-      if let error = pane.errorMessage {
+      if let error = pane.errorMessage ?? pane.movedNotice {
         HStack {
           Label(
             deniedPermission.map { permissionMessage($0) } ?? error,

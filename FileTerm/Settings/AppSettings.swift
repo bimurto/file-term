@@ -311,7 +311,7 @@ enum BrowserChrome: String, CaseIterable {
       "settingsCategory", default: SettingsCategory.general.rawValue, suite: suite)
     visiblePanels = Defaults[panelsKey]
     showHiddenKey = Defaults.Key("showHidden", default: false, suite: suite)
-    autoRefreshKey = Defaults.Key("autoRefresh", default: false, suite: suite)
+    autoRefreshKey = Defaults.Key("autoRefresh", default: true, suite: suite)
     handleArchivesKey = Defaults.Key("handleArchives", default: true, suite: suite)
     archivesAsFoldersKey = Defaults.Key("archivesAsFolders", default: false, suite: suite)
     detectAppOnDeleteKey = Defaults.Key("detectAppOnDelete", default: true, suite: suite)
@@ -374,6 +374,10 @@ enum BrowserChrome: String, CaseIterable {
     guard location.providerID == "local", location.path.hasPrefix("/") else { return }
     recentFolders = Array(
       ([location.path] + recentFolders.filter { $0 != location.path }).prefix(20))
+  }
+
+  func forgetVisit(_ path: String) {
+    recentFolders.removeAll { $0 == path }
   }
 
   func recordGoToFolder(_ path: String) {

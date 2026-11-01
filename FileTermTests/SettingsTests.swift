@@ -26,12 +26,12 @@ import Testing
     defer { suite.removePersistentDomain(forName: name) }
     let initial = AppSettings(suite: suite)
     #expect(!initial.showHidden)
-    #expect(!initial.autoRefresh)
+    #expect(initial.autoRefresh)
     #expect(initial.searchEngine == .builtIn)
     #expect(initial.searchIncludeSubfolders)
     #expect(initial.shortcutOverrides.isEmpty)
     initial.showHidden = true
-    initial.autoRefresh = true
+    initial.autoRefresh = false
     initial.handleArchives = false
     initial.archivesAsFolders = true
     initial.detectAppOnDelete = false
@@ -51,7 +51,7 @@ import Testing
     let restored = AppSettings(suite: suite)
     #expect(restored.showHidden)
     #expect(restored.viewPreferences.showHidden)
-    #expect(restored.autoRefresh)
+    #expect(!restored.autoRefresh)
     #expect(restored.searchEngine == .spotlight)
     #expect(!restored.handleArchives)
     #expect(restored.archivesAsFolders)

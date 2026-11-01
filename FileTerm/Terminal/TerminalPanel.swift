@@ -14,10 +14,9 @@ struct TerminalPanel: View {
           .accessibilityIdentifier("terminalContent")
           .overlay(alignment: .bottomLeading) {
             if case .failed(let message) = session.status {
-              Text(message).font(.callout).padding(10).background(.regularMaterial)
+              endedNotice(message)
             } else if case .exited(let code) = session.status {
-              Text("Shell exited" + (code.map { " (\($0))" } ?? ""))
-                .font(.callout).padding(10).background(.regularMaterial)
+              endedNotice("Shell exited" + (code.map { " (\($0))" } ?? ""))
             }
           }
       } else {
@@ -40,6 +39,15 @@ struct TerminalPanel: View {
           }
       }
     }
+  }
+
+  private func endedNotice(_ message: String) -> some View {
+    HStack(spacing: 10) {
+      Text(message).font(.callout).accessibilityIdentifier("terminalEnded")
+      Button("New Shell") { workspace.startNewShell() }
+        .controlSize(.small).accessibilityIdentifier("terminalNewShell")
+    }
+    .padding(10).background(.regularMaterial)
   }
 
   private var header: some View {

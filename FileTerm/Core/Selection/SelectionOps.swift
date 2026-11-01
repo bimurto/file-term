@@ -13,38 +13,50 @@ public enum SelectionMode: String, CaseIterable, Codable, Sendable {
 }
 
 /// Case-insensitive matcher. A pattern with `*` or `?` is a whole-value wildcard; otherwise it is
-/// a "contains" match.
+/// a "contains" match. Wildcards compare whole characters without backtracking over earlier stars,
+/// so a pattern's cost stays in proportion to its length times the name's.
 public struct PatternMatcher: Sendable {
   private let needle: String
-  private let regex: NSRegularExpression?
+  private let wildcard: [Character]?
 
   public init(_ pattern: String) {
     let trimmed = pattern.trimmingCharacters(in: .whitespaces)
     needle = trimmed.lowercased()
-    if trimmed.contains("*") || trimmed.contains("?") {
-      var source = "^"
-      for character in trimmed {
-        switch character {
-        case "*": source += ".*"
-        case "?": source += "."
-        default: source += NSRegularExpression.escapedPattern(for: String(character))
-        }
-      }
-      regex = try? NSRegularExpression(pattern: source + "$", options: [.caseInsensitive])
-    } else {
-      regex = nil
-    }
+    wildcard = trimmed.contains("*") || trimmed.contains("?") ? Array(needle) : nil
   }
 
   public var isEmpty: Bool { needle.isEmpty }
 
   public func matches(_ value: String) -> Bool {
     guard !needle.isEmpty else { return false }
-    if let regex {
-      return regex.firstMatch(
-        in: value, range: NSRange(value.startIndex..., in: value)) != nil
-    }
+    if let wildcard { return Self.matches(Array(value.lowercased()), wildcard) }
     return value.lowercased().contains(needle)
+  }
+
+  /// A later star can take over anything an earlier one matched, so only the last star needs
+  /// retrying.
+  private static func matches(_ value: [Character], _ pattern: [Character]) -> Bool {
+    var position = 0
+    var next = 0
+    var star: Int?
+    var starPosition = 0
+    while position < value.count {
+      if next < pattern.count, pattern[next] == "*" {
+        star = next
+        starPosition = position
+        next += 1
+      } else if next < pattern.count, pattern[next] == "?" || pattern[next] == value[position] {
+        position += 1
+        next += 1
+      } else if let star {
+        starPosition += 1
+        position = starPosition
+        next = star + 1
+      } else {
+        return false
+      }
+    }
+    return pattern[next...].allSatisfy { $0 == "*" }
   }
 }
 

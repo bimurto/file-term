@@ -19,6 +19,8 @@ import UniformTypeIdentifiers
     FilePreviewModel.confirmTermination()
   }
 
+  @FocusState private var isEditorFocused: Bool
+
   fileprivate init(url: URL, model: FilePreviewModel) {
     self.url = url
     self._model = State(initialValue: model)
@@ -33,8 +35,16 @@ import UniformTypeIdentifiers
           if model.document != nil {
             if model.isDirty { Text("Edited").foregroundStyle(.secondary) }
             Button("Save") { model.save() }
+              .keyboardShortcut("s", modifiers: .command)
               .disabled(!model.isDirty)
               .accessibilityIdentifier("preview.save")
+              // ⌘S in the editor with nothing to save stays here instead of reaching Quick Select.
+              .background {
+                Button("") {}
+                  .keyboardShortcut("s", modifiers: .command)
+                  .disabled(model.isDirty || !isEditorFocused)
+                  .opacity(0).accessibilityHidden(true)
+              }
           }
         }.padding(10)
         Divider()
@@ -54,6 +64,7 @@ import UniformTypeIdentifiers
           if let player = model.player { VideoPlayer(player: player) }
         case .text:
           TextEditor(text: $model.text).font(.system(.body, design: .monospaced))
+            .focused($isEditorFocused)
             .accessibilityLabel("File text").accessibilityIdentifier("preview.text")
         case .unavailable:
           unavailable(model.reason ?? "Select a supported file to preview.")

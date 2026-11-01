@@ -64,7 +64,11 @@ enum StandardDestination: String, CaseIterable {
     return Array((starting + others).prefix(6))
   }
 
-  func cancel() { cancelled = true }
+  func cancel() {
+    cancelled = true
+    // The pane stayed where it was, so the sheet's failed attempt is over.
+    if errorMessage != nil { browser.pane(paneID).dismissError() }
+  }
 
   func submit() async -> Bool {
     guard !isSubmitting, !cancelled else { return false }

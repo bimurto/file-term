@@ -1,5 +1,15 @@
 import Foundation
 
+public enum ArchiveToolError: Error, LocalizedError, Equatable {
+  case empty(String)
+
+  public var errorDescription: String? {
+    switch self {
+    case .empty(let name): return "“\(name)” has nothing to extract."
+    }
+  }
+}
+
 /// Creates and unpacks archives with the system `ditto` and `bsdtar`.
 public enum ArchiveTool {
   static let ditto = "/usr/bin/ditto"
@@ -74,7 +84,7 @@ public enum ArchiveTool {
     defer { try? fm.removeItem(at: staging) }
     try await ProcessRunner.run(bsdtar, ["-xf", archive.path, "-C", staging.path])
     let items = try fm.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil)
-    guard !items.isEmpty else { return [] }
+    guard !items.isEmpty else { throw ArchiveToolError.empty(archive.lastPathComponent) }
     if newFolder || items.count > 1 {
       let folder = uniqueURL(
         in: directory, stem: ArchiveFormat.stem(of: archive.lastPathComponent))

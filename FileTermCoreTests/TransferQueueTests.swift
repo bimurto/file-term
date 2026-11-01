@@ -15,6 +15,20 @@ import Testing
     #expect(TransferQueue.isTemporary(NSError(domain: NSPOSIXErrorDomain, code: Int(ECONNRESET))))
   }
 
+  @Test func aFailedJobIsReportedAndACancelledOneIsNot() async throws {
+    let queue = TransferQueue()
+    var messages: [String] = []
+    queue.onFailure = { messages.append($0.failureMessage) }
+    queue.submit(kind: .rename) { _ in throw LocalFileOperationError.destinationExists }
+    queue.submit(kind: .copy) { _ in throw CancellationError() }
+    queue.submit(kind: .move) { _ in .init(succeeded: 1) }
+    while queue.hasPendingWork { try await Task.sleep(for: .milliseconds(5)) }
+    #expect(
+      messages == [
+        "Rename failed: An item already exists at the destination. Nothing was overwritten."
+      ])
+  }
+
   @Test func concurrencyReservationsCancellationAndReordering() async throws {
     let queue = TransferQueue()
     queue.preferences.maximumConcurrent = 2

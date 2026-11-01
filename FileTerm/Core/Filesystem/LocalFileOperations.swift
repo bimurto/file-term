@@ -89,9 +89,11 @@ public actor LocalFileOperations {
   private var redoStack: [Transaction] = []
 
   private struct Step {
-    let from: URL
+    var from: URL
     let to: URL
     let signature: Signature
+    /// Undo sends a copy to the Trash, and `from` then records where it landed.
+    var isCopy = false
   }
   private struct Transaction {
     var steps: [Step] = []
@@ -110,10 +112,12 @@ public actor LocalFileOperations {
 
   private let renameItem: @Sendable (URL, URL) throws -> Void
   private let removeItem: @Sendable (URL) throws -> Void
+  private let trashItem: @Sendable (URL) throws -> URL
 
   public init() {
     renameItem = { try Self.exclusiveRename($0, $1) }
     removeItem = { try FileManager.default.removeItem(at: $0) }
+    trashItem = { try Self.moveToTrash($0) }
   }
 
   // Internal syscall seams allow deterministic EXDEV/deletion-failure tests without mounts.
@@ -123,6 +127,14 @@ public actor LocalFileOperations {
   ) {
     renameItem = rename
     removeItem = remove
+    trashItem = { try Self.moveToTrash($0) }
+  }
+
+  // Lets tests undo copies without filling the real Trash.
+  init(trash: @escaping @Sendable (URL) throws -> URL) {
+    renameItem = { try Self.exclusiveRename($0, $1) }
+    removeItem = { try FileManager.default.removeItem(at: $0) }
+    trashItem = trash
   }
 
   public func create(in parent: URL, name: String, directory: Bool) async throws -> URL {
@@ -278,11 +290,7 @@ public actor LocalFileOperations {
         try local(source)
         let source = canonical(source)
         let fingerprint = try signature(source)
-        var resulting: NSURL?
-        try fm.trashItem(at: source, resultingItemURL: &resulting)
-        guard let destination = resulting as URL? else {
-          throw CocoaError(.fileWriteUnknown)
-        }
+        let destination = try Self.moveToTrash(source)
         transaction.steps.append(Step(from: source, to: destination, signature: fingerprint))
         transaction.cursor += 1
         results.append(destination)
@@ -308,8 +316,15 @@ public actor LocalFileOperations {
     guard var transaction = undoStack.popLast() else { throw LocalFileOperationError.nothingToUndo }
     do {
       while transaction.cursor > 0 {
-        let step = transaction.steps[transaction.cursor - 1]
-        try await guardedMove(step.to, step.from, signature: step.signature)
+        let index = transaction.cursor - 1
+        let step = transaction.steps[index]
+        if step.isCopy {
+          try await checkpoint()
+          try check(step.to, step.from, signature: step.signature)
+          transaction.steps[index].from = try trashItem(step.to)
+        } else {
+          try await guardedMove(step.to, step.from, signature: step.signature)
+        }
         transaction.cursor -= 1
       }
       redoStack.append(transaction)
@@ -501,9 +516,13 @@ public actor LocalFileOperations {
       }
     }
     try await checkpoint()
-    // Copies are undone by moving them into storage, never by deleting user-visible contents.
+    // Copies are undone by moving them to the Trash, never by deleting user-visible contents.
     try await recordMove(staged, destination, in: &transaction)
+    transaction.steps[transaction.steps.count - 1].isCopy = true
     published = true
+    _ = staged.deletingLastPathComponent().withUnsafeFileSystemRepresentation {
+      Darwin.rmdir($0!)
+    }
   }
 
   /// Bounded reads, no symlink traversal, and no user-visible partial output.
@@ -790,6 +809,13 @@ public actor LocalFileOperations {
       at: directory, withIntermediateDirectories: false,
       attributes: [.posixPermissions: 0o700])
     return directory.appendingPathComponent("item")
+  }
+
+  nonisolated static func moveToTrash(_ url: URL) throws -> URL {
+    var resulting: NSURL?
+    try FileManager.default.trashItem(at: url, resultingItemURL: &resulting)
+    guard let destination = resulting as URL? else { throw CocoaError(.fileWriteUnknown) }
+    return destination
   }
 
   /// A syscall, not FileManager.moveItem: never silently copies or replaces a leaf.

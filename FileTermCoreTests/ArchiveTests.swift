@@ -97,6 +97,17 @@ struct ArchiveTests {
     #expect(try String(contentsOf: folder[0].appendingPathComponent("note.txt")) == "keep")
   }
 
+  @Test func emptyArchiveReportsThatItHasNothingToExtract() async throws {
+    let root = try sandbox()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let empty = root.appendingPathComponent("empty.zip")
+    try Data().write(to: empty)
+    await #expect(throws: ArchiveToolError.empty("empty.zip")) {
+      _ = try await ArchiveTool.extract(archive: empty, into: root)
+    }
+    #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["empty.zip"])
+  }
+
   @Test func failedExtractionLeavesNoStagingFolder() async throws {
     let root = try sandbox()
     defer { try? FileManager.default.removeItem(at: root) }

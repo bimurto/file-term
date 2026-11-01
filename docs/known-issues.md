@@ -112,7 +112,7 @@ These break the rules in the [roadmap](README.md#rules-that-apply-to-every-miles
 
 | Issue | Status | Detail |
 |---|---|---|
-| The right-click UI tests have never run | Seen | `FileTermUITests/ContextMenuUITests.swift` stopped with "Timed out while enabling automation mode". It may need approval on screen. It also doesn't cover the sidebar yet. |
+| The right-click UI tests need Automation Mode and skip the sidebar | Seen | `FileTermUITests/ContextMenuUITests.swift` passes, but stops with "Timed out while enabling automation mode" until Automation Mode is allowed. It doesn't cover the sidebar yet. |
 | `AppDelegate` does too many jobs | From the code | It has 2122 lines, and `makeCommands` mixes command tables with their handlers. |
 | Location types are plain strings | From the code | `"local"` appears 59 times in 24 files, and `hasPrefix("archive:")` in 3 places. `isRemote` is also true for archive panes, so callers must run `rejectsArchiveEdit` first. |
 | Remote and local handling repeats | From the code | `isRemote(pane)` branches recur through `FileOperationCoordinator`. |

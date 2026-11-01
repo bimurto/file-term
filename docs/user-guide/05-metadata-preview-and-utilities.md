@@ -25,7 +25,7 @@ It can also edit text files of up to 1 MiB in UTF-8, or in UTF-16 with a byte or
 
 1. Select the file with the Preview panel open.
 2. Edit the text. "Edited" appears at the top.
-3. Click Save.
+3. Click Save or press ⌘S.
 
 If you select another item with unsaved edits, FileTerm asks whether to save, discard or keep editing. It asks again when you quit.
 

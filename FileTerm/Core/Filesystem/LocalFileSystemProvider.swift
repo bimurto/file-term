@@ -174,7 +174,9 @@ public actor LocalFileSystemProvider: FileSystemProvider {
     if nsError.domain == NSPOSIXErrorDomain {
       switch Int32(nsError.code) {
       case ENOENT: return FileSystemError.notFound
-      case EACCES, EPERM: return FileSystemError.permissionDenied
+      // macOS privacy blocks fail with EPERM, and file modes with EACCES.
+      case EACCES: return FileSystemError.fileModesDenied
+      case EPERM: return FileSystemError.permissionDenied
       case EEXIST: return FileSystemError.destinationExists
       default: break
       }
@@ -183,7 +185,9 @@ public actor LocalFileSystemProvider: FileSystemProvider {
       switch nsError.code {
       case NSFileReadNoSuchFileError, NSFileNoSuchFileError: return FileSystemError.notFound
       case NSFileReadNoPermissionError, NSFileWriteNoPermissionError:
-        return FileSystemError.permissionDenied
+        let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
+        return underlying?.domain == NSPOSIXErrorDomain && underlying?.code == Int(EACCES)
+          ? FileSystemError.fileModesDenied : FileSystemError.permissionDenied
       case NSFileWriteFileExistsError: return FileSystemError.destinationExists
       default: break
       }

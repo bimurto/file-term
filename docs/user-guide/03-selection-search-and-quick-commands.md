@@ -66,7 +66,8 @@ View › Show Hidden Items (⇧⌘.) or the Show hidden checkbox in the toolbar 
 ## Refresh
 
 - View › Refresh (⌘R) reloads the open panes in the current window and keeps selections where it can.
-- View › Auto-Refresh watches the local folders open in your tabs and reloads them when they change. It also refreshes when you return to FileTerm. It's off by default.
+- View › Auto-Refresh watches the local folders open in your tabs and reloads them when they change. It also refreshes when you return to FileTerm. It's on by default.
+- If a folder open in a tab is deleted or moved, the next refresh takes that tab to the nearest parent folder that still exists, and a banner says so.
 
 Remote folders aren't watched. Use Refresh for them.
 
