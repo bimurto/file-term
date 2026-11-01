@@ -7,3 +7,5 @@ xcuserdata/
 .DS_Store
 *.xcresult
 dev/Signing.local.xcconfig
+/.claude/
+FileTerm.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
