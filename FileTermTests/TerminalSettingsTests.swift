@@ -59,8 +59,33 @@ import Testing
     #expect(
       ThemeLibrary.terminalThemes.map(\.id) == [
         "dracula", "nord", "solarized-dark", "solarized-light", "gruvbox-dark",
+        "github-light-default",
       ])
     #expect(ThemeLibrary.themes.count == 9)
+  }
+
+  @Test func importingATwiceReplacesItAndRemovingFallsBackToSystem() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let settings = AppSettings(suite: suite)
+    let colors = Array(repeating: "#112233", count: 16)
+    func theme(background: String) -> TerminalTheme {
+      TerminalTheme(
+        id: "imported.Mine", name: "Mine", foreground: "#FFFFFF", background: background,
+        cursor: "#FFFFFF", selection: "#333333", ansi: colors)
+    }
+
+    settings.terminal.importTheme(theme(background: "#000000"))
+    settings.terminal.importTheme(theme(background: "#222222"))
+    #expect(settings.terminal.importedThemes?.count == 1)
+    #expect(settings.terminal.themeID == "imported.Mine")
+    #expect(settings.terminal.colorThemes.last?.background == "#222222")
+    #expect(AppSettings(suite: suite).terminal == settings.terminal)
+
+    settings.terminal.removeImportedTheme(id: "imported.Mine")
+    #expect(settings.terminal.importedThemes?.isEmpty == true)
+    #expect(settings.terminal.themeID == nil)
   }
 
   @Test func panelDefaultsAndWindowSnapshotCompatibility() throws {

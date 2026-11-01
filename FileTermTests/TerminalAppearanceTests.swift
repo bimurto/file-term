@@ -1,4 +1,5 @@
 import AppKit
+import FileTermCore
 import SwiftTerm
 import Testing
 
@@ -135,6 +136,23 @@ import Testing
 
     #expect(session.terminalView.colorTheme == nil)
     #expect(session.terminalView.nativeBackgroundColor == background)
+  }
+
+  @Test func anImportedThemeSetsItsOwnSelectedAndCursorTextColors() {
+    let session = makeClosedSession()
+    let view = session.terminalView
+    var preferences = TerminalPreferences()
+    preferences.importTheme(
+      TerminalTheme(
+        id: "imported.Mine", name: "Mine", foreground: "#111111", background: "#EEEEEE",
+        cursor: "#222222", selection: "#111111", ansi: Array(repeating: "#333333", count: 16),
+        selectedText: "#FFFFFF", cursorText: "#ABCDEF"))
+
+    session.applyAppearance(preferences)
+
+    #expect(view.colorTheme?.id == "imported.Mine")
+    #expect(view.selectedTextForegroundColor == NSColor(themeHex: "#FFFFFF"))
+    #expect(view.caretTextColor == NSColor(themeHex: "#ABCDEF"))
   }
 
   private func makeClosedSession() -> TerminalSession {

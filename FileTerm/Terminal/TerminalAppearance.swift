@@ -24,7 +24,7 @@ extension TerminalSession {
       }
     if terminal.options.cursorStyle != cursor { terminal.setCursorStyle(cursor) }
 
-    let theme = TerminalTheme.theme(id: preferences.themeID, in: ThemeLibrary.terminalThemes)
+    let theme = TerminalTheme.theme(id: preferences.themeID, in: preferences.colorThemes)
     if terminalView.colorTheme != theme { terminalView.colorTheme = theme }
   }
 }

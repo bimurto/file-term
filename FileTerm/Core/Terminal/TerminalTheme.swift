@@ -11,10 +11,15 @@ public struct TerminalTheme: Codable, Equatable, Identifiable, Sendable {
   public var selection: String
   /// The 16 ANSI colors, normal then bright.
   public var ansi: [String]
+  /// Text colors for selections and the block cursor. Left out, they use the foreground and
+  /// background.
+  public var selectedText: String?
+  public var cursorText: String?
 
   public init(
     id: String, name: String, order: Int = 0, foreground: String, background: String,
-    cursor: String, selection: String, ansi: [String]
+    cursor: String, selection: String, ansi: [String], selectedText: String? = nil,
+    cursorText: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -24,6 +29,8 @@ public struct TerminalTheme: Codable, Equatable, Identifiable, Sendable {
     self.cursor = cursor
     self.selection = selection
     self.ansi = ansi
+    self.selectedText = selectedText
+    self.cursorText = cursorText
   }
 
   /// Reads theme files in display order. A file that is not a complete, valid theme is skipped.
@@ -40,8 +47,9 @@ public struct TerminalTheme: Codable, Equatable, Identifiable, Sendable {
   }
 
   private var isValid: Bool {
-    ansi.count == 16
-      && ([foreground, background, cursor, selection] + ansi).allSatisfy {
+    let optional = [selectedText, cursorText].compactMap { $0 }
+    return ansi.count == 16
+      && ([foreground, background, cursor, selection] + ansi + optional).allSatisfy {
         AppTheme.components(hex: $0) != nil
       }
   }

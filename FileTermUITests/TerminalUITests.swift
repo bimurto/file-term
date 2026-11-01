@@ -98,10 +98,91 @@ final class TerminalUITests: XCTestCase {
 
     app.typeKey("`", modifierFlags: [.control, .option])
     app.typeText("sh colors.sh\n")
+    chooseColorTheme("GitHub Light Default", app)
+    capture(app, "terminal github light default")
     chooseColorTheme("Dracula", app)
     app.typeKey("a", modifierFlags: .command)
     sleep(1)
     capture(app, "terminal dracula selection")
+    chooseColorTheme("GitHub Light Default", app)
+    capture(app, "terminal github light default selection")
+  }
+
+  @MainActor func testImportingAnITermColorSchemeAppliesAndPersists() throws {
+    let app = XCUIApplication()
+    let suite = "FileTerm.TerminalUITests.\(UUID().uuidString)"
+    // No digits in this path: it's typed into the file panel, and typed digits can get lost.
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ImportFixture")
+    try? FileManager.default.removeItem(at: folder)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try Data("fixture".utf8).write(to: folder.appendingPathComponent("terminal-fixture.txt"))
+    defer { try? FileManager.default.removeItem(at: folder) }
+
+    func color(_ red: Int, _ green: Int, _ blue: Int) -> [String: Any] {
+      [
+        "Red Component": Double(red) / 255, "Green Component": Double(green) / 255,
+        "Blue Component": Double(blue) / 255, "Color Space": "sRGB",
+      ]
+    }
+    var scheme: [String: Any] = [
+      "Foreground Color": color(0xFF, 0xFF, 0xFF), "Background Color": color(0x12, 0x34, 0x56),
+    ]
+    for index in 0..<16 { scheme["Ansi \(index) Color"] = color(0xFF, index * 16, 0x40) }
+    let file = folder.appendingPathComponent("Imported Sample.itermcolors")
+    try PropertyListSerialization.data(fromPropertyList: scheme, format: .xml, options: 0)
+      .write(to: file)
+
+    app.launchEnvironment["FILETERM_SETTINGS_SUITE"] = suite
+    app.launchEnvironment["FILETERM_INITIAL_DIRECTORY"] = folder.path
+    app.launch()
+    defer {
+      app.terminate()
+      UserDefaults.standard.removePersistentDomain(forName: suite)
+    }
+    XCTAssertTrue(
+      app.outlines["fileList"].staticTexts["terminal-fixture.txt"].waitForExistence(timeout: 15))
+    showTerminal(app)
+
+    app.typeKey(",", modifierFlags: .command)
+    let tab = app.buttons["settingsTab.Terminal"]
+    XCTAssertTrue(tab.waitForExistence(timeout: 5))
+    tab.click()
+    let importButton = app.buttons["terminalImportColorScheme"]
+    XCTAssertTrue(importButton.waitForExistence(timeout: 5))
+    importButton.click()
+
+    sleep(1)
+    app.typeKey("g", modifierFlags: [.command, .shift])
+    sleep(1)
+    app.typeText(file.path)
+    sleep(1)
+    app.typeKey(.return, modifierFlags: [])
+    sleep(1)
+    app.typeKey(.return, modifierFlags: [])
+
+    let remove = app.buttons["terminalRemoveColorScheme"]
+    XCTAssertTrue(remove.waitForExistence(timeout: 5))
+    capture(app, "terminal import settings")
+    app.typeKey("w", modifierFlags: .command)
+    sleep(1)
+    capture(app, "terminal imported scheme")
+    assertPanelBackground(app, red: 0x12, green: 0x34, blue: 0x56)
+
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(
+      app.outlines["fileList"].staticTexts["terminal-fixture.txt"].waitForExistence(timeout: 15))
+    showTerminal(app)
+    sleep(1)
+    assertPanelBackground(app, red: 0x12, green: 0x34, blue: 0x56)
+
+    app.typeKey(",", modifierFlags: .command)
+    XCTAssertTrue(tab.waitForExistence(timeout: 5))
+    tab.click()
+    XCTAssertTrue(remove.waitForExistence(timeout: 5))
+    remove.click()
+    XCTAssertFalse(remove.waitForExistence(timeout: 1))
+    XCTAssertEqual(app.popUpButtons["terminalColorTheme"].value as? String, "System")
   }
 
   @MainActor private func showTerminal(_ app: XCUIApplication) {
@@ -135,11 +216,12 @@ final class TerminalUITests: XCTestCase {
     guard let data = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: data) else {
       return XCTFail("No panel screenshot", file: file, line: line)
     }
-    // Raw samples: converting between color spaces would shift the values being compared.
+    // Raw samples in the display's color space, which is why the comparison isn't exact:
+    // on Display P3, #123456 reads as (27, 51, 83).
     var pixel = [Int](repeating: 0, count: bitmap.samplesPerPixel)
     bitmap.getPixel(&pixel, atX: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh - 40)
     for (actual, expected) in zip(pixel, [red, green, blue]) {
-      XCTAssertEqual(actual, expected, accuracy: 6, file: file, line: line)
+      XCTAssertEqual(actual, expected, accuracy: 10, file: file, line: line)
     }
   }
 

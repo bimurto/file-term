@@ -116,7 +116,9 @@ With shell integration on, pane and terminal follow each other's folder only at 
 
 The View › Terminal submenu holds the rest. Insert Selected Paths in Terminal types quoted local paths without running them. Open SSH Session for Connected Host types an `ssh` command for an SFTP pane's host and folder when the shell is idle. The [command reference](commands.md#view) describes each entry.
 
-Settings › Terminal sets the shell path, login and interactive flags, integration, color theme, font, cursor and scrollback. System, the default color theme, follows the app's light or dark appearance. The others are Dracula, Nord, Solarized Dark, Solarized Light and Gruvbox Dark. A color theme change applies to open terminals straight away and resets colors a running program has set. Shell integration supports zsh, bash and fish. Other shells work without folder following. Shell changes apply to new sessions.
+Settings › Terminal sets the shell path, login and interactive flags, integration, color theme, font, cursor and scrollback. System, the default color theme, follows the app's light or dark appearance. The others are Dracula, Nord, Solarized Dark, Solarized Light, Gruvbox Dark and GitHub Light Default. A color theme change applies to open terminals straight away and resets colors a running program has set.
+
+To use an iTerm2 color scheme, click Import iTerm2 Color Scheme… under the picker and choose its `.itermcolors` file. The scheme is named after the file and selected at once. FileTerm keeps its own copy, so you can delete the file afterward. Importing a file with the same name replaces the earlier copy. To remove a scheme, select it and click Remove. FileTerm uses each scheme's ANSI, text, background, cursor and selection colors. It doesn't use a scheme's bold, link or badge colors, or any transparency. Shell integration supports zsh, bash and fish. Other shells work without folder following. Shell changes apply to new sessions.
 
 ## Git commands
 

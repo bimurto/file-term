@@ -340,8 +340,9 @@ final class SessionTerminalView: LocalProcessTerminalView {
       updateAppearance()
       if let colorTheme {
         selectedTextBackgroundColor = NSColor(themeHex: colorTheme.selection)
-        selectedTextForegroundColor = NSColor(themeHex: colorTheme.foreground)
-        caretTextColor = NSColor(themeHex: colorTheme.background)
+        selectedTextForegroundColor = NSColor(
+          themeHex: colorTheme.selectedText ?? colorTheme.foreground)
+        caretTextColor = NSColor(themeHex: colorTheme.cursorText ?? colorTheme.background)
         installColors(
           colorTheme.ansi.compactMap { hex in
             AppTheme.components(hex: hex).map {

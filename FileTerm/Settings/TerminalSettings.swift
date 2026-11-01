@@ -1,3 +1,4 @@
+import FileTermCore
 import Foundation
 
 /// Settings-only types deliberately do not depend on the terminal renderer.
@@ -33,6 +34,23 @@ struct TerminalPreferences: Codable, Equatable {
   var scrollbackLines = 10_000
   /// Nil uses the system colors. Optional so preferences saved before this field still decode.
   var themeID: String?
+  /// Optional for the same reason as `themeID`.
+  var importedThemes: [TerminalTheme]?
+
+  /// The shipped themes, then the imported ones.
+  var colorThemes: [TerminalTheme] { ThemeLibrary.terminalThemes + (importedThemes ?? []) }
+
+  /// Adds a theme and selects it. Importing the same name again replaces the earlier one.
+  mutating func importTheme(_ theme: TerminalTheme) {
+    importedThemes = (importedThemes ?? []).filter { $0.id != theme.id } + [theme]
+    themeID = theme.id
+  }
+
+  /// Removes an imported theme. If it's in use, the terminal goes back to the system colors.
+  mutating func removeImportedTheme(id: String) {
+    importedThemes?.removeAll { $0.id == id }
+    if themeID == id { themeID = nil }
+  }
 }
 
 enum TerminalDock: String, Codable, CaseIterable, Identifiable {

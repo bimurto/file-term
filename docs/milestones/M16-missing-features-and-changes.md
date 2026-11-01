@@ -124,7 +124,7 @@ Sync Browsing was disabled in Single Pane but didn't look it, because toolbar bu
 
 ### M16.13 Terminal color themes
 The built-in terminal only had system colors. App themes such as Dracula switched it between light and dark and never gave it their colors.
-- [x] Settings › Terminal has a Color Theme picker with System, Dracula, Nord, Solarized Dark, Solarized Light and Gruvbox Dark.
+- [x] Settings › Terminal has a Color Theme picker with System, Dracula, Nord, Solarized Dark, Solarized Light, Gruvbox Dark and GitHub Light Default.
   - Covered by a UI test and a test that the shipped files load.
 - [x] Choosing a theme recolors an open terminal, including its 16 ANSI colors, and keeps its text and shell.
   - Covered by a unit test, and the ANSI colors were seen in UI test screenshots.
@@ -134,7 +134,22 @@ The built-in terminal only had system colors. App themes such as Dracula switche
   - Covered by a unit test and a UI test. The macOS system-wide light/dark switch wasn't toggled; the UI test changes the appearance through the app theme.
 - [ ] Selected text and the block cursor stay readable in every theme.
   - Selected text was seen in Dracula, and the block cursor in Dracula and Solarized Light.
+  - Selected text and the block cursor were seen in GitHub Light Default.
   - Open: check Nord, Solarized Dark and Gruvbox Dark, and selected text in Solarized Light.
 - [x] Preferences saved before this change keep their values.
   - Covered by a unit test.
 - Each theme is a `.terminaltheme` file in `FileTerm/Resources/Themes/Terminal`. Adding a file adds a theme, with no code change. The extension differs from `.json` because resources share the bundle root, where every `.json` file is loaded as an app theme.
+
+### M16.14 Import iTerm2 color schemes
+Users can bring the color schemes they already have from iTerm2 instead of being limited to the shipped themes.
+- [x] Settings › Terminal imports an `.itermcolors` file, selects it and applies it to open terminals, and it survives a relaunch.
+  - Covered by a UI test.
+- [x] Imported schemes can be removed, and removing the one in use returns to System.
+  - Covered by a UI test and a unit test.
+- [x] A file that isn't a complete scheme shows an error and changes nothing.
+  - The parser's rejection is covered by a unit test. The alert was seen in the running app for a file that couldn't be read, not for an incomplete scheme.
+- [x] Real schemes import correctly.
+  - All 889 schemes in the iTerm2-Color-Schemes collection imported. A one-off comparison with the collection's Ghostty versions found matching colors for sRGB and P3, apart from colors where those versions differ from the iTerm2 file.
+- Colors with no color space are converted from calibrated RGB, as iTerm2 reads them. Reading their numbers as sRGB shows Dracula's background as `#1E1F29` and not `#282A36`.
+- Appearance is now the first section in Settings › Terminal, so the picker and import button are visible without scrolling.
+- Imported schemes are stored in the terminal preferences, so no files need managing. Bold, link and badge colors and transparency aren't used.

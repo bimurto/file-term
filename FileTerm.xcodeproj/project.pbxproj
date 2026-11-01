@@ -65,6 +65,7 @@
 		6F287E6896608CD327BD7FE4 /* BrowserOptionsSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 156380F619C9B0B761320BB4 /* BrowserOptionsSheets.swift */; };
 		7167DDB43AC70112BD7ECB9A /* TerminalWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFAE2CA84D542DEB0E1F9E /* TerminalWorkspace.swift */; };
 		71F543884FB650F44C93B5F3 /* MetadataPreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BDD734D22F5A84CD9CF3FFD /* MetadataPreviewUITests.swift */; };
+		735AB13703C8189A05FF2039 /* ITermColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7116EDDC19EA857081506A8F /* ITermColors.swift */; };
 		764E8C59F1147F536837E1CA /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB56E1FAD8BBF17F8C90C3D /* AppDelegate.swift */; };
 		7F255AF2E01A60E3A0EC510E /* FileOperationCoordinator+Drop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108FCF394B6740B2484455FA /* FileOperationCoordinator+Drop.swift */; };
 		7F7EEE7031796E4BB3030317 /* MenuCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944B726D6533BA3E3393EEC7 /* MenuCoordinator.swift */; };
@@ -89,6 +90,7 @@
 		B542EAF76F646C05C5B84E80 /* TerminalSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B400667AA697F5C52E7E4063 /* TerminalSettings.swift */; };
 		B5C64CE3B3C9A663923693E9 /* TerminalUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428D6D3D2B07B2292ADA3A7F /* TerminalUITests.swift */; };
 		B6F720D12A93B009A6673E54 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DC0CE81A8B6F13514020EE /* CredentialStore.swift */; };
+		BD03464AE4C5C208B75B89DA /* github-light-default.terminaltheme in Resources */ = {isa = PBXBuildFile; fileRef = B939C60236F1E90BD29C5D20 /* github-light-default.terminaltheme */; };
 		C07D13270FD5220EC288DCB3 /* TransferSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E96F788AE8C30380683520 /* TransferSettingsTests.swift */; };
 		C0C63815F6DBB38D1C6EC547 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7D61C8DE32E2BFDB2C0FC3 /* main.swift */; };
 		C189AE31558133FD53A0ED7B /* FileOperationCoordinator+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */; };
@@ -97,6 +99,7 @@
 		C4437C3D96620EAAC4DCE549 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 12C09A09F9F311FB960D5814 /* Assets.xcassets */; };
 		C4474E14FA57D2520322BFAA /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D483E6A7975E0538C696081 /* FolderWatcher.swift */; };
 		CB2315E83249BC7476E15FF2 /* AcceptanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE73132EA4B674CACEF3C8D /* AcceptanceUITests.swift */; };
+		CD146948B2E77EF68D6F0121 /* ITermColorsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC0C0BCA1C8CA4FA5A2839E /* ITermColorsTests.swift */; };
 		D0CBCD4BB7CB0AF21DB557BB /* SyncDialogModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4E27DBCCE21F8A35D700D6A /* SyncDialogModel.swift */; };
 		D242F422E17BBA8FF742231D /* sand.json in Resources */ = {isa = PBXBuildFile; fileRef = 410B5096592C683AC7CB3C20 /* sand.json */; };
 		D4A7FF4B5C491331FB0B8B08 /* FileOperationCoordinator+Delete.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */; };
@@ -182,6 +185,7 @@
 		318F0B726DA72CF0222E29BE /* ThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyNotices.txt; sourceTree = "<group>"; };
 		33F39962B92332D44523EA91 /* NavigationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationUITests.swift; sourceTree = "<group>"; };
 		3734DD79ABBC7CC69846F57A /* dark.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = dark.json; sourceTree = "<group>"; };
+		3CC0C0BCA1C8CA4FA5A2839E /* ITermColorsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ITermColorsTests.swift; sourceTree = "<group>"; };
 		3DCF4596403D71569EE5B325 /* BatchRenameSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameSheet.swift; sourceTree = "<group>"; };
 		3E585BAF91DA75E7AD5FD9FC /* NavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationTests.swift; sourceTree = "<group>"; };
 		410B5096592C683AC7CB3C20 /* sand.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = sand.json; sourceTree = "<group>"; };
@@ -214,6 +218,7 @@
 		6C0D4372083B90963DAFBFA2 /* SyncDialogModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDialogModelTests.swift; sourceTree = "<group>"; };
 		6F492528D3BBB620AF0027AE /* NavigationDestinations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationDestinations.swift; sourceTree = "<group>"; };
 		6F4F791FA51410730F816A29 /* ContextMenuUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextMenuUITests.swift; sourceTree = "<group>"; };
+		7116EDDC19EA857081506A8F /* ITermColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ITermColors.swift; sourceTree = "<group>"; };
 		734B1C938A27C68B6FB8137E /* PaneActivationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneActivationView.swift; sourceTree = "<group>"; };
 		7563E7593270B6E75D1F1230 /* default.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = default.json; sourceTree = "<group>"; };
 		76573E0579F8B61E01AC01FE /* PathBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathBar.swift; sourceTree = "<group>"; };
@@ -243,6 +248,7 @@
 		AAE9736981AE3A45267E9FA9 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		B400667AA697F5C52E7E4063 /* TerminalSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSettings.swift; sourceTree = "<group>"; };
 		B66E12CCDC5F7B206027109D /* WorkspacePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacePreferences.swift; sourceTree = "<group>"; };
+		B939C60236F1E90BD29C5D20 /* github-light-default.terminaltheme */ = {isa = PBXFileReference; path = "github-light-default.terminaltheme"; sourceTree = "<group>"; };
 		B98E91790BC2F7B34EDD9BAF /* SpotlightSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightSearch.swift; sourceTree = "<group>"; };
 		BAC7EA62B360BBB0ACC872D4 /* TerminalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSession.swift; sourceTree = "<group>"; };
 		BC9B9B059725474C49FC714E /* FileUtilityViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilityViews.swift; sourceTree = "<group>"; };
@@ -372,6 +378,7 @@
 				05E4E4D917C96AB62ABB605E /* AppSettings.swift */,
 				C3C2088FCB858962E698902E /* EditingSettingsView.swift */,
 				6546CA520F51E4C22BB036DA /* IntegrationsSettingsView.swift */,
+				7116EDDC19EA857081506A8F /* ITermColors.swift */,
 				0122B8F895C5A9B0D118027A /* SettingsCoordinator.swift */,
 				B400667AA697F5C52E7E4063 /* TerminalSettings.swift */,
 				FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */,
@@ -508,6 +515,7 @@
 			isa = PBXGroup;
 			children = (
 				43DB6A3CBA047097C1AA1EAE /* dracula.terminaltheme */,
+				B939C60236F1E90BD29C5D20 /* github-light-default.terminaltheme */,
 				9B8963672CBBE98F69928CBF /* gruvbox-dark.terminaltheme */,
 				D69C1F8AD17EBEDA6238048D /* nord.terminaltheme */,
 				26C8AA448BAA248821609F1B /* solarized-dark.terminaltheme */,
@@ -526,6 +534,7 @@
 				9FD263E41E833AB5F62AAF16 /* FilePreviewTests.swift */,
 				8C2666F238C7CE71B029499F /* FileUtilityCoordinatorTests.swift */,
 				957102D28FAC7B493F349964 /* GitRunnerTests.swift */,
+				3CC0C0BCA1C8CA4FA5A2839E /* ITermColorsTests.swift */,
 				47A7DEA1FDC89B6C37988A93 /* MacIntegrationTests.swift */,
 				3E585BAF91DA75E7AD5FD9FC /* NavigationTests.swift */,
 				1D814D37D4729797528F0363 /* ProviderCopyTests.swift */,
@@ -671,6 +680,7 @@
 				3A3F2AEB6B8774BC8CC3F706 /* dracula.json in Resources */,
 				9F3FDF8CBE57BC806B73C56F /* dracula.terminaltheme in Resources */,
 				E987CC1139A0C4A9D1BA0060 /* forklift.json in Resources */,
+				BD03464AE4C5C208B75B89DA /* github-light-default.terminaltheme in Resources */,
 				650C9429F596045FF7DD6B23 /* gruvbox-dark.terminaltheme in Resources */,
 				3CCE476B9A2C12B5C9957E8F /* light.json in Resources */,
 				D6F43FBE5731244DAE871FF0 /* nord.terminaltheme in Resources */,
@@ -740,6 +750,7 @@
 				074711FF0D2CC6E0781A7227 /* FindViews.swift in Sources */,
 				C4474E14FA57D2520322BFAA /* FolderWatcher.swift in Sources */,
 				0BCDE2466C85EFE05241704E /* GitRunner.swift in Sources */,
+				735AB13703C8189A05FF2039 /* ITermColors.swift in Sources */,
 				4253CE8C8482A0FC4CF0B0E0 /* InlineFileName.swift in Sources */,
 				A2CE3AB774238CD0D7979A4A /* IntegrationsSettingsView.swift in Sources */,
 				7F7EEE7031796E4BB3030317 /* MenuCoordinator.swift in Sources */,
@@ -785,6 +796,7 @@
 				113103D4001DF21BBAFFCB20 /* FilePreviewTests.swift in Sources */,
 				2C95ABE84CAC97727F1F9339 /* FileUtilityCoordinatorTests.swift in Sources */,
 				68137765D6C3FD7C38496FA7 /* GitRunnerTests.swift in Sources */,
+				CD146948B2E77EF68D6F0121 /* ITermColorsTests.swift in Sources */,
 				3D5A80D38FD3EF7EA4CC0632 /* MacIntegrationTests.swift in Sources */,
 				2E3DB07F62E81AC2A4A20AB3 /* NavigationTests.swift in Sources */,
 				027859550197A12C246225A4 /* ProviderCopyTests.swift in Sources */,
