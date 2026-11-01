@@ -67,6 +67,19 @@ import Testing
     #expect(await memory.text("/a.txt") == "alpha")
   }
 
+  @Test func aTrailingSlashOnTheFolderDoesNotGetPastTheSameFolderCheck() async throws {
+    let memory = MemoryProvider(id: "mem")
+    await memory.seedDirectory("/docs")
+    await memory.seedFile("/docs/a.txt", "alpha")
+    for folder in ["/docs/", "/docs//", "//docs"] {
+      await #expect(throws: FileSystemError.io("The items are already in this folder.")) {
+        try await engine([memory], resolve: { _ in ConflictResolution(decision: .replace) })
+          .move(sources: [at(memory, "/docs/a.txt")], to: at(memory, folder))
+      }
+      #expect(await memory.text("/docs/a.txt") == "alpha")
+    }
+  }
+
   @Test func renameMovesWithinTheFolderAndRefusesAnExistingName() async throws {
     let memory = MemoryProvider(id: "mem")
     await memory.seedFile("/a.txt", "alpha")

@@ -116,6 +116,41 @@ import Testing
     #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("p.bin").path))
   }
 
+  @Test func replacingKeepsPermissionsAndSavingThroughALinkKeepsTheLink() async throws {
+    let folder = try scratch()
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let sftp = try provider(in: folder)
+    let fm = FileManager.default
+    let script = folder.appendingPathComponent("run.sh")
+    try Data("old".utf8).write(to: script)
+    try fm.setAttributes([.posixPermissions: 0o750], ofItemAtPath: script.path)
+    let link = folder.appendingPathComponent("link.sh")
+    try fm.createSymbolicLink(at: link, withDestinationURL: script)
+    let local = folder.appendingPathComponent("new.sh")
+    try Data("new".utf8).write(to: local)
+    let localProvider = LocalFileSystemProvider()
+
+    // Remote Edit saves through the link to its target.
+    let target = try await sftp.resolvedTarget(of: location(link))
+    #expect((target.path as NSString).lastPathComponent == "run.sh")
+    let transfer = ProviderTransfer(
+      registry: ProviderRegistry(providers: [sftp, localProvider]), control: TransferControl(),
+      resolve: { _ in ConflictResolution(decision: .replace) })
+    _ = try await transfer.copy(
+      sources: [localProvider.location(for: local)],
+      to: Location(providerID: "sftp", path: (target.path as NSString).deletingLastPathComponent),
+      newName: (target.path as NSString).lastPathComponent)
+
+    #expect(try String(contentsOf: script, encoding: .utf8) == "new")
+    #expect(
+      try fm.attributesOfItem(atPath: script.path)[.posixPermissions] as? Int == 0o750)
+    #expect(try fm.destinationOfSymbolicLink(atPath: link.path) == script.path)
+    #expect(
+      try fm.contentsOfDirectory(atPath: folder.path).sorted().filter {
+        $0.hasSuffix(".old") || $0.hasSuffix(".part")
+      } == [])
+  }
+
   @Test func movesCreatesAndDeletes() async throws {
     let folder = try scratch()
     let outside = try scratch()

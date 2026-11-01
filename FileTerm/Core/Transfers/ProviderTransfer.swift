@@ -82,8 +82,10 @@ public actor ProviderTransfer {
     async throws -> TransferSummary
   {
     if sources.contains(where: {
-      $0.providerID == folder.providerID && Self.parentPath($0.path) == folder.path
-        && (newName == nil || newName == ($0.path as NSString).lastPathComponent)
+      let path = Self.normalized($0.path)
+      return $0.providerID == folder.providerID
+        && Self.parentPath(path) == Self.normalized(folder.path)
+        && (newName == nil || newName == (path as NSString).lastPathComponent)
     }) {
       throw FileSystemError.io("The items are already in this folder.")
     }
@@ -112,14 +114,18 @@ public actor ProviderTransfer {
       log("Skipped \(source.path): links and special files are not copied between locations")
       return
     }
-    if source.providerID == destination.providerID, entry.kind == .directory,
-      destination.path == source.path || destination.path.hasPrefix(source.path + "/")
-    {
-      throw FileSystemError.io("A folder cannot be copied into itself.")
+    if source.providerID == destination.providerID {
+      let from = Self.normalized(source.path)
+      let to = Self.normalized(destination.path)
+      // Replace would otherwise set aside and delete the only copy.
+      if from == to { throw FileSystemError.io("An item cannot be copied onto itself.") }
+      if entry.kind == .directory, to.hasPrefix(from + "/") {
+        throw FileSystemError.io("A folder cannot be copied into itself.")
+      }
     }
     let target = try provider(destination.providerID)
     var finalDestination = destination
-    var replacing: Location?
+    var replacing: FileEntry?
     var merging = false
     if let existing = try await existingItem(destination, in: target) {
       let isMerge = entry.kind == .directory && existing.kind == .directory
@@ -135,51 +141,62 @@ public actor ProviderTransfer {
         return
       case .keepBoth: finalDestination = try await uniqueName(destination, in: target)
       case .merge where isMerge: merging = true
-      case .replace: replacing = destination
+      case .replace: replacing = existing
       case .replaceOlder:
         guard let new = entry.modifiedAt, let old = existing.modifiedAt, new > old else {
           outcomes.skipped += 1
           return
         }
-        replacing = destination
+        replacing = existing
       default:
         outcomes.skipped += 1
         return
       }
     }
     if entry.kind == .directory {
-      try await copyDirectory(entry, to: finalDestination, merging: merging, replacing: replacing)
+      try await copyDirectory(
+        entry, to: finalDestination, merging: merging, replacing: replacing != nil)
     } else {
       try await copyFile(entry, to: finalDestination, replacing: replacing)
     }
   }
 
   private func copyDirectory(
-    _ entry: FileEntry, to destination: Location, merging: Bool, replacing: Location?
+    _ entry: FileEntry, to destination: Location, merging: Bool, replacing: Bool
   ) async throws {
     let source = try provider(entry.location.providerID)
     let target = try provider(destination.providerID)
-    if let replacing { try await target.delete(replacing) }
-    if !merging {
-      do { try await target.createDirectory(destination) } catch {
-        outcomes.failed += 1
-        throw error
+    let setAside = replacing ? try await self.setAside(destination, in: target) : nil
+    do {
+      if !merging {
+        do { try await target.createDirectory(destination) } catch {
+          outcomes.failed += 1
+          throw error
+        }
+        committed += 1
       }
-      committed += 1
-    }
-    for child in try await source.list(entry.location, includeHidden: true) {
-      if stopped { return }
-      guard FileName.isSafe(child.name) else {
-        outcomes.skipped += 1
-        log("Skipped an item with an unsafe name in \(entry.location.path): \(child.name)")
-        continue
+      for child in try await source.list(entry.location, includeHidden: true) {
+        if stopped { break }
+        guard FileName.isSafe(child.name) else {
+          outcomes.skipped += 1
+          log("Skipped an item with an unsafe name in \(entry.location.path): \(child.name)")
+          continue
+        }
+        try await copyItem(child, to: Self.child(destination, child.name))
       }
-      try await copyItem(child, to: Self.child(destination, child.name))
+    } catch {
+      if let setAside { try await restore(setAside, to: destination, in: target, after: error) }
+      throw error
     }
+    if stopped {
+      if let setAside { try await restore(setAside, to: destination, in: target, after: nil) }
+      return
+    }
+    if let setAside { await discard(setAside, in: target) }
     outcomes.succeeded += 1
   }
 
-  private func copyFile(_ entry: FileEntry, to destination: Location, replacing: Location?)
+  private func copyFile(_ entry: FileEntry, to destination: Location, replacing: FileEntry?)
     async throws
   {
     let source = try provider(entry.location.providerID)
@@ -197,8 +214,19 @@ public actor ProviderTransfer {
     do {
       try await target.write(reader, to: temporary)
       try await verify(entry, copied: reader.bytes, sourceHash: reader.digest, at: temporary)
-      if let replacing { try await target.delete(replacing) }
-      try await target.move(temporary, to: destination)
+      if let permissions = replacing?.permissions {
+        do { try await target.setPermissions(permissions, of: temporary) } catch {
+          if error as? FileSystemError != .unsupportedOperation {
+            log("Could not keep the permissions of \(destination.path): \(error)")
+          }
+        }
+      }
+      let setAside = replacing == nil ? nil : try await self.setAside(destination, in: target)
+      do { try await target.move(temporary, to: destination) } catch {
+        if let setAside { try await restore(setAside, to: destination, in: target, after: error) }
+        throw error
+      }
+      if let setAside { await discard(setAside, in: target) }
     } catch {
       outcomes.failed += Task.isCancelled ? 0 : 1
       // Cleanup must still run when the job itself was cancelled.
@@ -236,6 +264,49 @@ public actor ProviderTransfer {
     guard Data(hash.finalize()) == sourceHash else {
       throw FileSystemError.io("Verification failed: the checksum of \(entry.name) differs.")
     }
+  }
+
+  // MARK: Replacing
+
+  /// The old item stays on the server under a hidden name until the new one is in place.
+  private func setAside(_ location: Location, in target: any FileSystemProvider) async throws
+    -> Location
+  {
+    let path = Self.normalized(location.path)
+    let aside = Self.child(
+      Location(providerID: location.providerID, path: Self.parentPath(path)),
+      ".\((path as NSString).lastPathComponent).fileterm-\(UUID().uuidString).old")
+    try await target.move(location, to: aside)
+    return aside
+  }
+
+  /// Puts the old item back, removing whatever partial new one is in its place. It must still run
+  /// when the job itself was cancelled. If it can't, the error says where the old item is.
+  private func restore(
+    _ aside: Location, to destination: Location, in target: any FileSystemProvider,
+    after failure: (any Error)?
+  ) async throws {
+    let restored = await Task.detached { () -> Bool in
+      try? await target.delete(destination)
+      do {
+        try await target.move(aside, to: destination)
+        return true
+      } catch { return false }
+    }.value
+    guard restored else {
+      let reason = failure.map { $0.localizedDescription + " " } ?? ""
+      throw FileSystemError.io("\(reason)The old version is still at \(aside.path).")
+    }
+  }
+
+  private func discard(_ aside: Location, in target: any FileSystemProvider) async {
+    let removed = await Task.detached { () -> Bool in
+      do {
+        try await target.delete(aside)
+        return true
+      } catch { return false }
+    }.value
+    if !removed { log("Could not remove the old version at \(aside.path)") }
   }
 
   // MARK: Helpers
@@ -286,6 +357,11 @@ public actor ProviderTransfer {
       throw FileSystemError.unsupportedOperation
     }
     return provider
+  }
+
+  /// Connection paths can end in a slash, so paths are compared in this form.
+  static func normalized(_ path: String) -> String {
+    "/" + path.split(separator: "/", omittingEmptySubsequences: true).joined(separator: "/")
   }
 
   static func parentPath(_ path: String) -> String {
