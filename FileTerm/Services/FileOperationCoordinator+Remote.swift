@@ -104,18 +104,25 @@ extension FileOperationCoordinator {
     }
   }
 
+  static func remoteDeleteAlert(itemCount: Int, from source: String) -> NSAlert {
+    let alert = NSAlert()
+    alert.messageText = "Delete \(itemCount) item(s)?"
+    alert.informativeText =
+      "From: \(source)\nThis deletes them from the server and cannot be undone. "
+      + "They will not go to your Mac’s Trash."
+    alert.alertStyle = .warning
+    alert.addButton(withTitle: "Cancel")
+    alert.addButton(withTitle: "Delete")
+    alert.buttons[1].hasDestructiveAction = true
+    return alert
+  }
+
   func deleteRemote(_ pane: PaneModel) {
     let entries = pane.selectedEntries
     guard let first = entries.first else { return }
-    let alert = NSAlert()
-    alert.messageText = "Delete \(entries.count) item(s)?"
-    alert.informativeText =
-      "From: \(describe(first.location))\nThis deletes them from the server and cannot be undone. "
-      + "They will not go to your Mac’s Trash."
-    alert.alertStyle = .warning
-    alert.addButton(withTitle: "Delete")
-    alert.addButton(withTitle: "Cancel")
-    guard alert.runModal() == .alertFirstButtonReturn else { return }
+    let alert = Self.remoteDeleteAlert(
+      itemCount: entries.count, from: describe(first.location))
+    guard alert.runModal() == .alertSecondButtonReturn else { return }
     let registry = registry
     submitRemote(kind: .delete, locations: entries.map(\.location)) { control in
       var summary = TransferSummary()

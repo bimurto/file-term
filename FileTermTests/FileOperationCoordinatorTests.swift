@@ -6,6 +6,15 @@ import Testing
 
 @Suite(.serialized)
 @MainActor struct FileOperationCoordinatorTests {
+  @Test func returnKeyDoesNotConfirmARemoteDelete() {
+    let alert = FileOperationCoordinator.remoteDeleteAlert(itemCount: 1, from: "server:/a.txt")
+
+    #expect(alert.buttons.map(\.title) == ["Cancel", "Delete"])
+    #expect(alert.buttons[0].keyEquivalent == "\u{1b}")
+    #expect(alert.buttons[1].keyEquivalent != "\r")
+    #expect(alert.buttons[1].hasDestructiveAction)
+  }
+
   @Test func localURLsIncludeOnlySelectedVisibleLocalEntries() async throws {
     let local = Location(providerID: "local", path: "/fixtures/selected.txt")
     let unselected = Location(providerID: "local", path: "/fixtures/unselected.txt")
