@@ -212,6 +212,23 @@ public actor SFTPProvider: ValidatingProvider {
       await send { SFTPPacket.rename(id: $0, from: from, to: target, encoding: encoding) })
   }
 
+  public func setPermissions(_ permissions: Int, of location: Location) async throws {
+    let path = Self.normalized(location.path)
+    try requireOK(
+      await send {
+        SFTPPacket.setPermissions(
+          id: $0, path: path, permissions: UInt32(permissions & 0o7777), encoding: encoding)
+      })
+  }
+
+  public func resolvedTarget(of location: Location) async throws -> Location {
+    let path = Self.normalized(location.path)
+    guard try await attributesOf(path, follow: false).isSymbolicLink else {
+      return Location(providerID: id, path: path)
+    }
+    return Location(providerID: id, path: try await resolveRoot(path))
+  }
+
   public func createDirectory(_ location: Location) async throws {
     let path = Self.normalized(location.path)
     if (try? await attributesOf(path, follow: false)) != nil {

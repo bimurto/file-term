@@ -50,6 +50,8 @@ private final class EditChunk: FileByteReader, @unchecked Sendable {
   var confirmations: [String] = []
   var notices: [String] = []
   var opened: [URL] = []
+  var overwrites: [String] = []
+  var keptCounts: [Int] = []
 }
 
 @Suite(.serialized)
@@ -65,7 +67,11 @@ private final class EditChunk: FileByteReader, @unchecked Sendable {
     let entry: FileEntry
   }
 
-  private func rig(approve: Bool = true) async -> Rig {
+  private func rig(
+    approve: Bool = true, overwrite: Bool = true, keepCopies: Bool = true,
+    keptFolder: URL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "FileTerm-kept-\(UUID().uuidString)")
+  ) async -> Rig {
     let remote = EditRemote()
     await remote.seed(remotePath, "v1")
     let registry = ProviderRegistry(providers: [LocalFileSystemProvider(), remote])
@@ -79,10 +85,19 @@ private final class EditChunk: FileByteReader, @unchecked Sendable {
         log.confirmations.append(target)
         return approve
       },
+      confirmOverwrite: { target, _ in
+        log.overwrites.append(target)
+        return overwrite
+      },
       openFile: { file, _ in
         log.opened.append(file)
         return nil
-      })
+      },
+      confirmKeeping: { count, _ in
+        log.keptCounts.append(count)
+        return keepCopies
+      },
+      keptEditsFolder: keptFolder)
     let entry = FileEntry(
       location: Location(providerID: remote.id, path: remotePath), name: "note.txt",
       kind: .file, size: 2)
@@ -137,6 +152,74 @@ private final class EditChunk: FileByteReader, @unchecked Sendable {
     #expect(jobs.count == 2 && jobs.allSatisfy { $0.state == .completed })
     // The replace leaves no temporary file behind on the server.
     #expect(await rig.remote.paths() == [remotePath])
+  }
+
+  @Test func aServerChangeIsNotOverwrittenWithoutAsking() async throws {
+    let rig = await rig(overwrite: false)
+    let session = try await startEditing(rig)
+    await rig.remote.seed(remotePath, "changed by someone else")
+    try Data("my edit".utf8).write(to: session.local)
+    await rig.edits.check(session)
+    await settle(rig)
+    #expect(rig.log.overwrites == ["Office: /docs/note.txt"])
+    #expect(await rig.remote.text(remotePath) == "changed by someone else")
+    #expect(rig.coordinator.transfers.jobs.last?.state == .failed)
+    #expect(try String(contentsOf: session.local, encoding: .utf8) == "my edit")
+  }
+
+  @Test func aServerChangeCanBeReplacedAndTheNextSaveDoesNotAskAgain() async throws {
+    let rig = await rig(overwrite: true)
+    let session = try await startEditing(rig)
+    await rig.remote.seed(remotePath, "changed by someone else")
+    try Data("my edit".utf8).write(to: session.local)
+    await rig.edits.check(session)
+    await settle(rig)
+    #expect(await rig.remote.text(remotePath) == "my edit")
+    try Data("my longer second edit".utf8).write(to: session.local)
+    await rig.edits.check(session)
+    await settle(rig)
+    #expect(rig.log.overwrites.count == 1)
+    #expect(await rig.remote.text(remotePath) == "my longer second edit")
+  }
+
+  @Test func quittingKeepsEditsTheServerNeverGot() async throws {
+    let kept = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "FileTerm-kept-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: kept) }
+    let rig = await rig(approve: false, keptFolder: kept)
+    let session = try await startEditing(rig)
+    try Data("only copy".utf8).write(to: session.local)
+    await rig.edits.check(session)  // Stop Watching
+    await settle(rig)
+    #expect(rig.edits.sessions.isEmpty)
+    #expect(rig.edits.confirmTermination())
+    #expect(rig.log.keptCounts == [1])
+    #expect(
+      try String(contentsOf: kept.appendingPathComponent("note.txt"), encoding: .utf8)
+        == "only copy")
+    #expect(!FileManager.default.fileExists(atPath: session.local.path))
+  }
+
+  @Test func decliningAtQuitKeepsTheAppOpenAndTheEdits() async throws {
+    let rig = await rig(approve: false, keepCopies: false)
+    let session = try await startEditing(rig)
+    try Data("only copy".utf8).write(to: session.local)
+    await rig.edits.check(session)
+    await settle(rig)
+    #expect(!rig.edits.confirmTermination())
+    #expect(FileManager.default.fileExists(atPath: session.local.path))
+  }
+
+  @Test func quittingAsksNothingWhenEverythingWasUploaded() async throws {
+    let rig = await rig()
+    let session = try await startEditing(rig)
+    #expect(rig.edits.confirmTermination())
+    try Data("sent".utf8).write(to: session.local)
+    await rig.edits.check(session)
+    await settle(rig)
+    #expect(await rig.remote.text(remotePath) == "sent")
+    #expect(rig.edits.confirmTermination())
+    #expect(rig.log.keptCounts.isEmpty)
   }
 
   @Test func decliningStopsWatchingAndUploadsNothing() async throws {

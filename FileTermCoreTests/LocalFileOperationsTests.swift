@@ -114,6 +114,81 @@ struct LocalFileOperationsTests {
     #expect(await engine.historyState().canUndo)
   }
 
+  private func replaceFixture() throws -> (root: URL, source: URL, target: URL, old: URL) {
+    let root = try sandbox()
+    let source = root.appendingPathComponent("a.txt")
+    let target = root.appendingPathComponent("target")
+    try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+    try Data(repeating: 7, count: 300_000).write(to: source)
+    let old = target.appendingPathComponent("a.txt")
+    try Data("old".utf8).write(to: old)
+    return (root, source, target, old)
+  }
+
+  private let replaceIt: ConflictResolver = { _ in ConflictResolution(decision: .replace) }
+
+  @Test func aReplacedItemGoesToTheTrashAndUndoBringsItBack() async throws {
+    let f = try replaceFixture()
+    defer { try? FileManager.default.removeItem(at: f.root) }
+    let engine = LocalFileOperations.withFakeTrash()
+    _ = try await engine.transfer(
+      sources: [f.source], to: f.target, move: false, resolve: replaceIt)
+    #expect(try Data(contentsOf: f.old).count == 300_000)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: f.target.path) == ["a.txt"])
+    try await engine.undo()
+    #expect(try String(contentsOf: f.old, encoding: .utf8) == "old")
+  }
+
+  @Test func cancellingAReplacePutsTheOldVersionBack() async throws {
+    let f = try replaceFixture()
+    defer { try? FileManager.default.removeItem(at: f.root) }
+    let engine = LocalFileOperations.withFakeTrash()
+    let relay = ReplaceCancelRelay()
+    let control = TransferControl(progress: { _ in await relay.cancel() })
+    await relay.set(control)
+    await engine.setTransferControl(control)
+    await #expect(throws: CancellationError.self) {
+      try await engine.transfer(
+        sources: [f.source], to: f.target, move: false, resolve: replaceIt)
+    }
+    #expect(try String(contentsOf: f.old, encoding: .utf8) == "old")
+    #expect(try FileManager.default.contentsOfDirectory(atPath: f.target.path) == ["a.txt"])
+    #expect(await !engine.hasUndoHistory())
+  }
+
+  @Test(arguments: [false, true]) func aFailedReplacePutsTheOldVersionBack(move: Bool) async throws
+  {
+    let f = try replaceFixture()
+    defer { try? FileManager.default.removeItem(at: f.root) }
+    let engine = LocalFileOperations(
+      rename: { source, destination in
+        if destination.lastPathComponent == "a.txt", !source.path.contains("fake-trash") {
+          throw NSError(domain: NSPOSIXErrorDomain, code: Int(ENOSPC))
+        }
+        try LocalFileOperations.exclusiveRename(source, destination)
+      },
+      remove: { try FileManager.default.removeItem(at: $0) },
+      trash: LocalFileOperations.fakeTrash)
+    await #expect(throws: (any Error).self) {
+      try await engine.transfer(sources: [f.source], to: f.target, move: move, resolve: replaceIt)
+    }
+    #expect(try String(contentsOf: f.old, encoding: .utf8) == "old")
+    #expect(FileManager.default.fileExists(atPath: f.source.path))
+    #expect(try FileManager.default.contentsOfDirectory(atPath: f.target.path) == ["a.txt"])
+  }
+
+  @Test func withNoTrashAReplacedItemStaysBesideItAndUndoWorks() async throws {
+    let f = try replaceFixture()
+    defer { try? FileManager.default.removeItem(at: f.root) }
+    let engine = LocalFileOperations(trash: { _ in throw CocoaError(.featureUnsupported) })
+    _ = try await engine.transfer(sources: [f.source], to: f.target, move: true, resolve: replaceIt)
+    let names = try FileManager.default.contentsOfDirectory(atPath: f.target.path)
+    #expect(names.contains { $0.hasPrefix(".FileTerm-recovery-") })
+    try await engine.undo()
+    #expect(try String(contentsOf: f.old, encoding: .utf8) == "old")
+    #expect(FileManager.default.fileExists(atPath: f.source.path))
+  }
+
   @Test func crossDeviceUndoRemovalFailureRetainsCopiesAndCanRetry() async throws {
     let root = try sandbox()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -275,7 +350,7 @@ struct LocalFileOperationsTests {
     try Data("new".utf8).write(to: source.appendingPathComponent("a"))
     try Data("old".utf8).write(to: destination.appendingPathComponent("a"))
     let calls = ConflictCalls()
-    let engine = LocalFileOperations()
+    let engine = LocalFileOperations.withFakeTrash()
     _ = try await engine.transfer(sources: [source], to: target, move: true) { conflict in
       await calls.record()
       return ConflictResolution(
@@ -364,16 +439,22 @@ private actor ConflictCalls {
   func record() { count += 1 }
 }
 
+private actor ReplaceCancelRelay {
+  private var control: TransferControl?
+  func set(_ control: TransferControl) { self.control = control }
+  func cancel() async { await control?.cancel() }
+}
+
 extension LocalFileOperations {
-  /// Undo of a copy lands in a throwaway folder, so tests don't fill the real Trash.
-  static func withFakeTrash() -> LocalFileOperations {
-    LocalFileOperations(trash: { url in
-      let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "FileTerm-fake-trash-\(UUID().uuidString)")
-      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
-      let destination = folder.appendingPathComponent(url.lastPathComponent)
-      try exclusiveRename(url, destination)
-      return destination
-    })
+  /// Stands in for the Trash, so tests don't fill the real one.
+  @Sendable static func fakeTrash(_ url: URL) throws -> URL {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "FileTerm-fake-trash-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+    let destination = folder.appendingPathComponent(url.lastPathComponent)
+    try exclusiveRename(url, destination)
+    return destination
   }
+
+  static func withFakeTrash() -> LocalFileOperations { LocalFileOperations(trash: fakeTrash) }
 }

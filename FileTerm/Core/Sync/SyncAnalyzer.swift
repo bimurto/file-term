@@ -16,14 +16,26 @@ public enum SyncAnalyzer {
     else { throw SyncError.missingProvider(left.providerID) }
     async let leftTree = scan(left, with: leftProvider, options: options)
     async let rightTree = scan(right, with: rightProvider, options: options)
-    return try compare(left: await leftTree, right: await rightTree, options: options)
+    let (leftScan, rightScan) = try await (leftTree, rightTree)
+    return compare(
+      left: leftScan.entries, right: rightScan.entries, options: options,
+      keptLeft: leftScan.keptFolders, keptRight: rightScan.keptFolders)
   }
 
-  /// Relative path to entry for every file and folder below `root` that the options include.
+  /// Every file and folder below `root` that the options include (by relative path), and the
+  /// folders holding something they leave out: hidden items, exclusions, links and special files.
+  /// Deleting one of those folders would delete what nobody was shown.
   static func scan(
     _ root: Location, with provider: any FileSystemProvider, options: SyncOptions
-  ) async throws -> [String: FileEntry] {
+  ) async throws -> (entries: [String: FileEntry], keptFolders: Set<String>) {
     var result: [String: FileEntry] = [:]
+    var kept: Set<String> = []
+    func keep(_ folder: String) {
+      var path = folder
+      while !path.isEmpty, kept.insert(path).inserted {
+        path = (path as NSString).deletingLastPathComponent
+      }
+    }
     var queue: [(Location, String)] = [(root, "")]
     var index = 0
     while index < queue.count {
@@ -32,16 +44,20 @@ public enum SyncAnalyzer {
       index += 1
       let entries: [FileEntry]
       do {
-        entries = try await provider.list(folder, includeHidden: options.hidden)
+        entries = try await provider.list(folder, includeHidden: true)
       } catch {
         // Skipping an unreadable folder would make everything in its twin look orphaned.
         if error is CancellationError { throw error }
         throw SyncError.unreadableFolder(folder.path, error.localizedDescription)
       }
       for entry in entries {
-        if !options.hidden && entry.isHidden { continue }
         let relative = prefix.isEmpty ? entry.name : prefix + "/" + entry.name
-        if options.excludes.contains(where: { $0.matches(relativePath: relative) }) { continue }
+        if (!options.hidden && entry.isHidden)
+          || options.excludes.contains(where: { $0.matches(relativePath: relative) })
+        {
+          keep(prefix)
+          continue
+        }
         switch entry.kind {
         case .file:
           result[relative] = entry
@@ -50,15 +66,16 @@ public enum SyncAnalyzer {
           result[relative] = entry
           queue.append((entry.location, relative))
         case .symbolicLink, .other:
-          continue
+          keep(prefix)
         }
       }
     }
-    return result
+    return (result, kept)
   }
 
   static func compare(
-    left: [String: FileEntry], right: [String: FileEntry], options: SyncOptions
+    left: [String: FileEntry], right: [String: FileEntry], options: SyncOptions,
+    keptLeft: Set<String> = [], keptRight: Set<String> = []
   ) -> [SyncAction] {
     var actions: [SyncAction] = []
     let paths = Set(left.keys).union(right.keys).sorted()
@@ -71,13 +88,13 @@ public enum SyncAnalyzer {
         if let action = compareBoth(path, l, r, options) { actions.append(action) }
       case (let l?, nil):
         if let action = orphanOrAdd(
-          path, entry: l, side: .left, tree: left, options, &removedFolders)
+          path, entry: l, side: .left, tree: left, kept: keptLeft, options, &removedFolders)
         {
           actions.append(action)
         }
       case (nil, let r?):
         if let action = orphanOrAdd(
-          path, entry: r, side: .right, tree: right, options, &removedFolders)
+          path, entry: r, side: .right, tree: right, kept: keptRight, options, &removedFolders)
         {
           actions.append(action)
         }
@@ -93,7 +110,7 @@ public enum SyncAnalyzer {
 
   private static func orphanOrAdd(
     _ path: String, entry: FileEntry, side: SyncAction.Side, tree: [String: FileEntry],
-    _ options: SyncOptions, _ removedFolders: inout [String]
+    kept: Set<String>, _ options: SyncOptions, _ removedFolders: inout [String]
   ) -> SyncAction? {
     // `side` holds the item; the other side is where it would be added.
     let other: SyncAction.Side = side == .left ? .right : .left
@@ -113,6 +130,8 @@ public enum SyncAnalyzer {
       return make(.add, towards: other)
     }
     guard options.deleteOrphans else { return nil }
+    // Its visible contents still get their own rows; the folder stays for what's left in it.
+    if kept.contains(path) { return nil }
     if isDirectory { removedFolders.append(path) }
     return make(.delete, towards: side)
   }

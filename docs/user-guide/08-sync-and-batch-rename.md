@@ -35,6 +35,8 @@ Under Update items when:
 
 Local orphans go to the Trash. Remote orphans are deleted permanently, after one confirmation.
 
+A folder holding anything the comparison left out, such as hidden items, excluded items or links, is never deleted. Only the items the preview lists go, and the folder stays with the rest.
+
 Sync jobs aren't added to Undo. A failure after at least one action succeeded ends as a partial failure, with no Retry.
 
 ## Time offsets and exclusions

@@ -25,20 +25,39 @@ import FileTermCore
     }
   }
 
+  /// What the file on the server looked like when it was last downloaded or uploaded.
+  struct RemoteStamp: Equatable {
+    let modified: Date?
+    let size: Int64?
+
+    init(_ entry: FileEntry) {
+      modified = entry.modifiedAt
+      size = entry.size
+    }
+  }
+
   @MainActor final class Session {
     let remote: Location
     let local: URL
     var lastAttempt: Stamp
+    /// The local file as the server last received it. Anything else hasn't been uploaded.
+    var lastUploaded: Stamp
+    var remoteStamp: RemoteStamp?
     var confirmed = false
     var isConfirming = false
     var isStopped = false
     let notify: (String) -> Void
     let watcher = FolderWatcher()
 
-    init(remote: Location, local: URL, lastAttempt: Stamp, notify: @escaping (String) -> Void) {
+    init(
+      remote: Location, local: URL, lastAttempt: Stamp, remoteStamp: RemoteStamp?,
+      notify: @escaping (String) -> Void
+    ) {
       self.remote = remote
       self.local = local
       self.lastAttempt = lastAttempt
+      lastUploaded = lastAttempt
+      self.remoteStamp = remoteStamp
       self.notify = notify
     }
   }
@@ -47,17 +66,32 @@ import FileTermCore
 
   private let fileOperations: FileOperationCoordinator
   private let confirm: (_ target: String, _ name: String) async -> Bool
+  private let confirmOverwrite: (_ target: String, _ name: String) async -> Bool
   private let openFile: (_ file: URL, _ editors: [EditorMapping]) async -> String?
+  private let confirmKeeping: @MainActor (_ count: Int, _ folder: URL) -> Bool
+  private let keptEditsFolder: URL
   private(set) var sessions: [Session] = []
+  /// Every session of this launch, including stopped ones, whose copies may hold unsent edits.
+  private var allSessions: [Session] = []
 
   init(
     fileOperations: FileOperationCoordinator,
     confirm: @escaping (_ target: String, _ name: String) async -> Bool = RemoteEditCoordinator
       .askUser,
-    openFile: ((_ file: URL, _ editors: [EditorMapping]) async -> String?)? = nil
+    confirmOverwrite: @escaping (_ target: String, _ name: String) async -> Bool =
+      RemoteEditCoordinator.askBeforeOverwriting,
+    openFile: ((_ file: URL, _ editors: [EditorMapping]) async -> String?)? = nil,
+    confirmKeeping: @escaping @MainActor (_ count: Int, _ folder: URL) -> Bool =
+      RemoteEditCoordinator.askBeforeQuitting,
+    keptEditsFolder: URL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[
+      0
+    ].appendingPathComponent("FileTerm Remote Edits")
   ) {
     self.fileOperations = fileOperations
     self.confirm = confirm
+    self.confirmOverwrite = confirmOverwrite
+    self.confirmKeeping = confirmKeeping
+    self.keptEditsFolder = keptEditsFolder
     self.openFile =
       openFile ?? { [unowned fileOperations] file, editors in
         await fileOperations.openInEditor(file, editors: editors)
@@ -74,6 +108,58 @@ import FileTermCore
     alert.addButton(withTitle: "Upload")
     alert.addButton(withTitle: "Stop Watching")
     return alert.runModal() == .alertFirstButtonReturn
+  }
+
+  static func askBeforeOverwriting(target: String, name: String) async -> Bool {
+    let alert = NSAlert()
+    alert.alertStyle = .warning
+    alert.messageText = "“\(name)” changed on the server"
+    alert.informativeText =
+      "It's different from the version you opened:\n\(target)\n\nUploading replaces those changes."
+    alert.addButton(withTitle: "Don’t Upload")
+    alert.addButton(withTitle: "Replace Server Version")
+    return alert.runModal() == .alertSecondButtonReturn
+  }
+
+  static func askBeforeQuitting(count: Int, folder: URL) -> Bool {
+    let alert = NSAlert()
+    alert.messageText =
+      count == 1
+      ? "An edited server file wasn't uploaded" : "\(count) edited server files weren't uploaded"
+    alert.informativeText = "Copies will be kept in \(folder.path)."
+    alert.addButton(withTitle: "Keep Copies and Quit")
+    alert.addButton(withTitle: "Don’t Quit")
+    return alert.runModal() == .alertFirstButtonReturn
+  }
+
+  /// Temporary downloads are removed at quit, so edits the server never got are moved out first.
+  /// False means don't quit: the user said so, or a copy couldn't be moved.
+  func confirmTermination() -> Bool {
+    let unsent = allSessions.filter { session in
+      Stamp(url: session.local).map { $0 != session.lastUploaded } ?? false
+    }
+    guard !unsent.isEmpty, confirmKeeping(unsent.count, keptEditsFolder) else {
+      return unsent.isEmpty
+    }
+    do {
+      try FileManager.default.createDirectory(
+        at: keptEditsFolder, withIntermediateDirectories: true)
+      for session in unsent {
+        let name = session.local.lastPathComponent
+        let ext = (name as NSString).pathExtension
+        let target = ArchiveTool.uniqueURL(
+          in: keptEditsFolder, stem: ext.isEmpty ? name : (name as NSString).deletingPathExtension,
+          ext: ext)
+        try FileManager.default.moveItem(at: session.local, to: target)
+      }
+      return true
+    } catch {
+      let alert = NSAlert()
+      alert.messageText = "Your edits couldn't be kept"
+      alert.informativeText = error.localizedDescription
+      alert.runModal()
+      return false
+    }
   }
 
   /// Downloads the file, opens it in the mapped editor and starts watching it. Editing a file that
@@ -93,24 +179,30 @@ import FileTermCore
     return fileOperations.submitRemote(
       kind: .open, locations: [entry.location], direction: .download, totalBytes: entry.size
     ) { [weak self] control in
+      let current = try await provider.stat(entry.location)
       let file = try await FileOperationCoordinator.download(
         entry, provider: provider, control: control)
-      self?.begin(entry.location, file: file, editors: editors, notify: notify)
+      self?.begin(
+        entry.location, file: file, remoteStamp: RemoteStamp(current), editors: editors,
+        notify: notify)
       return TransferSummary(succeeded: 1)
     }
   }
 
   private func begin(
-    _ remote: Location, file: URL, editors: [EditorMapping], notify: @escaping (String) -> Void
+    _ remote: Location, file: URL, remoteStamp: RemoteStamp, editors: [EditorMapping],
+    notify: @escaping (String) -> Void
   ) {
     guard let stamp = Stamp(url: file) else { return }
-    let session = Session(remote: remote, local: file, lastAttempt: stamp, notify: notify)
+    let session = Session(
+      remote: remote, local: file, lastAttempt: stamp, remoteStamp: remoteStamp, notify: notify)
     session.watcher.onChange = { [weak self, weak session] _ in
       guard let self, let session else { return }
       Task { await self.check(session) }
     }
     session.watcher.watch([Self.realPath(of: file.deletingLastPathComponent())])
     sessions.append(session)
+    allSessions.append(session)
     reopen(session, editors: editors)
   }
 
@@ -153,7 +245,7 @@ import FileTermCore
       stamp = Stamp(url: session.local) ?? stamp
     }
     session.lastAttempt = stamp
-    upload(session, size: stamp.size)
+    upload(session, stamp: stamp)
   }
 
   func stop(_ session: Session, _ message: String? = nil) {
@@ -163,11 +255,9 @@ import FileTermCore
     if let message { session.notify(message) }
   }
 
-  private func upload(_ session: Session, size: Int64) {
+  private func upload(_ session: Session, stamp: Stamp) {
     let remote = session.remote
     let name = (remote.path as NSString).lastPathComponent
-    let folder = Location(
-      providerID: remote.providerID, path: (remote.path as NSString).deletingLastPathComponent)
     let source = Location(providerID: "local", path: session.local.path)
     let queue = fileOperations.transfers
     let registry = fileOperations.registry
@@ -177,7 +267,7 @@ import FileTermCore
     queue.preferences = policy
     let id = queue.submit(
       kind: .upload, resources: FileOperationCoordinator.resources(for: [remote]),
-      totalBytes: size, direction: .upload, sourceLabels: [session.local.lastPathComponent],
+      totalBytes: stamp.size, direction: .upload, sourceLabels: [session.local.lastPathComponent],
       destinationLabel: describe(remote)
     ) { [weak self] control in
       let transfer = ProviderTransfer(
@@ -187,7 +277,29 @@ import FileTermCore
         },
         resolve: { _ in ConflictResolution(decision: .replace) })
       do {
-        let summary = try await transfer.copy(sources: [source], to: folder, newName: name)
+        guard let provider = registry.provider(for: remote.providerID) else {
+          throw FileSystemError.unsupportedOperation
+        }
+        // Saving through a symbolic link changes its target and leaves the link in place.
+        let target = try await provider.resolvedTarget(of: remote)
+        let current: RemoteStamp?
+        do { current = RemoteStamp(try await provider.stat(target)) } catch FileSystemError.notFound
+        {
+          current = nil
+        }
+        if current != session.remoteStamp, let self,
+          !(await self.confirmOverwrite(describe(remote), name))
+        {
+          throw FileSystemError.io(
+            "“\(name)” changed on the server, so this save wasn't uploaded. Your copy is safe.")
+        }
+        let folder = Location(
+          providerID: target.providerID,
+          path: (target.path as NSString).deletingLastPathComponent)
+        let summary = try await transfer.copy(
+          sources: [source], to: folder, newName: (target.path as NSString).lastPathComponent)
+        session.remoteStamp = (try? await provider.stat(target)).map(RemoteStamp.init)
+        session.lastUploaded = stamp
         if let id = reference.id { queue.log(id, "Uploaded \(name) to \(describe(remote))") }
         await self?.fileOperations.refresh?()
         return summary

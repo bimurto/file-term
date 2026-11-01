@@ -115,6 +115,10 @@ public protocol FileSystemProvider: Sendable {
   func createDirectory(_ location: Location) async throws
   /// Removes the item permanently. User-facing callers must confirm first.
   func delete(_ location: Location) async throws
+  /// Sets POSIX permissions. Providers without them throw `unsupportedOperation`.
+  func setPermissions(_ permissions: Int, of location: Location) async throws
+  /// Where saving over this location should write: a symbolic link's target, or else the location.
+  func resolvedTarget(of location: Location) async throws -> Location
 }
 
 extension FileSystemProvider {
@@ -123,6 +127,12 @@ extension FileSystemProvider {
   }
 
   public func publicURL(for location: Location) async throws -> URL? { nil }
+
+  public func setPermissions(_ permissions: Int, of location: Location) async throws {
+    throw FileSystemError.unsupportedOperation
+  }
+
+  public func resolvedTarget(of location: Location) async throws -> Location { location }
 
   public func list(_ location: Location, includeHidden: Bool) async throws -> [FileEntry] {
     try await list(location)

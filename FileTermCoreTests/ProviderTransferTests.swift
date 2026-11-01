@@ -99,6 +99,82 @@ import Testing
     }
   }
 
+  // MARK: Replacing
+
+  @Test func aFailedFileReplaceKeepsTheOldVersion() async throws {
+    let source = MemoryProvider(id: "src")
+    await source.seedFile("/a.txt", "new")
+    let destination = MemoryProvider(id: "dst")
+    await destination.seedFile("/a.txt", "old")
+    await destination.configure(failWritesAfterChunks: 1)
+    await #expect(throws: (any Error).self) {
+      try await engine(
+        [source, destination], resolve: { _ in ConflictResolution(decision: .replace) }
+      ).copy(sources: [at(source, "/a.txt")], to: at(destination, "/"))
+    }
+    #expect(await destination.text("/a.txt") == "old")
+    #expect(await destination.paths() == ["/", "/a.txt"])
+  }
+
+  @Test func aReplaceThatFailsToLandPutsTheOldVersionBack() async throws {
+    let source = MemoryProvider(id: "src")
+    await source.seedFile("/a.txt", "new")
+    let destination = MemoryProvider(id: "dst")
+    await destination.seedFile("/a.txt", "old")
+    await destination.failMoves(onto: "/a.txt")
+    let failure = await #expect(throws: (any Error).self) {
+      try await engine(
+        [source, destination], resolve: { _ in ConflictResolution(decision: .replace) }
+      ).copy(sources: [at(source, "/a.txt")], to: at(destination, "/"))
+    }
+    // Putting it back hits the same failing move, so the error must say where it is.
+    #expect(failure?.localizedDescription.contains("The old version is still at") == true)
+    let kept = await destination.paths().filter { $0.hasSuffix(".old") }
+    #expect(kept.count == 1)
+    #expect(await destination.text(kept[0]) == "old")
+  }
+
+  @Test func aFailedFolderReplaceKeepsTheOldFolder() async throws {
+    let source = MemoryProvider(id: "src")
+    await source.seedDirectory("/d")
+    await source.seedFile("/d/new.txt", "new")
+    let destination = MemoryProvider(id: "dst")
+    await destination.seedDirectory("/d")
+    await destination.seedFile("/d/old.txt", "old")
+    await destination.configure(failWritesAfterChunks: 1)
+    await #expect(throws: (any Error).self) {
+      try await engine(
+        [source, destination], resolve: { _ in ConflictResolution(decision: .replace) }
+      ).copy(sources: [at(source, "/d")], to: at(destination, "/"))
+    }
+    #expect(await destination.text("/d/old.txt") == "old")
+    #expect(await destination.paths() == ["/", "/d", "/d/old.txt"])
+  }
+
+  @Test func aSuccessfulFolderReplaceLeavesOnlyTheNewFolder() async throws {
+    let source = MemoryProvider(id: "src")
+    await source.seedDirectory("/d")
+    await source.seedFile("/d/new.txt", "new")
+    let destination = MemoryProvider(id: "dst")
+    await destination.seedDirectory("/d")
+    await destination.seedFile("/d/old.txt", "old")
+    _ = try await engine(
+      [source, destination], resolve: { _ in ConflictResolution(decision: .replace) }
+    ).copy(sources: [at(source, "/d")], to: at(destination, "/"))
+    #expect(await destination.paths() == ["/", "/d", "/d/new.txt"])
+  }
+
+  @Test func anItemCanNotReplaceItself() async throws {
+    let memory = MemoryProvider(id: "mem")
+    await memory.seedDirectory("/docs")
+    await memory.seedFile("/docs/a.txt", "alpha")
+    await #expect(throws: (any Error).self) {
+      try await engine([memory], resolve: { _ in ConflictResolution(decision: .replace) })
+        .copy(sources: [at(memory, "/docs/a.txt")], to: at(memory, "/docs/"))
+    }
+    #expect(await memory.text("/docs/a.txt") == "alpha")
+  }
+
   // MARK: Conflicts
 
   @Test func conflictDecisionsAreHonouredAndNeverOverwriteSilently() async throws {
@@ -312,8 +388,11 @@ actor MemoryProvider: FileSystemProvider {
   private var corrupt = false
   private var lieAboutSize: Int64?
   private var delay: Duration?
+  private var failedMoveTarget: String?
 
   init(id: String) { self.id = id }
+
+  func failMoves(onto path: String) { failedMoveTarget = path }
 
   func reset() {
     nodes = ["/": Node(kind: .directory)]
@@ -398,8 +477,12 @@ actor MemoryProvider: FileSystemProvider {
   func move(_ source: Location, to destination: Location) throws {
     guard let node = nodes[source.path] else { throw FileSystemError.notFound }
     guard nodes[destination.path] == nil else { throw FileSystemError.destinationExists }
+    if destination.path == failedMoveTarget { throw FileSystemError.io("move failed") }
     nodes[destination.path] = node
     nodes[source.path] = nil
+    for key in nodes.keys where key.hasPrefix(source.path + "/") {
+      nodes[destination.path + key.dropFirst(source.path.count)] = nodes.removeValue(forKey: key)
+    }
   }
 
   func delete(_ location: Location) throws {

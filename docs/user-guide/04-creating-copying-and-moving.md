@@ -103,6 +103,8 @@ Edit › Undo (⌘Z) and Redo (⇧⌘Z) reverse local file operations such as lo
 
 Undoing a copy or a duplicate moves it to the Trash, and Redo brings it back unless the Trash was emptied. On a volume with no Trash, Undo fails and the copy stays where it is.
 
+Replace moves the old local version to the Trash, and puts it back if the job fails or is cancelled. On a volume with no Trash, the old version stays in a hidden `.FileTerm-recovery-` folder beside the item so Undo still works. On connections, the old version stays under a hidden name until the new one is in place.
+
 These can't be undone:
 
 - Delete… on local items.

@@ -10,6 +10,7 @@ enum SFTPPacketType: UInt8 {
   case read = 5
   case write = 6
   case lstat = 7
+  case setstat = 9
   case opendir = 11
   case readdir = 12
   case remove = 13
@@ -232,6 +233,16 @@ enum SFTPPacket {
     request(.mkdir, id: id) {
       $0.string(path, encoding: encoding)
       $0.uint32(0)
+    }
+  }
+
+  static func setPermissions(
+    id: UInt32, path: String, permissions: UInt32, encoding: String = "UTF-8"
+  ) -> Data {
+    request(.setstat, id: id) {
+      $0.string(path, encoding: encoding)
+      $0.uint32(0x04)
+      $0.uint32(permissions)
     }
   }
 
