@@ -178,6 +178,7 @@ import FileTermCore
   }
 
   func refreshEnabling() {
+    registry.invalidate()
     let states = registry.states()
     for menu in NSApp.mainMenu?.items.compactMap(\.submenu) ?? [] {
       updateEnabling(in: menu, states: states)

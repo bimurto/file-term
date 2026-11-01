@@ -1,6 +1,9 @@
+import Observation
 import Testing
 
 @testable import FileTermCore
+
+private final class ChangeFlag: @unchecked Sendable { var value = false }
 
 @MainActor struct CommandRegistryTests {
   @Test func generatedCommandsShareOneHelpEntryAndOthersHaveTheirOwn() {
@@ -37,6 +40,22 @@ import Testing
     #expect(states["off"]?.isChecked == true)
     #expect(registry.disabledReason(for: "off") == "No.")
     #expect(registry.isChecked("off"))
+  }
+
+  @Test func invalidatingTellsReadersOfCommandStateToReadItAgain() {
+    let registry = CommandRegistry(
+      commands: [
+        AppCommand(
+          id: "base", title: "Base", menuPath: ["Go"], isEnabled: { _ in true },
+          disabledReason: { _ in "No." }, handler: {})
+      ],
+      context: { CommandContext(hasBrowserWindow: true, hasKeyWindow: true, isLoading: false) })
+    for read in [{ _ = registry.disabledReason(for: "base") }, { _ = registry.isChecked("base") }] {
+      let changed = ChangeFlag()
+      withObservationTracking(read) { changed.value = true }
+      registry.invalidate()
+      #expect(changed.value)
+    }
   }
 
   @Test func selectedEntriesSkipsTheScanWithoutASelection() async throws {

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 public struct CommandContext: Sendable {
   public let hasBrowserWindow: Bool
@@ -73,13 +74,15 @@ public struct CommandContext: Sendable {
   }
 }
 
-@MainActor public final class CommandRegistry {
+@MainActor @Observable public final class CommandRegistry {
   private let baseCommands: [AppCommand]
   private let dynamicCommands: () -> [AppCommand]
   public var commands: [AppCommand] { baseCommands + dynamicCommands() }
   private let context: () -> CommandContext
   public private(set) var shortcutMap: ShortcutMap
   public var onShortcutOverridesChanged: (([String: ShortcutOverride]) -> Void)?
+  /// The context also reads AppKit state that SwiftUI can't observe, such as the key window.
+  private var revision = 0
 
   public init(
     commands: [AppCommand], dynamicCommands: @escaping () -> [AppCommand] = { [] },
@@ -117,6 +120,9 @@ public struct CommandContext: Sendable {
     onShortcutOverridesChanged?(shortcutMap.overrides)
   }
 
+  /// Tells views showing command state to read it again.
+  public func invalidate() { revision += 1 }
+
   public func command(_ id: String) -> AppCommand? { commands.first { $0.id == id } }
 
   /// What a menu item shows for a command.
@@ -146,9 +152,13 @@ public struct CommandContext: Sendable {
       isChecked: command.isChecked(current))
   }
 
-  public func isChecked(_ id: String) -> Bool { command(id)?.isChecked(context()) ?? false }
+  public func isChecked(_ id: String) -> Bool {
+    _ = revision
+    return command(id)?.isChecked(context()) ?? false
+  }
 
   public func disabledReason(for id: String) -> String? {
+    _ = revision
     guard let command = command(id) else { return "Unknown command." }
     let current = context()
     return command.isEnabled(current) ? nil : command.disabledReason(current)
