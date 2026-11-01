@@ -5,6 +5,12 @@ public enum ArchiveTool {
   static let ditto = "/usr/bin/ditto"
   static let bsdtar = "/usr/bin/bsdtar"
 
+  /// bsdtar reads a leading `-` as an option (some run programs) and `@` as an archive to include.
+  /// A `./` prefix makes either one a plain name.
+  static func nameArgument(_ name: String) -> String {
+    name.hasPrefix("-") || name.hasPrefix("@") ? "./" + name : name
+  }
+
   /// `directory/stem.ext`, or `directory/stem 2.ext`, `stem 3.ext` … when taken.
   public static func uniqueURL(in directory: URL, stem: String, ext: String = "") -> URL {
     let suffix = ext.isEmpty ? "" : "." + ext
@@ -43,7 +49,10 @@ public enum ArchiveTool {
         case .tarXz: arguments += ["-cJf", destination.path]
         }
         for source in sources {
-          arguments += ["-C", source.deletingLastPathComponent().path, source.lastPathComponent]
+          arguments += [
+            "-C", source.deletingLastPathComponent().path,
+            nameArgument(source.lastPathComponent),
+          ]
         }
         try await ProcessRunner.run(bsdtar, arguments)
       }

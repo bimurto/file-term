@@ -75,7 +75,10 @@ public actor ArchiveProvider: FileSystemProvider {
       let member = String(path.dropFirst())
       try await ProcessRunner.run(
         ArchiveTool.bsdtar,
-        ["-xf", archive.path, "-C", folder.path, Self.escapePattern(member)],
+        [
+          "-xf", archive.path, "-C", folder.path,
+          ArchiveTool.nameArgument(Self.escapePattern(member)),
+        ],
         environment: ["LC_ALL": "en_US.UTF-8"])
       let file = folder.appendingPathComponent(member)
       return try ExtractedFileReader(file: file, folder: folder)

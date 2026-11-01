@@ -49,6 +49,24 @@ struct ArchiveTests {
     #expect(!FileManager.default.fileExists(atPath: out.appendingPathComponent("__MACOSX").path))
   }
 
+  /// bsdtar reads these as options, directory changes or archive includes unless they are guarded.
+  @Test(arguments: ["--version", "-v", "-Cother", "@included.txt"], [ArchiveFormat.tar, .zip])
+  func compressKeepsNamesThatLookLikeOptions(name: String, format: ArchiveFormat) async throws {
+    let root = try sandbox()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let tricky = root.appendingPathComponent(name)
+    let plain = root.appendingPathComponent("plain.txt")
+    try Data("tricky".utf8).write(to: tricky)
+    try Data("plain".utf8).write(to: plain)
+    let archive = root.appendingPathComponent("Archive." + format.fileExtension)
+    try await ArchiveTool.compress(sources: [tricky, plain], format: format, destination: archive)
+    let out = root.appendingPathComponent("out")
+    try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+    _ = try await ArchiveTool.extract(archive: archive, into: out)
+    #expect(try String(contentsOf: out.appendingPathComponent("Archive/\(name)")) == "tricky")
+    #expect(try String(contentsOf: out.appendingPathComponent("Archive/plain.txt")) == "plain")
+  }
+
   @Test func severalTopLevelItemsGoIntoAFolderNamedAfterTheArchive() async throws {
     let root = try sandbox()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -133,6 +151,23 @@ struct ArchiveProviderTests {
     var data = Data()
     while let chunk = try await reader.next() { data.append(chunk) }
     #expect(String(decoding: data, as: UTF8.self) == "needle inside")
+  }
+
+  /// `-C` is a directory change even after `--` when creating, so that member is stored as `./-C…`.
+  @Test(arguments: [("--version", "--version"), ("-v", "-v"), ("-Cother", "./-Cother")])
+  func readsAMemberNamedLikeAnOption(name: String, stored: String) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try Data("member".utf8).write(to: root.appendingPathComponent(name))
+    let archive = root.appendingPathComponent("a.tar")
+    try await ProcessRunner.run(
+      "/bin/sh",
+      ["-c", "cd \"$1\" && /usr/bin/bsdtar -cf a.tar -- \"$2\"", "sh", root.path, stored])
+    let provider = ArchiveProvider(archive: archive)
+    try await provider.load()
+    let reader = try await provider.read(Location(providerID: provider.id, path: "/" + name))
+    #expect(try await reader.next() == Data("member".utf8))
   }
 
   @Test func isReadOnlyAndRejectsFolderReads() async throws {
