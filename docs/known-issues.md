@@ -76,8 +76,45 @@ Details are in [M15](milestones/M15-context-menus.md).
 | Turning a tag off with a color dot hasn't been tried | Not confirmed | Turning one on works. |
 | The Contents limit of 1000 items hasn't been tried | Not confirmed | No folder that large was opened. |
 
+## Rules that every milestone must follow
+
+These break the rules in the [roadmap](README.md#rules-that-apply-to-every-milestone).
+
+| Issue | Status | Detail |
+|---|---|---|
+| Some disabled commands give the wrong reason | From the code | File commands from `metadataUtilityCommands` in `AppDelegate` always say "Select local items in the browser first.", even when the app is busy, loading, or the command's own condition failed. |
+| Some disabled buttons give no reason | From the code | Open SSH Session in `TerminalPanel`, the job controls in `TransferPanels`, and the selection-based buttons in the Tools and Editing settings and the Favorites manager. |
+| Some long operations skip Activities | From the code | Checksum and folder sizes in `FileUtilityCoordinator`, Empty Trash, iCloud Remove Download, and opening a local archive. Opening a remote archive does use it. M05 may have accepted the first two, because it asks for their own progress and cancel. |
+| Removing a tool or editor doesn't ask first | From the code | Remove in the Tools and Editing settings acts at once. Favorites asks for confirmation. |
+
+## Differences between connection types
+
+| Issue | Status | Detail |
+|---|---|---|
+| WebDAV doesn't refuse to delete the root | From the code | SFTP, FTP and S3 refuse. `WebDAVProvider.delete` sends `DELETE` with no check. Whether a root location can reach it hasn't been checked. |
+| Symbolic links behave differently | From the code | SFTP lists a link as what it points to, so folder copies include the target and a link cycle can repeat the tree. FTP and local keep links, copies skip them, and double-clicking an FTP link does nothing. |
+| Upload limits and progress stop early on S3 and WebDAV | From the code | Both write the upload to a temporary file first. The bandwidth limit, pause and progress apply to that step, not to the network upload. SFTP and FTP stream. |
+| A server's refusal is reported as a macOS one | From the code | WebDAV 403 and SFTP's permission error use `FileSystemError.permissionDenied`, whose text points to macOS and System Settings. S3 has its own error. |
+| A stalled FTP transfer can hang | From the code | curl gets only `--connect-timeout`. Jobs on the same server run one at a time, so it can block the others. WebDAV sets a timeout only on its first `OPTIONS` request. |
+| Cancel can wait on SFTP | From the code | `SFTPProvider.send` checks for cancellation only before sending, so Cancel waits for the reply or for the connection to drop. FTP and the URLSession providers stop at once. |
+| WebDAV doesn't fall back when `If-None-Match` is unsupported | From the code | S3 falls back on a 501 and WebDAV reports the operation as unsupported. Risk is low, because transfers write to unique temporary names. |
+| Existence checks differ | From the code | FTP `move` treats any `stat` error as "absent", while S3 passes the error on. S3 `createDirectory` doesn't check at all. Callers check first. |
+| Some certificate errors show raw system text | From the code | Certificate mapping is skipped on S3 `read` and on WebDAV `read` and `upload`. |
+| WebDAV paths aren't fully normalized | From the code | FTP and SFTP collapse slashes. WebDAV `trimmed` strips only one trailing slash. |
+
+## Settings
+
+| Issue | Status | Detail |
+|---|---|---|
+| Unreadable saved settings are lost | From the code | `AppSettings` falls back to defaults when decoding fails, with no warning. The next save overwrites the stored favorites or tools. |
+
 ## Development
 
 | Issue | Status | Detail |
 |---|---|---|
 | The right-click UI tests have never run | Seen | `FileTermUITests/ContextMenuUITests.swift` stopped with "Timed out while enabling automation mode". It may need approval on screen. It also doesn't cover the sidebar yet. |
+| `AppDelegate` does too many jobs | From the code | It has 2122 lines, and `makeCommands` mixes command tables with their handlers. |
+| Location types are plain strings | From the code | `"local"` appears 59 times in 24 files, and `hasPrefix("archive:")` in 3 places. `isRemote` is also true for archive panes, so callers must run `rejectsArchiveEdit` first. |
+| Remote and local handling repeats | From the code | `isRemote(pane)` branches recur through `FileOperationCoordinator`. |
+| Code is duplicated | From the code | `JobReference` has 4 copies. The upload temporary-file loop and `httpDate` are in both S3 and WebDAV, and `normalized` is in both FTP and SFTP. |
+| S3 depends on the WebDAV file | From the code | `S3Provider` calls `WebDAVProvider.isCertificateError`, and `HTTPByteReader` also lives in the WebDAV file. They belong in a shared HTTP file. |
