@@ -32,7 +32,8 @@ public actor WebDAVProvider: ValidatingProvider {
     self.id = id
     self.baseURL = baseURL
     authentication = WebDAVAuthenticator(
-      username: username, password: password, trustedCertificate: trustedCertificate)
+      baseURL: baseURL, username: username, password: password,
+      trustedCertificate: trustedCertificate)
     session = URLSession(configuration: configuration, delegate: authentication, delegateQueue: nil)
   }
 
@@ -207,15 +208,44 @@ public actor WebDAVProvider: ValidatingProvider {
   }
 }
 
-private final class WebDAVAuthenticator: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+final class WebDAVAuthenticator: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
   private let credential: URLCredential?
   private let trustedCertificate: Data?
+  private let baseURL: URL
 
-  init(username: String?, password: String?, trustedCertificate: Data?) {
+  init(baseURL: URL, username: String?, password: String?, trustedCertificate: Data?) {
+    self.baseURL = baseURL
     credential = username.flatMap { name in
       name.isEmpty ? nil : URLCredential(user: name, password: password ?? "", persistence: .none)
     }
     self.trustedCertificate = trustedCertificate
+  }
+
+  func urlSession(
+    _ session: URLSession, task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) {
+    let target = request.url
+    completionHandler(
+      isConfiguredServer(host: target?.host, port: target?.port, scheme: target?.scheme)
+        ? request : nil)
+  }
+
+  /// The same scheme, host and port as the connection, or that host upgraded from http to https.
+  private func isConfiguredServer(host: String?, port: Int?, scheme: String?) -> Bool {
+    guard let host, host.caseInsensitiveCompare(baseURL.host ?? "") == .orderedSame else {
+      return false
+    }
+    func defaultPort(_ scheme: String?) -> Int? {
+      scheme == "https" ? 443 : (scheme == "http" ? 80 : nil)
+    }
+    let scheme = scheme?.lowercased()
+    let baseScheme = baseURL.scheme?.lowercased()
+    if scheme == baseScheme {
+      return (port ?? defaultPort(scheme)) == (baseURL.port ?? defaultPort(baseScheme))
+    }
+    return baseScheme == "http" && scheme == "https"
   }
 
   func urlSession(
@@ -240,7 +270,10 @@ private final class WebDAVAuthenticator: NSObject, URLSessionTaskDelegate, @unch
     guard
       method == NSURLAuthenticationMethodHTTPBasic
         || method == NSURLAuthenticationMethodHTTPDigest,
-      challenge.previousFailureCount == 0, let credential
+      challenge.previousFailureCount == 0, let credential,
+      isConfiguredServer(
+        host: challenge.protectionSpace.host, port: challenge.protectionSpace.port,
+        scheme: challenge.protectionSpace.protocol)
     else {
       completionHandler(.performDefaultHandling, nil)
       return
