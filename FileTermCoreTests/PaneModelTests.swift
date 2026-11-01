@@ -45,6 +45,26 @@ import Testing
     #expect(model.movedNotice == nil)
   }
 
+  @Test func aFolderClosedByItsModesOffersNoSystemSetting() async throws {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let closed = root.appendingPathComponent("closed")
+    try fm.createDirectory(at: closed, withIntermediateDirectories: true)
+    defer {
+      try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: closed.path)
+      try? fm.removeItem(at: root)
+    }
+    try fm.setAttributes([.posixPermissions: 0o000], ofItemAtPath: closed.path)
+    let provider = LocalFileSystemProvider()
+    let model = PaneModel(providers: [provider])
+    await model.navigate(to: provider.location(for: root))
+    #expect(await !model.navigate(to: provider.location(for: closed)))
+    #expect(model.deniedLocation == nil)
+    #expect(model.errorMessage == FileSystemError.fileModesDenied.localizedDescription)
+    model.dismissError()
+    #expect(model.errorMessage == nil)
+  }
+
   @Test func refreshStaysPutWhenAnotherErrorHidesTheFolder() async {
     let provider = FakeProvider()
     let model = PaneModel(providers: [provider])

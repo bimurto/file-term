@@ -259,6 +259,11 @@ import Observation
     folderSelection = []
   }
 
+  public func dismissError() {
+    errorMessage = nil
+    deniedLocation = nil
+  }
+
   public func cancelPendingNavigation() {
     navigationRevision = UUID()
     isLoading = false

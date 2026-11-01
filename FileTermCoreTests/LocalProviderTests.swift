@@ -86,8 +86,38 @@ struct LocalProviderTests {
   }
 
   @Test func normalizesPermissionFailures() {
-    let error = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError)
-    #expect(LocalFileSystemProvider.normalized(error) as? FileSystemError == .permissionDenied)
+    func normalized(_ error: NSError) -> FileSystemError? {
+      LocalFileSystemProvider.normalized(error) as? FileSystemError
+    }
+    func cocoa(underlying: Int32) -> NSError {
+      NSError(
+        domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError,
+        userInfo: [
+          NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(underlying))
+        ])
+    }
+    #expect(
+      normalized(NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError))
+        == .permissionDenied)
+    #expect(normalized(NSError(domain: NSPOSIXErrorDomain, code: Int(EPERM))) == .permissionDenied)
+    #expect(normalized(NSError(domain: NSPOSIXErrorDomain, code: Int(EACCES))) == .fileModesDenied)
+    #expect(normalized(cocoa(underlying: EPERM)) == .permissionDenied)
+    #expect(normalized(cocoa(underlying: EACCES)) == .fileModesDenied)
+  }
+
+  @Test func aFolderClosedByItsModesIsNotAPrivacyBlock() async throws {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fm.createDirectory(at: root, withIntermediateDirectories: true)
+    defer {
+      try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path)
+      try? fm.removeItem(at: root)
+    }
+    let provider = LocalFileSystemProvider()
+    try fm.setAttributes([.posixPermissions: 0o000], ofItemAtPath: root.path)
+    await #expect(throws: FileSystemError.fileModesDenied) {
+      try await provider.list(provider.location(for: root))
+    }
   }
 
   @Test func listsMetadataAndOmitsHiddenFiles() async throws {

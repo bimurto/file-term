@@ -75,7 +75,9 @@ public enum FileName {
 }
 
 public enum FileSystemError: Error, Equatable, Sendable, LocalizedError {
-  case notFound, permissionDenied, destinationExists, unsupportedOperation
+  /// `permissionDenied` is a macOS privacy block or a server's refusal. `fileModesDenied` is the
+  /// item's owner and permissions, which no System Settings switch changes.
+  case notFound, permissionDenied, fileModesDenied, destinationExists, unsupportedOperation
   case io(String)
 
   public var errorDescription: String? {
@@ -83,6 +85,8 @@ public enum FileSystemError: Error, Equatable, Sendable, LocalizedError {
     case .notFound: "The item no longer exists."
     case .permissionDenied:
       "macOS denied access to this folder. Check the app’s Files and Folders permissions in System Settings."
+    case .fileModesDenied:
+      "You don’t have permission to open this item. Check its owner and permissions in Get Info."
     case .destinationExists: "An item already exists at the destination."
     case .unsupportedOperation: "This location does not support the operation."
     case .io(let message): message
