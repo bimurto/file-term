@@ -17,7 +17,7 @@ struct FindToolbar: View {
     HStack(spacing: 6) {
       Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
       TextField("Search", text: $query.text)
-        .textFieldStyle(.plain).frame(width: 150).focused(focus)
+        .textFieldStyle(.plain).frame(width: 120).focused(focus)
         .onSubmit { run() }
         .accessibilityIdentifier("searchField")
       Button {
@@ -30,7 +30,7 @@ struct FindToolbar: View {
       .popover(isPresented: $showCriteria) { criteriaPanel }
       if let location = scopeLocation {
         Text("in \(URL(fileURLWithPath: location.path).lastPathComponent.nonEmpty ?? "/")")
-          .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+          .font(.caption).foregroundStyle(.secondary).lineLimit(1).frame(maxWidth: 70)
           .help(location.path).accessibilityIdentifier("searchScopeIndicator")
           .accessibilityValue(location.path)
       }

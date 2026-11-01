@@ -48,7 +48,7 @@ private struct SettingsCategoryView: View {
 
   private var paneHeight: CGFloat {
     switch category {
-    case .general: 700
+    case .general: 740
     case .terminal, .transfers: 640
     case .shortcuts, .tools, .editing, .tags, .themes, .integrations: 480
     default: 320
@@ -221,6 +221,10 @@ private struct GeneralSettingsView: View {
           Text("Used by new windows and when session restoration is off.").font(.caption)
             .foregroundStyle(.secondary)
         }
+        Stepper(
+          "Recent folders to keep: \(settings.recentFolderLimit)",
+          value: $settings.recentFolderLimit, in: AppSettings.recentFolderLimitRange
+        ).accessibilityIdentifier("recentFolderLimit")
         Picker("Open remote connections in", selection: $settings.connections.remotePlacement) {
           ForEach(RemotePanePlacement.allCases, id: \.self) { Text($0.title).tag($0) }
         }

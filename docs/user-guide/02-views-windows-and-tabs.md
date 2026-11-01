@@ -58,8 +58,12 @@ Click Apply to use the settings. Save View Settings as Defaults, in the dialog o
 - View › Show Toolbar, Show Sidebar, Show Tab Bar, Show Path Bar and Show Title Bar each show or hide that part of the window. These choices are remembered.
 - View › Customize Toolbar… adds, removes and reorders toolbar commands. It offers top-level commands from the File, View, Go and Commands menus, and Restore Default Toolbar resets the list.
 - View › Show Sidebar Editor turns sidebar sections on or off and changes their order.
+- When the window gets narrower, similar toolbar buttons fold into dropdowns: pane layout and view mode first, then panels, then everything but navigation under More.
+- A greyed-out toolbar button can't run right now. Hold the pointer over it to see why.
+- Click a sidebar section's header to fold or unfold it. Folded sections stay folded after a relaunch.
+- Drag the divider beside the sidebar or preview to resize it. File panes keep a minimum width.
 
-Sidebar sections are Devices, Recent Folders, Tags, iCloud Drive and Workspaces. iCloud Drive appears only when that folder exists, and Workspaces only when you've saved one. Each section also has its own command in the View menu.
+Sidebar sections are Devices, Recent Folders, Tags, iCloud Drive, Workspaces and Favorites. Network volumes and external disks show an icon beside their name. iCloud Drive appears only when that folder exists, and Workspaces only when you've saved one. Each section also has its own command in the View menu.
 
 ## Tabs
 
@@ -87,7 +91,6 @@ Window › Pin View protects a tab's location. A pinned tab shows a pin icon. Na
 File › New FileTerm Window (⌘N) opens a window at the Starting Directory, with its own panes and tabs. Menu commands act on the frontmost window.
 
 - File › Close Window (⇧⌘W) closes the frontmost window.
-- File › Show Browser Window brings a browser window forward, or opens one if none exists.
 - Window › Minimize, Zoom and Bring All to Front work as in other Mac apps.
 
 The Window menu also lists open windows. macOS can add its own layout and tiling entries there, and these depend on your macOS version.

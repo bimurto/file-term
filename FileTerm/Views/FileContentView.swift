@@ -1,6 +1,7 @@
 import AppKit
 import FileTermCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 private struct IconFramesKey: PreferenceKey {
   static let defaultValue: [Location: CGRect] = [:]
@@ -327,9 +328,30 @@ struct FileContentView: View {
   }
 }
 
+extension UTType {
+  static let fileTermRemoteItem = UTType(exportedAs: "com.fileterm.remote-item")
+}
+
+/// What a row on a remote location carries when dragged. It has no file URL to offer.
+struct RemoteItemDrag: Codable {
+  let location: Location
+  let isDirectory: Bool
+}
+
 /// Export file URLs so the terminal can insert quoted paths without submitting commands.
 private func fileDragProvider(_ entry: FileEntry) -> NSItemProvider? {
-  guard entry.location.providerID == "local" else { return nil }
+  guard entry.location.providerID == "local" else {
+    let drag = RemoteItemDrag(location: entry.location, isDirectory: entry.kind == .directory)
+    guard let data = try? JSONEncoder().encode(drag) else { return nil }
+    let provider = NSItemProvider()
+    provider.registerDataRepresentation(
+      forTypeIdentifier: UTType.fileTermRemoteItem.identifier, visibility: .ownProcess
+    ) { completion in
+      completion(data, nil)
+      return nil
+    }
+    return provider
+  }
   return NSItemProvider(object: URL(fileURLWithPath: entry.location.path) as NSURL)
 }
 

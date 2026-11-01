@@ -512,6 +512,87 @@ private actor ScriptedSFTP: ValidatingProvider {
     #expect(coordinator.textEncoding(for: Location(providerID: "local", path: "/")) == nil)
   }
 
+  @Test func droppingALocalFolderAddsALocalFavorite() throws {
+    let (coordinator, _, _, _, _) = try make()
+    let drop = coordinator.favoriteDrop(forFolder: Location(providerID: "local", path: "/tmp/a"))
+    guard case .add(let item) = drop else {
+      Issue.record("Expected a favorite")
+      return
+    }
+    #expect(item.name == "a")
+    #expect(item.target == .local(path: "/tmp/a"))
+  }
+
+  @Test func droppingAFolderOnASavedConnectionAddsAConnectionFavorite() async throws {
+    let (coordinator, registry) = try makeRemote()
+    let browser = BrowserModel(registry: registry)
+    let profile = dav()
+    try coordinator.save(profile, password: "")
+    try await coordinator.connectAndReveal(profile, in: browser)
+    let location = Location(providerID: "webdav.\(profile.id.uuidString)", path: "/files/reports")
+    guard case .add(let item) = coordinator.favoriteDrop(forFolder: location) else {
+      Issue.record("Expected a favorite")
+      return
+    }
+    #expect(item.name == "reports")
+    #expect(item.target == .connection(profileID: profile.id, paths: ["/files/reports"]))
+  }
+
+  @Test func droppingAFolderOnAnUnsavedConnectionIsRefused() async throws {
+    let (coordinator, registry) = try makeRemote()
+    let browser = BrowserModel(registry: registry)
+    let profile = dav()
+    try await coordinator.connectAndReveal(profile, in: browser)
+    let location = Location(providerID: "webdav.\(profile.id.uuidString)", path: "/files")
+    guard case .refuse(let message) = coordinator.favoriteDrop(forFolder: location) else {
+      Issue.record("Expected a refusal")
+      return
+    }
+    #expect(message.contains("Save the connection"))
+  }
+
+  @Test func droppingAFolderInsideASavedMountStoresThePathRelativeToTheMount() async throws {
+    let (coordinator, _, _, _, _) = try make()
+    var profile = ConnectionProfile(kind: .smb)
+    profile.server = "nas.local"
+    try coordinator.save(profile, password: "")
+    try await coordinator.connect(profile)
+    let inside = Location(providerID: "local", path: "/Volumes/share/docs/q3")
+    guard case .add(let item) = coordinator.favoriteDrop(forFolder: inside) else {
+      Issue.record("Expected a favorite")
+      return
+    }
+    #expect(item.target == .connection(profileID: profile.id, paths: ["/docs/q3"]))
+    let root = Location(providerID: "local", path: "/Volumes/share")
+    guard case .add(let rootItem) = coordinator.favoriteDrop(forFolder: root) else {
+      Issue.record("Expected a favorite")
+      return
+    }
+    #expect(rootItem.target == .connection(profileID: profile.id, paths: []))
+    let lookalike = Location(providerID: "local", path: "/Volumes/share2")
+    guard case .add(let other) = coordinator.favoriteDrop(forFolder: lookalike) else {
+      Issue.record("Expected a favorite")
+      return
+    }
+    #expect(other.target == .local(path: "/Volumes/share2"))
+  }
+
+  @Test func droppingAnArchiveFolderAddsNothing() throws {
+    let (coordinator, _, _, _, _) = try make()
+    let location = Location(providerID: "archive:\(UUID())", path: "/inside")
+    #expect(coordinator.favoriteDrop(forFolder: location) == .ignore)
+  }
+
+  @Test func savingANewConnectionFromTheFormListsItWithoutConnecting() throws {
+    let (coordinator, registry) = try makeRemote()
+    let profile = dav()
+    let form = ConnectionFormModel(
+      profile: profile, coordinator: coordinator, browser: BrowserModel(registry: registry))
+    #expect(form.save())
+    #expect(coordinator.savedProfiles.map(\.id) == [profile.id])
+    #expect(coordinator.open.isEmpty)
+  }
+
   @Test func connectionFavoriteConnectsOnceAndOpensTheChosenPath() async throws {
     let (coordinator, registry) = try makeRemote()
     let browser = BrowserModel(registry: registry)

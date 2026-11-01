@@ -32,6 +32,7 @@ Open problems in the app are listed in [Known issues](known-issues.md).
 | M13 | [Additional documented capabilities](milestones/M13-additional-capabilities.md) | Ch. 12 | M11, M12 |
 | M14 | [Post-4.6 additions & release hardening](milestones/M14-post-4.6-and-hardening.md) | Ch. 12–13 | All |
 | M15 | [Context menus](milestones/M15-context-menus.md) | Observed in the installed app | M04, M05, M08, M11 |
+| M16 | [Missing features & changes](milestones/M16-missing-features-and-changes.md) | User requests (ongoing) | M06, M08, M11, M12 |
 
 > M07 (transfers) comes before M08 (connections) because remote protocols use the transfer queue, conflict policies and logging. Chapter 7 is therefore built before Chapter 6.
 
@@ -50,6 +51,8 @@ flowchart LR
   M13 --> M14
   M05 --> M15
   M11 --> M15
+  M11 --> M16
+  M12 --> M16
 ```
 
 ## Rules that apply to every milestone

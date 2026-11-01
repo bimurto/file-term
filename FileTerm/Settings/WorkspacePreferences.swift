@@ -14,6 +14,18 @@ struct WorkspacePreferences: Codable, Equatable {
   ]
   var sidebarOrder = ["devices", "recents", "tags"]
 
+  /// A toolbar saved by an older version lacks newer default buttons. Each one not yet `offered`
+  /// goes after the nearest default that comes before it, so buttons the user removed stay removed.
+  mutating func addNewToolbarDefaults(offered: Set<String>) {
+    let defaults = WorkspacePreferences().toolbarItems
+    for (index, item) in defaults.enumerated()
+    where !offered.contains(item) && !toolbarItems.contains(item) {
+      let position = defaults[..<index].last { toolbarItems.contains($0) }
+        .flatMap { toolbarItems.firstIndex(of: $0) }
+      toolbarItems.insert(item, at: position.map { $0 + 1 } ?? 0)
+    }
+  }
+
   /// `sidebarOrder` saved by an older version lacks newer sections; they go at the end.
   var sidebarSections: [String] {
     sidebarOrder

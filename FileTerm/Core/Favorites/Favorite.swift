@@ -68,6 +68,11 @@ extension Array where Element == FavoriteNode {
 
   public func item(_ id: UUID) -> FavoriteItem? { allItems.first { $0.id == id } }
 
+  /// Adds a favorite at the end, unless one with the same target exists anywhere in the list.
+  public func adding(_ item: FavoriteItem) -> [FavoriteNode] {
+    allItems.contains { $0.target == item.target } ? self : self + [.item(item)]
+  }
+
   /// Removes a favorite or a whole group wherever it is.
   public func removing(_ id: UUID) -> [FavoriteNode] {
     compactMap { node -> FavoriteNode? in

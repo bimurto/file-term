@@ -83,7 +83,9 @@ struct ToolbarCustomizationSheet: View {
         .font(.caption)
       List {
         Section("Current Toolbar") {
-          ForEach(settings.workspace.toolbarItems, id: \.self) { id in
+          ForEach(
+            settings.workspace.toolbarItems.filter { registry.command($0) != nil }, id: \.self
+          ) { id in
             HStack {
               Label(registry.command(id)?.title ?? id, systemImage: ToolbarSymbols.symbol(for: id))
               Spacer()

@@ -61,7 +61,7 @@ Search results aren't a drop target, so you can't drop files onto them.
 
 ## Hidden items
 
-View › Show Hidden Items (⇧⌘.) or the Show hidden checkbox in the toolbar shows hidden items in every pane, dimmed. This setting is separate from Synchronize hidden items in the Sync dialog.
+View › Show Hidden Items (⇧⌘.) or the eye button in the toolbar shows hidden items in every pane, dimmed. This setting is separate from Synchronize hidden items in the Sync dialog.
 
 ## Refresh
 

@@ -1,6 +1,38 @@
 import AppKit
 import FileTermCore
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// A divider that resizes the panel beside it. `direction` is 1 when dragging right widens it.
+private struct PanelResizeHandle: View {
+  @Binding var width: CGFloat
+  let shownWidth: CGFloat
+  let range: ClosedRange<CGFloat>
+  let direction: CGFloat
+  @State private var startWidth: CGFloat?
+
+  var body: some View {
+    Divider()
+      .overlay {
+        Color.clear.frame(width: 9).contentShape(Rectangle())
+          .onHover { isHovering in
+            if isHovering { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+          }
+          .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+              .onChanged { value in
+                let start = startWidth ?? shownWidth
+                startWidth = start
+                let proposed = start + direction * value.translation.width
+                width = min(max(proposed, range.lowerBound), range.upperBound)
+              }
+              .onEnded { _ in startWidth = nil }
+          )
+      }
+      .accessibilityElement()
+      .accessibilityLabel("Resize panel")
+  }
+}
 
 struct BrowserView: View {
   @Bindable var browser: BrowserModel
@@ -24,6 +56,9 @@ struct BrowserView: View {
   @State private var extensionPoints = QuickOpenExtensionPoints()
   @State private var favoriteManagerRequest: FavoriteManagerRequest?
   @State private var favoriteToDelete: FavoriteItem?
+  @State private var favoriteDropTargeted = false
+  @State private var sidebarWidth: CGFloat = 170
+  @State private var previewWidth: CGFloat = 320
 
   var body: some View {
     VStack(spacing: 0) {
@@ -198,16 +233,43 @@ struct BrowserView: View {
     TerminalPanel(workspace: terminal)
   }
 
+  /// The sidebar and preview keep their width when the window resizes, so the panes take the
+  /// change. An `HSplitView` would give them spare width up to their maximum instead.
   private var browserContent: some View {
-    HSplitView {
-      if settings.isVisible(.sidebar) {
-        sidebar.frame(minWidth: 120, idealWidth: 170, maxWidth: 220)
-      }
-      paneLayout
-      if settings.isVisible(.preview) {
-        previewPanel.frame(minWidth: 300, idealWidth: 320, maxWidth: 440)
+    let hasSidebar = settings.isVisible(.sidebar)
+    let hasPreview = settings.isVisible(.preview)
+    let panesMinimum: CGFloat = browser.layout == .vertical ? 440 : 220
+    let sidebarMinimum: CGFloat = 120
+    let previewMinimum: CGFloat = 300
+    return GeometryReader { geometry in
+      let available = geometry.size.width - panesMinimum
+      let sidebarRange =
+        sidebarMinimum...max(sidebarMinimum, available - (hasPreview ? previewMinimum : 0))
+      let shownSidebar = min(sidebarWidth, sidebarRange.upperBound)
+      let previewRange =
+        previewMinimum...max(previewMinimum, available - (hasSidebar ? shownSidebar : 0))
+      HStack(spacing: 0) {
+        if hasSidebar {
+          sidebar.frame(width: shownSidebar)
+          PanelResizeHandle(
+            width: $sidebarWidth, shownWidth: shownSidebar, range: sidebarRange, direction: 1
+          )
+          .accessibilityIdentifier("sidebarResizeHandle")
+        }
+        paneLayout.frame(maxWidth: .infinity)
+        if hasPreview {
+          PanelResizeHandle(
+            width: $previewWidth, shownWidth: min(previewWidth, previewRange.upperBound),
+            range: previewRange, direction: -1
+          )
+          .accessibilityIdentifier("previewResizeHandle")
+          previewPanel.frame(width: min(previewWidth, previewRange.upperBound))
+        }
       }
     }
+    .frame(
+      minWidth: panesMinimum + (hasSidebar ? sidebarMinimum : 0)
+        + (hasPreview ? previewMinimum : 0))
   }
 
   @ViewBuilder private var paneLayout: some View {
@@ -236,31 +298,77 @@ struct BrowserView: View {
   }
 
   private var toolbar: some View {
-    ScrollView(.horizontal) {
-      HStack(spacing: 6) {
-        ForEach(settings.workspace.toolbarItems.filter { registry.command($0) != nil }, id: \.self)
-        { id in
-          commandButton(id, symbol: ToolbarSymbols.symbol(for: id))
+    HStack(spacing: 6) {
+      ViewThatFits(in: .horizontal) {
+        ForEach(ToolbarLayout.foldLevels, id: \.self) { level in
+          toolbarButtons(foldLevel: level).fixedSize()
         }
-        ForEach(settings.tools.filter(\.showInToolbar)) { tool in
-          commandButton("tools.run.\(tool.id)", symbol: "hammer")
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      commandButton(
+        "view.showHidden", symbol: settings.showHidden ? "eye" : "eye.slash",
+        identifier: "showHiddenToggle")
+      FindToolbar(
+        browser: browser, settings: settings, localProvider: localProvider, query: $searchQuery,
+        focus: $searchFocused
+      ).fixedSize()
+    }.padding(.horizontal, 10).frame(height: 44)
+  }
+
+  private func toolbarButtons(foldLevel: Int) -> some View {
+    let items =
+      settings.workspace.toolbarItems.filter { registry.command($0) != nil }
+      + settings.tools.filter(\.showInToolbar).map { "tools.run.\($0.id)" }
+    let segments = ToolbarLayout.segments(for: items, foldLevel: foldLevel)
+    return HStack(spacing: 10) {
+      ForEach(segments.indices, id: \.self) { index in
+        switch segments[index] {
+        case .buttons(let ids):
+          HStack(spacing: 2) {
+            ForEach(ids, id: \.self) { commandButton($0, symbol: toolbarSymbol($0)) }
+          }
+        case .menu(let group, let ids):
+          toolbarMenu(group, ids)
         }
-        Spacer(minLength: 0)
+      }
+    }
+  }
+
+  private func toolbarSymbol(_ id: String) -> String {
+    id.hasPrefix("tools.run.") ? "hammer" : ToolbarSymbols.symbol(for: id)
+  }
+
+  /// Folded toolbar buttons. Layout and view mode show the current choice as their icon.
+  private func toolbarMenu(_ group: ToolbarLayout.Group, _ ids: [String]) -> some View {
+    let symbol: String
+    let title: LocalizedStringKey
+    switch group {
+    case .layout, .viewMode:
+      symbol = toolbarSymbol(ids.first(where: registry.isChecked) ?? ids[0])
+      title = group == .layout ? "Pane Layout" : "View Mode"
+    case .panels:
+      symbol = "sidebar.squares.right"
+      title = "Panels"
+    default:
+      symbol = "ellipsis.circle"
+      title = "More"
+    }
+    return Menu {
+      ForEach(ids, id: \.self) { id in
+        let reason = registry.disabledReason(for: id)
         Toggle(
-          "Show hidden",
-          isOn: Binding(
-            get: { settings.showHidden },
-            set: { value in
-              settings.showHidden = value
-              Task { await browser.setShowHidden(value) }
-            })
+          registry.command(id).map { registry.title(of: $0) } ?? id,
+          isOn: Binding(get: { registry.isChecked(id) }, set: { _ in registry.execute(id) })
         )
-        .toggleStyle(.checkbox).fixedSize().accessibilityIdentifier("showHiddenToggle")
-        FindToolbar(
-          browser: browser, settings: settings, localProvider: localProvider, query: $searchQuery,
-          focus: $searchFocused)
-      }.padding(.horizontal, 10).frame(height: 44)
-    }.scrollIndicators(.hidden).frame(height: 44)
+        .disabled(reason != nil)
+        .help(reason ?? "")
+      }
+    } label: {
+      Image(systemName: symbol).frame(width: 20, height: 20)
+    }
+    .menuStyle(.borderlessButton).fixedSize()
+    .help(title).accessibilityLabel(title)
+    .accessibilityIdentifier("toolbarGroup.\(group.rawValue)")
   }
 
   private var quickOpenSources: [any QuickOpenSource] {
@@ -312,7 +420,7 @@ struct BrowserView: View {
     return [commands, folders, recents] + extensionPoints.all
   }
 
-  private func commandButton(_ id: String, symbol: String) -> some View {
+  private func commandButton(_ id: String, symbol: String, identifier: String? = nil) -> some View {
     let title = registry.command(id).map { registry.title(of: $0) } ?? id
     return Button {
       registry.execute(id)
@@ -320,14 +428,19 @@ struct BrowserView: View {
       Image(systemName: symbol).frame(width: 20, height: 20)
     }
     .buttonStyle(.borderless).padding(3)
-    .foregroundStyle(registry.isChecked(id) ? Color.accentColor : Color.primary)
+    .foregroundStyle(
+      registry.isChecked(id)
+        ? AnyShapeStyle(Color.accentColor)
+        : registry.disabledReason(for: id) != nil
+          ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)
+    )
     .background(
       registry.isChecked(id) ? Color.accentColor.opacity(0.12) : .clear,
       in: RoundedRectangle(cornerRadius: 4)
     )
     .disabled(registry.disabledReason(for: id) != nil)
     .help(registry.disabledReason(for: id) ?? title)
-    .accessibilityLabel(title).accessibilityIdentifier(id)
+    .accessibilityLabel(title).accessibilityIdentifier(identifier ?? id)
     .accessibilityValue(registry.isChecked(id) ? "Shown" : "Hidden")
   }
 
@@ -336,126 +449,142 @@ struct BrowserView: View {
       ForEach(settings.workspace.sidebarSections, id: \.self) { section in
         if section == "devices" && settings.isVisible(.devices) {
           Section {
-            ForEach(
-              devices.volumes.filter {
-                !settings.hiddenSidebarItems.contains(SidebarItemKey.volume($0))
-              }
-            ) { volume in
-              Button {
-                devices.selectedVolumeID = volume.id
-                open(localProvider.location(for: volume.url))
-              } label: {
-                HStack(spacing: 6) {
-                  Image(nsImage: NSWorkspace.shared.icon(forFile: volume.url.path)).resizable()
-                    .frame(width: 18, height: 18)
-                  VStack(alignment: .leading, spacing: 2) {
-                    Text(volume.name).lineLimit(1)
-                    if settings.isVisible(.deviceInfo) {
-                      Text(volumeInfo(volume)).font(.caption2).foregroundStyle(.secondary)
+            if isExpanded("devices") {
+              ForEach(
+                devices.volumes.filter {
+                  !settings.hiddenSidebarItems.contains(SidebarItemKey.volume($0))
+                }
+              ) { volume in
+                Button {
+                  devices.selectedVolumeID = volume.id
+                  open(localProvider.location(for: volume.url))
+                } label: {
+                  HStack(spacing: 6) {
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: volume.url.path)).resizable()
+                      .frame(width: 18, height: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                      Text(volume.name).lineLimit(1)
+                      if settings.isVisible(.deviceInfo) {
+                        Text(volumeInfo(volume)).font(.caption2).foregroundStyle(.secondary)
+                      }
                     }
-                  }
-                  Spacer(minLength: 0)
-                }.padding(.vertical, 3).contentShape(Rectangle())
-                  .background(
-                    devices.selectedVolumeID == volume.id ? Color.accentColor.opacity(0.15) : .clear
-                  )
-              }.buttonStyle(.plain).help(volume.url.path)
-                .contextMenu { volumeMenu(volume) }
+                    Spacer(minLength: 0)
+                    volumeBadge(volume)
+                  }.padding(.vertical, 3).contentShape(Rectangle())
+                    .background(
+                      devices.selectedVolumeID == volume.id
+                        ? Color.accentColor.opacity(0.15) : .clear
+                    )
+                }.buttonStyle(.plain).help(volume.url.path)
+                  .contextMenu { volumeMenu(volume) }
+              }
             }
           } header: {
-            sectionHeader("Devices", chrome: .devices)
+            sectionHeader("Devices", section: "devices", chrome: .devices)
           }
         }
         if section == "recents" && settings.isVisible(.recentFolders) {
           Section {
-            ForEach(settings.recentFolders, id: \.self) { path in
-              Button {
-                devices.selectedVolumeID = nil
-                open(Location(providerID: localProvider.id, path: path))
-              } label: {
-                Label(
-                  URL(fileURLWithPath: path).lastPathComponent.isEmpty
-                    ? "/" : URL(fileURLWithPath: path).lastPathComponent, systemImage: "folder"
-                ).lineLimit(1)
-              }.buttonStyle(.plain).help(path)
+            if isExpanded("recents") {
+              ForEach(settings.recentFolders, id: \.self) { path in
+                Button {
+                  devices.selectedVolumeID = nil
+                  open(Location(providerID: localProvider.id, path: path))
+                } label: {
+                  Label(
+                    URL(fileURLWithPath: path).lastPathComponent.isEmpty
+                      ? "/" : URL(fileURLWithPath: path).lastPathComponent, systemImage: "folder"
+                  ).lineLimit(1)
+                }.buttonStyle(.plain).help(path)
+              }
             }
           } header: {
-            sectionHeader("Recent Folders", chrome: .recentFolders)
+            sectionHeader("Recent Folders", section: "recents", chrome: .recentFolders)
           }
         }
         if section == "tags" && settings.isVisible(.tags) {
           Section {
-            ForEach(settings.tags) { tag in
-              Button {
-                showFiles(tagged: tag)
-              } label: {
-                Label {
-                  Text(tag.name).lineLimit(1)
-                } icon: {
-                  Circle().fill(tag.color.swatch).frame(width: 10, height: 10)
-                }
-              }.buttonStyle(.plain).accessibilityIdentifier("sidebarTag.\(tag.name)")
+            if isExpanded("tags") {
+              ForEach(settings.tags) { tag in
+                Button {
+                  showFiles(tagged: tag)
+                } label: {
+                  Label {
+                    Text(tag.name).lineLimit(1)
+                  } icon: {
+                    Circle().fill(tag.color.swatch).frame(width: 10, height: 10)
+                  }
+                }.buttonStyle(.plain).accessibilityIdentifier("sidebarTag.\(tag.name)")
+              }
             }
           } header: {
-            sectionHeader("Tags", chrome: .tags)
+            sectionHeader("Tags", section: "tags", chrome: .tags)
           }
         }
         if section == "iCloudDrive" && settings.isVisible(.iCloudDrive)
           && FileManager.default.fileExists(atPath: FavoriteItem.iCloudDrivePath)
         {
           Section {
-            Button {
-              devices.selectedVolumeID = nil
-              open(Location(providerID: localProvider.id, path: FavoriteItem.iCloudDrivePath))
-            } label: {
-              Label("iCloud Drive", systemImage: "icloud").lineLimit(1)
-            }.buttonStyle(.plain).help(FavoriteItem.iCloudDrivePath)
-              .accessibilityIdentifier("sidebarICloudDrive")
+            if isExpanded("iCloudDrive") {
+              Button {
+                devices.selectedVolumeID = nil
+                open(Location(providerID: localProvider.id, path: FavoriteItem.iCloudDrivePath))
+              } label: {
+                Label("iCloud Drive", systemImage: "icloud").lineLimit(1)
+              }.buttonStyle(.plain).help(FavoriteItem.iCloudDrivePath)
+                .accessibilityIdentifier("sidebarICloudDrive")
+            }
           } header: {
-            sectionHeader("iCloud", chrome: .iCloudDrive)
+            sectionHeader("iCloud", section: "iCloudDrive", chrome: .iCloudDrive)
           }
         }
         if section == "workspaces" && settings.isVisible(.workspaces)
           && !settings.savedWorkspaces.isEmpty
         {
           Section {
-            ForEach(settings.savedWorkspaces) { workspace in
-              Button {
-                _ = registry.execute("go.workspaces.load.\(workspace.id)")
-              } label: {
-                Label(workspace.name, systemImage: "rectangle.3.group").lineLimit(1)
-              }
-              .buttonStyle(.plain)
-              .help("Load this workspace")
-              .contextMenu {
-                Button("Delete Workspace") {
-                  settings.savedWorkspaces.removeAll { $0.id == workspace.id }
+            if isExpanded("workspaces") {
+              ForEach(settings.savedWorkspaces) { workspace in
+                Button {
+                  _ = registry.execute("go.workspaces.load.\(workspace.id)")
+                } label: {
+                  Label(workspace.name, systemImage: "rectangle.3.group").lineLimit(1)
                 }
+                .buttonStyle(.plain)
+                .help("Load this workspace")
+                .contextMenu {
+                  Button("Delete Workspace") {
+                    settings.savedWorkspaces.removeAll { $0.id == workspace.id }
+                  }
+                }
+                .accessibilityIdentifier("workspace.\(workspace.name)")
               }
-              .accessibilityIdentifier("workspace.\(workspace.name)")
             }
           } header: {
-            sectionHeader("Workspaces", chrome: .workspaces)
+            sectionHeader("Workspaces", section: "workspaces", chrome: .workspaces)
           }
         }
-        if section == "favorites" && settings.isVisible(.favorites)
-          && !visibleFavorites(settings.favorites.allItems).isEmpty
-        {
+        if section == "favorites" && settings.isVisible(.favorites) {
           Section {
-            ForEach(settings.favorites) { node in
-              switch node {
-              case .item(let item):
-                if !visibleFavorites([item]).isEmpty { favoriteRow(item) }
-              case .group(let group):
-                if !visibleFavorites(group.items).isEmpty {
-                  DisclosureGroup(group.name) {
-                    ForEach(visibleFavorites(group.items)) { favoriteRow($0) }
+            if isExpanded("favorites") {
+              if visibleFavorites(settings.favorites.allItems).isEmpty {
+                Label("Drop folders here", systemImage: "star").foregroundStyle(.secondary)
+                  .lineLimit(1).accessibilityIdentifier("favoritesDropHint")
+              }
+              ForEach(settings.favorites) { node in
+                switch node {
+                case .item(let item):
+                  if !visibleFavorites([item]).isEmpty { favoriteRow(item) }
+                case .group(let group):
+                  if !visibleFavorites(group.items).isEmpty {
+                    DisclosureGroup(group.name) {
+                      ForEach(visibleFavorites(group.items)) { favoriteRow($0) }
+                    }
                   }
                 }
               }
             }
           } header: {
-            sectionHeader("Favorites", chrome: .favorites) {
+            sectionHeader("Favorites", section: "favorites", chrome: .favorites) {
               Button("Reveal in Favorite Manager") { revealFavorite(nil) }
             }
           }
@@ -464,6 +593,16 @@ struct BrowserView: View {
     }
     .listStyle(.sidebar)
     .background(Color(themeHex: settings.theme.sidebar) ?? .clear)
+    .onDrop(
+      of: [.fileURL, .fileTermRemoteItem],
+      isTargeted: $favoriteDropTargeted,
+      perform: addFavorites(from:)
+    )
+    .overlay {
+      if favoriteDropTargeted && settings.isVisible(.favorites) {
+        RoundedRectangle(cornerRadius: 6).strokeBorder(Color.accentColor, lineWidth: 2)
+      }
+    }
     .accessibilityIdentifier("navigationSidebar")
     .confirmationDialog(
       "Delete “\(favoriteToDelete?.name ?? "")” from Favorites?",
@@ -479,20 +618,74 @@ struct BrowserView: View {
     }
   }
 
+  private func isExpanded(_ section: String) -> Bool {
+    !settings.collapsedSidebarSections.contains(section)
+  }
+
+  /// Adds dragged folders to Favorites. Files, and folders that can't reopen, add nothing.
+  private func addFavorites(from providers: [NSItemProvider]) -> Bool {
+    guard settings.isVisible(.favorites) else { return false }
+    for provider in providers {
+      if provider.hasItemConformingToTypeIdentifier(UTType.fileTermRemoteItem.identifier) {
+        _ = provider.loadDataRepresentation(
+          forTypeIdentifier: UTType.fileTermRemoteItem.identifier
+        ) { data, _ in
+          guard let data, let drag = try? JSONDecoder().decode(RemoteItemDrag.self, from: data),
+            drag.isDirectory
+          else { return }
+          Task { @MainActor in addFavorite(forFolder: drag.location) }
+        }
+      } else {
+        _ = provider.loadObject(ofClass: URL.self) { url, _ in
+          guard let url, url.isFileURL,
+            (try? url.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]))?
+              .isDirectory == true
+          else { return }
+          let location = Location(providerID: "local", path: url.standardizedFileURL.path)
+          Task { @MainActor in addFavorite(forFolder: location) }
+        }
+      }
+    }
+    return true
+  }
+
+  private func addFavorite(forFolder location: Location) {
+    switch connections.favoriteDrop(forFolder: location) {
+    case .add(let item): settings.favorites = settings.favorites.adding(item)
+    case .refuse(let message): browser.notice = message
+    case .ignore: break
+    }
+  }
+
   private func sectionHeader(
-    _ title: LocalizedStringKey, chrome: BrowserChrome,
+    _ title: LocalizedStringKey, section: String, chrome: BrowserChrome,
     @ViewBuilder extra: () -> some View = { EmptyView() }
   ) -> some View {
     let extra = extra()
-    return Text(title)
-      .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-      .contextMenu {
-        Button("Hide from Sidebar") {
-          if settings.isVisible(chrome) { settings.toggle(chrome) }
-        }
-        extra
+    return Button {
+      if isExpanded(section) {
+        settings.collapsedSidebarSections.insert(section)
+      } else {
+        settings.collapsedSidebarSections.remove(section)
       }
-      .accessibilityIdentifier("sidebarHeader.\(chrome.rawValue)")
+    } label: {
+      HStack(spacing: 4) {
+        Text(title)
+        Spacer(minLength: 0)
+        Image(systemName: isExpanded(section) ? "chevron.down" : "chevron.right")
+          .font(.caption2).foregroundStyle(.secondary)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .contextMenu {
+      Button("Hide from Sidebar") {
+        if settings.isVisible(chrome) { settings.toggle(chrome) }
+      }
+      extra
+    }
+    .accessibilityValue(isExpanded(section) ? "Expanded" : "Collapsed")
+    .accessibilityIdentifier("sidebarHeader.\(chrome.rawValue)")
   }
 
   @ViewBuilder private func volumeMenu(_ volume: MountedVolume) -> some View {
@@ -513,9 +706,30 @@ struct BrowserView: View {
     items.filter { !settings.hiddenSidebarItems.contains(SidebarItemKey.favorite($0)) }
   }
 
+  /// Marks volumes that aren't this Mac's own disks. Internal disks get no badge.
+  @ViewBuilder private func volumeBadge(_ volume: MountedVolume) -> some View {
+    if !volume.isLocal {
+      badge(symbol: "network", text: "Network volume")
+    } else if !volume.isInternal {
+      badge(symbol: "externaldrive", text: "External volume")
+    }
+  }
+
+  private func badge(symbol: String, text: LocalizedStringKey) -> some View {
+    Image(systemName: symbol).font(.caption).foregroundStyle(.secondary)
+      .help(text).accessibilityLabel(text)
+  }
+
   private func favoriteRow(_ item: FavoriteItem) -> some View {
     let symbol: String
-    if case .local = item.target { symbol = "folder" } else { symbol = "network" }
+    let kind: LocalizedStringKey
+    if case .local = item.target {
+      symbol = "folder"
+      kind = "Local folder"
+    } else {
+      symbol = "network"
+      kind = "Remote folder"
+    }
     return Button {
       devices.selectedVolumeID = nil
       Task { await connections.openFavorite(item, in: browser) }
@@ -523,6 +737,8 @@ struct BrowserView: View {
       Label(item.name, systemImage: symbol).lineLimit(1)
     }
     .buttonStyle(.plain)
+    .help(kind)
+    .accessibilityHint(kind)
     .contextMenu {
       Button("Open in New Tab") {
         browser.newTab(in: browser.activePaneID)

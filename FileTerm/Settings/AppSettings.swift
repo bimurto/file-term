@@ -174,6 +174,25 @@ enum BrowserChrome: String, CaseIterable {
   private(set) var recentFolders: [String] {
     didSet { Defaults[recentKey] = recentFolders }
   }
+  /// How many folders Recent Folders keeps. Lowering it drops the oldest ones.
+  var recentFolderLimit: Int {
+    didSet {
+      let limit = Self.clampedRecentFolderLimit(recentFolderLimit)
+      if limit != recentFolderLimit { recentFolderLimit = limit }
+      Defaults[recentFolderLimitKey] = limit
+      if recentFolders.count > limit { recentFolders = Array(recentFolders.prefix(limit)) }
+    }
+  }
+  @ObservationIgnored private let recentFolderLimitKey: Defaults.Key<Int>
+  static let recentFolderLimitRange = 1...50
+  private static func clampedRecentFolderLimit(_ value: Int) -> Int {
+    min(max(value, recentFolderLimitRange.lowerBound), recentFolderLimitRange.upperBound)
+  }
+  /// Sidebar sections folded by the user, by section ID.
+  var collapsedSidebarSections: Set<String> {
+    didSet { Defaults[collapsedSidebarSectionsKey] = collapsedSidebarSections }
+  }
+  @ObservationIgnored private let collapsedSidebarSectionsKey: Defaults.Key<Set<String>>
   private(set) var goToFolderHistory: [String] {
     didSet { Defaults[goToFolderHistoryKey] = goToFolderHistory }
   }
@@ -302,7 +321,16 @@ enum BrowserChrome: String, CaseIterable {
     listColumns =
       (try? JSONDecoder().decode(
         TableColumnCustomization<FileEntry>.self, from: Defaults[listColumnsKey])) ?? .init()
-    recentFolders = Array(Defaults[recentKey].filter { $0.hasPrefix("/") }.prefix(20))
+    collapsedSidebarSectionsKey = Defaults.Key(
+      "collapsedSidebarSections", default: [], suite: suite)
+    collapsedSidebarSections = Defaults[collapsedSidebarSectionsKey]
+    recentFolderLimitKey = Defaults.Key("recentFolderLimit", default: 10, suite: suite)
+    let recentLimit = Self.clampedRecentFolderLimit(Defaults[recentFolderLimitKey])
+    recentFolderLimit = recentLimit
+    let savedRecents = Defaults[recentKey]
+    let recents = Array(savedRecents.filter { $0.hasPrefix("/") }.prefix(recentLimit))
+    recentFolders = recents
+    if recents != savedRecents { Defaults[recentKey] = recents }
     goToFolderHistoryKey = Defaults.Key("goToFolderHistory", default: [], suite: suite)
     goToFolderHistory = Array(
       Defaults[goToFolderHistoryKey].filter { $0.hasPrefix("/") }.prefix(20))
@@ -341,6 +369,14 @@ enum BrowserChrome: String, CaseIterable {
     selectedCategory = Defaults[categoryKey]
     // Sidebars saved before the Tags section existed still show it.
     if !workspace.sidebarOrder.contains("tags") { workspace.sidebarOrder.append("tags") }
+    let offeredToolbarKey = Defaults.Key<Set<String>>(
+      "offeredToolbarItems", default: [], suite: suite)
+    let savedToolbar = workspace.toolbarItems
+    workspace.addNewToolbarDefaults(offered: Defaults[offeredToolbarKey])
+    Defaults[offeredToolbarKey].formUnion(WorkspacePreferences().toolbarItems)
+    if workspace.toolbarItems != savedToolbar {
+      Defaults[workspaceKey] = (try? JSONEncoder().encode(workspace)) ?? Defaults[workspaceKey]
+    }
     viewPreferences.showHidden = showHidden
     viewPreferences.onChange = { [weak self] in
       guard let self else { return }
@@ -373,7 +409,7 @@ enum BrowserChrome: String, CaseIterable {
   func recordVisit(_ location: Location) {
     guard location.providerID == "local", location.path.hasPrefix("/") else { return }
     recentFolders = Array(
-      ([location.path] + recentFolders.filter { $0 != location.path }).prefix(20))
+      ([location.path] + recentFolders.filter { $0 != location.path }).prefix(recentFolderLimit))
   }
 
   func forgetVisit(_ path: String) {

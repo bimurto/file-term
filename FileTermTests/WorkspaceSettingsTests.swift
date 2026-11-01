@@ -20,6 +20,49 @@ import Testing
     #expect(ToolbarSymbols.symbol(for: "file.trash") == "trash")
   }
 
+  @Test func aToolbarSavedByAnOlderVersionGainsNewerDefaultsInPlace() throws {
+    var preferences = WorkspacePreferences()
+    preferences.toolbarItems = [
+      "go.back", "go.forward", "go.enclosingFolder", "view.single", "view.vertical",
+      "view.horizontal", "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing",
+      "go.toFolder", "view.preview", "view.activities", "view.logs",
+    ]
+    preferences.addNewToolbarDefaults(offered: [])
+    #expect(preferences.toolbarItems == WorkspacePreferences().toolbarItems)
+  }
+
+  @Test func newToolbarDefaultsKeepTheUsersOrderAndExtraButtons() {
+    var preferences = WorkspacePreferences()
+    let defaults = preferences.toolbarItems
+    preferences.toolbarItems = ["view.refresh", "file.share", "go.back"]
+    preferences.addNewToolbarDefaults(offered: Set(defaults).subtracting(["go.connect"]))
+    #expect(preferences.toolbarItems == ["view.refresh", "file.share", "go.back", "go.connect"])
+  }
+
+  @Test func aRemovedToolbarButtonStaysRemovedAfterRelaunch() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    var old = WorkspacePreferences()
+    old.toolbarItems = ["go.back"]
+    suite.set(try JSONEncoder().encode(old), forKey: "workspace")
+    let upgraded = AppSettings(suite: suite)
+    #expect(upgraded.workspace.toolbarItems == WorkspacePreferences().toolbarItems)
+    #expect(AppSettings(suite: suite).workspace.toolbarItems == upgraded.workspace.toolbarItems)
+    upgraded.workspace.toolbarItems.removeAll { $0 == "go.connect" }
+    #expect(!AppSettings(suite: suite).workspace.toolbarItems.contains("go.connect"))
+  }
+
+  @Test func foldedSidebarSectionsPersist() throws {
+    let name = "com.fileterm.tests.\(UUID().uuidString)"
+    let suite = try #require(UserDefaults(suiteName: name))
+    defer { suite.removePersistentDomain(forName: name) }
+    let settings = AppSettings(suite: suite)
+    #expect(settings.collapsedSidebarSections.isEmpty)
+    settings.collapsedSidebarSections.insert("tags")
+    #expect(AppSettings(suite: suite).collapsedSidebarSections == ["tags"])
+  }
+
   @Test func savedWorkspacesPersistAndReplaceBySameName() throws {
     let name = "com.fileterm.tests.\(UUID().uuidString)"
     let suite = try #require(UserDefaults(suiteName: name))

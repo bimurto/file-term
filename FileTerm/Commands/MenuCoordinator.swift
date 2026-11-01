@@ -52,6 +52,7 @@ import FileTermCore
       // AppKit owns OS-specific tiling controls and the live window list in Window, and Dictation,
       // Emoji & Symbols and AutoFill in Edit. Rebuilding these menus would remove them.
       removeRepeatedSystemItems(in: menu)
+      tidySeparators(in: menu)
       let states = registry.states()
       for item in menu.items {
         guard let id = item.representedObject as? String, let state = states[id] else { continue }
@@ -66,6 +67,8 @@ import FileTermCore
 
   func menuWillOpen(_ menu: NSMenu) {
     if paths[ObjectIdentifier(menu)] == ["Edit"] { removeRepeatedSystemItems(in: menu) }
+    let path = paths[ObjectIdentifier(menu)]
+    if path == ["Edit"] || path == ["Window"] { tidySeparators(in: menu) }
   }
 
   /// AppKit can add its Edit items again each time it updates a menu built in code.
@@ -132,6 +135,7 @@ import FileTermCore
       return
     }
     var submenus: Set<String> = []
+    var rows: [(key: String, item: NSMenuItem)] = []
     for command in registry.commands where command.menuPath.starts(with: path) {
       if command.menuPath.count > path.count {
         let title = command.menuPath[path.count]
@@ -139,7 +143,7 @@ import FileTermCore
           let item = NSMenuItem(
             title: NSLocalizedString(title, comment: "Menu title"), action: nil, keyEquivalent: "")
           item.submenu = makeMenu(path: path + [title])
-          menu.addItem(item)
+          rows.append((title, item))
         }
         continue
       }
@@ -163,9 +167,26 @@ import FileTermCore
         }
       }
       Self.apply(registry.state(of: command), to: item)
-      menu.addItem(item)
+      rows.append((command.id, item))
+    }
+    for (number, group) in MenuLayout.arrange(rows.map(\.key), in: path).enumerated() {
+      if number > 0 { menu.addItem(.separator()) }
+      for index in group { menu.addItem(rows[index].item) }
     }
     if path == ["FileTerm"] { insertServices(in: menu) }
+    tidySeparators(in: menu)
+  }
+
+  /// Commands can be hidden, and AppKit adds its own items to Edit and Window.
+  private func tidySeparators(in menu: NSMenu) {
+    let rows: [MenuLayout.Row] = menu.items.map { item in
+      if item.isSeparatorItem { return .separator }
+      return item.isHidden ? .hiddenItem : .item
+    }
+    let hidden = MenuLayout.separatorsToHide(rows)
+    for (index, item) in menu.items.enumerated() where item.isSeparatorItem {
+      item.isHidden = hidden.contains(index)
+    }
   }
 
   /// AppKit fills the Services menu with what is installed on this Mac, but only for the first menu
@@ -176,7 +197,9 @@ import FileTermCore
     item.submenu = servicesMenu
     NSApp.servicesMenu = servicesMenu
     let hide = menu.indexOfItem(withRepresentedObject: "app.hide")
-    menu.insertItem(item, at: hide >= 0 ? hide : menu.numberOfItems)
+    let index = hide >= 0 ? hide : menu.numberOfItems
+    menu.insertItem(.separator(), at: index)
+    menu.insertItem(item, at: index)
   }
 
   func refreshEnabling() {

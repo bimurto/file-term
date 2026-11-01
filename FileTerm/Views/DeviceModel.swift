@@ -9,6 +9,8 @@ struct MountedVolume: Identifiable, Equatable, Sendable {
   let name: String
   let isEjectable: Bool
   let isInternal: Bool
+  /// False for network volumes, such as a mounted SMB share.
+  let isLocal: Bool
   let capacity: Int64?
   let available: Int64?
 }
@@ -24,6 +26,7 @@ actor NativeVolumeService: VolumeService {
     let keys: Set<URLResourceKey> = [
       .volumeNameKey, .volumeIsEjectableKey, .volumeIsInternalKey,
       .volumeTotalCapacityKey, .volumeAvailableCapacityKey, .volumeIsBrowsableKey,
+      .volumeIsLocalKey,
     ]
     var urls =
       FileManager.default.mountedVolumeURLs(
@@ -36,6 +39,7 @@ actor NativeVolumeService: VolumeService {
       return MountedVolume(
         url: url, name: values.volumeName ?? url.lastPathComponent,
         isEjectable: values.volumeIsEjectable == true, isInternal: values.volumeIsInternal == true,
+        isLocal: values.volumeIsLocal != false,
         capacity: values.volumeTotalCapacity.map(Int64.init),
         available: values.volumeAvailableCapacity.map(Int64.init))
     }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

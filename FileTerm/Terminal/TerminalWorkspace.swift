@@ -8,6 +8,11 @@ struct SSHSessionCommand: Equatable {
   let arguments: [String]
 }
 
+/// Actions on the terminal panel's toolbar.
+enum TerminalAction: String {
+  case link, reveal, openSSH, insertSelection, clear, find
+}
+
 /// A window owns the workspace; a pane-tab identity owns each process, even while offscreen.
 @MainActor @Observable final class TerminalWorkspace {
   var panel: TerminalPanelState
@@ -50,6 +55,27 @@ struct SSHSessionCommand: Equatable {
     guard let record = currentRecord, let location = record.pane.location else { return false }
     return record.session.canSendDirectory && record.pane.searchScope == nil
       && sshSession(location) != nil
+  }
+
+  /// Why a toolbar action can't run now, or nil when it can. The actions check again when run.
+  func disabledReason(for action: TerminalAction) -> String? {
+    switch action {
+    case .link: return nil
+    case .clear, .find:
+      return currentSession == nil ? "Open a shell in the terminal first." : nil
+    case .reveal:
+      guard let path = currentRecord?.session.directory, Self.existingDirectory(path) else {
+        return "The shell isn’t in a folder that exists on this Mac."
+      }
+      return nil
+    case .openSSH:
+      return canOpenSSH
+        ? nil : "Open an SFTP folder in the pane, with the shell idle and no typed input."
+    case .insertSelection:
+      let pane = browser.activePane
+      return pane.selection.isEmpty || pane.location?.providerID != "local"
+        ? "Select local items in the active pane first." : nil
+    }
   }
 
   @ObservationIgnored private let browser: BrowserModel

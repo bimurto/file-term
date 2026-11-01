@@ -11,6 +11,8 @@ Go › Manage Favorites… opens the manager. Changes save immediately.
 
 New Favorite Group adds a group, and you drag a favorite onto it to file it there. Move Out takes it back out. Groups don't nest. Edit and Delete act on the selected row.
 
+To add a folder quickly, drag it from a pane or from Finder onto the sidebar. A folder on a remote location or a mounted share reopens through its connection, so that connection must be saved first. Otherwise FileTerm adds nothing and says so.
+
 Favorites appear in Go › Favorites, in Quick Open and in the sidebar. Right-click one in the sidebar to open it in a new tab or window, edit it, delete it or hide it.
 
 ## Favorite paths
@@ -107,6 +109,8 @@ If you quit with edits the server never received, after a failed upload or Stop 
 **External terminal:** File › Open in Terminal opens the active local folder in the app chosen in Settings › General › Terminal application: Terminal (the default), iTerm, Ghostty or Warp.
 
 **Built-in terminal:** View › Show Terminal (`` ⌃` ``) opens a panel docked below or to the right of the panes. `` ⌃⌥` `` moves focus between pane and terminal. Each tab has its own shell session. Hiding the panel keeps sessions running. Close Terminal Sessions, closing a tab or closing the window ends them. If a shell exits, the panel says so and offers New Shell.
+
+The panel's toolbar has buttons to link or unlink the terminal, reveal its folder in a pane, open an SSH session, insert selected paths, clear the terminal and find text. A greyed-out button shows why when you hold the pointer over it.
 
 With shell integration on, pane and terminal follow each other's folder only at an empty shell prompt. A running command or unsubmitted text pauses this.
 
