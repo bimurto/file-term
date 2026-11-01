@@ -308,6 +308,7 @@ import UniformTypeIdentifiers
       alert.runModal()
       return .terminateCancel
     }
+    guard remoteEdits.confirmTermination() else { return .terminateCancel }
     settings.savedWindows = windows.map { $0.snapshot() }
     for controller in windows { controller.terminal.closeAll() }
     FileOperationCoordinator.removeTemporaryDownloads()

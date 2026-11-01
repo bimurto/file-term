@@ -89,7 +89,12 @@ Commands › Edit on a file in a connection:
 2. Asks on your first save: "Upload your changes?", naming the account and path.
 3. **Upload** replaces the file on the server, now and on every later save, until you quit or the connection closes. **Stop Watching** keeps the local copy and uploads nothing.
 
-Nothing is uploaded before you answer. Each upload appears in Activities and Logs. To retry a failed upload, save again. Editing the same file again reopens the existing copy, so unsaved work isn't overwritten. Files inside an archive can't be edited.
+Nothing is uploaded before you answer. Each upload appears in Activities and Logs. To retry a failed upload, save again.
+
+If the file changed on the server since you opened or last uploaded it, FileTerm asks before replacing it. Saving through a symbolic link on SFTP changes the file it points to, and a replaced file keeps its permissions on SFTP.
+
+If you quit with edits the server never received, after a failed upload or Stop Watching, FileTerm offers to keep them in `Downloads/FileTerm Remote Edits`.
+ Editing the same file again reopens the existing copy, so unsaved work isn't overwritten. Files inside an archive can't be edited.
 
 ## Terminal integration
 

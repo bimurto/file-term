@@ -4,8 +4,9 @@ import FileTermCore
 /// File commands for panes that show a remote provider (M08 T3b). Local panes keep the
 /// `LocalFileOperations` paths in `FileOperationCoordinator`.
 extension FileOperationCoordinator {
+  /// One folder per launch, so quitting never removes what another running copy has open.
   static let downloadsFolder = FileManager.default.temporaryDirectory
-    .appendingPathComponent("FileTerm-remote")
+    .appendingPathComponent("FileTerm-remote").appendingPathComponent(UUID().uuidString)
 
   /// Opened remote files are temporary copies. Only files opened with Commands › Edit are uploaded
   /// again, by `RemoteEditCoordinator`.
