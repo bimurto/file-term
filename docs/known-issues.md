@@ -45,4 +45,4 @@ Details are in [M15](milestones/M15-context-menus.md).
 
 | Issue | Status | Detail |
 |---|---|---|
-| The right-click UI tests have never run | Seen | `FileTermUITests/ContextMenuUITests.swift` stopped with "Timed out while enabling automation mode". It may need approval on screen. It also doesn't cover the sidebar yet. |
+| The right-click UI tests need Automation Mode and skip the sidebar | Seen | `FileTermUITests/ContextMenuUITests.swift` passes, but stops with "Timed out while enabling automation mode" until Automation Mode is allowed. It doesn't cover the sidebar yet. |

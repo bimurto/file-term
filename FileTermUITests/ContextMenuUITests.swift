@@ -132,7 +132,8 @@ final class ContextMenuUITests: XCTestCase {
 
     app.menuBars.menuBarItems["View"].click()
     app.menuBars.menuItems["view.asColumns"].click()
-    let row = app.staticTexts["beta.txt"].firstMatch
+    // Column rows are exposed as buttons named after the item.
+    let row = app.descendants(matching: .any)["columnBrowser"].buttons["beta.txt"].firstMatch
     XCTAssertTrue(row.waitForExistence(timeout: 5))
     row.rightClick()
     XCTAssertTrue(menuItem("commands.rename", app).waitForExistence(timeout: 5))
