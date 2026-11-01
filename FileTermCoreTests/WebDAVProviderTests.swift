@@ -61,6 +61,66 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     #expect(entries.map(\.name) == ["ok.txt"])
   }
 
+  private final class IgnoringSender: NSObject, URLAuthenticationChallengeSender {
+    func use(_ credential: URLCredential, for challenge: URLAuthenticationChallenge) {}
+    func continueWithoutCredential(for challenge: URLAuthenticationChallenge) {}
+    func cancel(_ challenge: URLAuthenticationChallenge) {}
+  }
+
+  private func authenticator(base: String) -> WebDAVAuthenticator {
+    WebDAVAuthenticator(
+      baseURL: URL(string: base)!, username: "user", password: "secret", trustedCertificate: nil)
+  }
+
+  private func credential(
+    base: String, host: String, port: Int, scheme: String,
+    method: String = NSURLAuthenticationMethodHTTPBasic
+  ) -> URLCredential? {
+    let space = URLProtectionSpace(
+      host: host, port: port, protocol: scheme, realm: "dav", authenticationMethod: method)
+    let challenge = URLAuthenticationChallenge(
+      protectionSpace: space, proposedCredential: nil, previousFailureCount: 0,
+      failureResponse: nil, error: nil, sender: IgnoringSender())
+    nonisolated(unsafe) var answer: URLCredential?
+    authenticator(base: base).urlSession(
+      URLSession.shared, task: URLSession.shared.dataTask(with: URL(string: base)!),
+      didReceive: challenge
+    ) { _, credential in answer = credential }
+    return answer
+  }
+
+  @Test func thePasswordIsOnlyOfferedToTheConfiguredServer() {
+    let base = "https://dav.test"
+    #expect(credential(base: base, host: "dav.test", port: 443, scheme: "https") != nil)
+    #expect(credential(base: base, host: "DAV.test", port: 443, scheme: "https") != nil)
+    #expect(credential(base: base, host: "evil.test", port: 443, scheme: "https") == nil)
+    #expect(credential(base: base, host: "dav.test", port: 8443, scheme: "https") == nil)
+    #expect(credential(base: base, host: "dav.test", port: 80, scheme: "http") == nil)
+    #expect(
+      credential(base: "http://dav.test:8080", host: "dav.test", port: 8080, scheme: "http") != nil)
+    #expect(
+      credential(base: "http://dav.test", host: "dav.test", port: 443, scheme: "https") != nil)
+  }
+
+  private func redirect(base: String, to target: String) -> URL? {
+    let response = HTTPURLResponse(
+      url: URL(string: base)!, statusCode: 302, httpVersion: "HTTP/1.1", headerFields: nil)!
+    nonisolated(unsafe) var answer: URL?
+    authenticator(base: base).urlSession(
+      URLSession.shared, task: URLSession.shared.dataTask(with: URL(string: base)!),
+      willPerformHTTPRedirection: response, newRequest: URLRequest(url: URL(string: target)!)
+    ) { answer = $0?.url }
+    return answer
+  }
+
+  @Test func redirectsMayNotLeaveTheServerOrDropTLS() {
+    let base = "https://dav.test"
+    #expect(redirect(base: base, to: "https://dav.test/docs/") != nil)
+    #expect(redirect(base: base, to: "https://evil.test/docs/") == nil)
+    #expect(redirect(base: base, to: "http://dav.test/docs/") == nil)
+    #expect(redirect(base: "http://dav.test", to: "https://dav.test/docs/") != nil)
+  }
+
   private func multistatus(_ prefix: String, root: String = "/docs/") -> String {
     let p = prefix.isEmpty ? "" : prefix + ":"
     let ns = prefix.isEmpty ? "xmlns=\"DAV:\"" : "xmlns:\(prefix)=\"DAV:\""

@@ -61,6 +61,27 @@ final class ShellIntegrationTests: XCTestCase {
     XCTAssertEqual(String(decoding: result, as: UTF8.self), "abc\u{1b}[31md")
   }
 
+  func testOSC52WithLeadingZerosNeverReachesEmulator() {
+    for code in ["052", "0052", "000000052"] {
+      var filter = ClipboardOSCFilter()
+      let stream = "a\u{1b}]\(code);c;?\u{7}b\u{1b}]\(code);c;YWJj\u{1b}\\c"
+      var result: [UInt8] = []
+      for byte in stream.utf8 { result += filter.consume([byte][...]) }
+      XCTAssertEqual(String(decoding: result, as: UTF8.self), "abc", code)
+    }
+    var eightBit = ClipboardOSCFilter()
+    let bytes: [UInt8] = [0x9d, 48, 53, 50, 59, 99, 59, 63, 0x9c]
+    XCTAssertTrue(eightBit.consume(bytes[...]).isEmpty)
+  }
+
+  func testOtherOSCCodesStillReachEmulator() {
+    for code in ["0", "5", "520", "152", "133"] {
+      var filter = ClipboardOSCFilter()
+      let stream = Array("\u{1b}]\(code);x\u{7}".utf8)
+      XCTAssertEqual(filter.consume(stream[...]), stream, code)
+    }
+  }
+
   func testOSC52EightBitFormAndUTF8Continuation() {
     var filter = ClipboardOSCFilter()
     let bytes: [UInt8] = [0x9d, 53, 50, 59, 99, 59, 63, 0x9c]

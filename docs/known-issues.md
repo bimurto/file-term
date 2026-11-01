@@ -50,6 +50,20 @@ Fix these first, in this order.
 | Folder copies from some S3 servers may report a false change | Not confirmed | Listings with millisecond dates, as on MinIO, are compared with whole-second dates, giving "changed while copied". |
 | FTP servers without MLSD may lose dotfiles in folder copies | Not confirmed | The LIST fallback ignores `includeHidden`, so dotfiles are dropped from copies or overwritten with no prompt, and the check fails on the hidden temporary file. |
 
+## Security
+
+These came from the review on 2026-11-01. The threat is a malicious server, file or archive, not the person using the app.
+
+| Issue | Status | Detail |
+|---|---|---|
+| Tool placeholders inside quotes can run code from a file name | From the code | `UserTool` substitutes values already wrapped in single quotes, so in `"$SOURCE_PATH"` or `'$SOURCE_PATH'` that quoting stops protecting the value, and `$(...)` in a file name runs through `/bin/sh -c`. Until this is fixed, write placeholders bare: `$SOURCE_PATH`. Tracking quotes won't cover nested `$(...)`, so the fix needs a design that passes values as variables, and lists like `$SOURCE_SELECTION_PATHS` need several words. |
+| Downloaded and extracted files have no quarantine mark | From the code | Nothing sets `com.apple.quarantine`, and `bsdtar` drops it when extracting (probed). Gatekeeper's first-launch check doesn't run on an app taken from an extracted archive or opened from a server. Fixing it means marking files at each place that writes them: extraction, `download()` and `ProviderTransfer`. |
+| Release builds are ad-hoc signed and not notarized | From the code | `dev/Signing.xcconfig` sets `CODE_SIGN_IDENTITY = -`, and `scripts/create-dmg.sh` has no signing or notarization step. Users must bypass Gatekeeper and can't verify the DMG. The app also has no sandbox. This needs a Developer ID account. |
+| Server listings have no size limit | From the code | An endless listing or folder tree can use up memory or hang a job (`SFTPProvider`, `FTPProvider`, `WebDAVProvider`). The caps on entries, bytes and depth haven't been chosen. |
+| Dependencies are pinned to tags, not commits | From the code | `scripts/fetch-dependencies.sh` clones by tag and `.github/workflows/ci.yml` uses `actions/checkout@v4`. A moved tag would change what gets built. |
+| A crash can leave a login secret in a temp file | From the code | `SSHCommand` and `FTPProvider` write 0600 files to the per-user temp folder and remove them after use. A crash skips that, and nothing removes stale files at launch. |
+| A key-type mismatch might look like a new server | Not confirmed | `SFTPProvider.startupError` treats ssh's "No … host key is known" as an unknown host, which offers Trust. In a loopback test with OpenSSH 10.2, RSA known with ed25519 offered, and the reverse, both reported a changed key, which is refused. Other OpenSSH versions weren't tried. |
+
 ## Right-click menus not fully tested
 
 Details are in [M15](milestones/M15-context-menus.md).
