@@ -1,4 +1,5 @@
 import AppKit
+import FileTermCore
 import SwiftTerm
 
 extension TerminalSession {
@@ -22,5 +23,8 @@ extension TerminalSession {
       case .bar: .steadyBar
       }
     if terminal.options.cursorStyle != cursor { terminal.setCursorStyle(cursor) }
+
+    let theme = TerminalTheme.theme(id: preferences.themeID, in: ThemeLibrary.terminalThemes)
+    if terminalView.colorTheme != theme { terminalView.colorTheme = theme }
   }
 }

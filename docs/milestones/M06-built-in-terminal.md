@@ -69,7 +69,7 @@
 - [x] File paths printed in the terminal can be Cmd-clicked to reveal them in the pane.
 
 ### M06.12 Appearance & basics
-- [x] Font, size, cursor style and scrollback length are configurable. The color scheme follows the app theme (M12.01).
+- [x] Font, size, cursor style and scrollback length are configurable. The app theme sets the light or dark look of the System color theme, and Settings › Terminal offers other color themes (M16.13).
 - [x] Copy and paste, find in scrollback, Clear, and clickable URLs.
 
 ### M06.13 Settings & shortcuts

@@ -6,6 +6,9 @@ import SwiftUI
 enum ThemeLibrary {
   static let themes = AppTheme.load(
     from: Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? [])
+  /// A separate extension: resources share the bundle root, where every `.json` is an app theme.
+  static let terminalThemes = TerminalTheme.load(
+    from: Bundle.main.urls(forResourcesWithExtension: "terminaltheme", subdirectory: nil) ?? [])
 
   @MainActor static func apply(_ theme: AppTheme) {
     switch theme.appearance {
@@ -20,6 +23,15 @@ extension Color {
   init?(themeHex hex: String?) {
     guard let hex, let color = AppTheme.components(hex: hex) else { return nil }
     self.init(red: color.red, green: color.green, blue: color.blue)
+  }
+}
+
+extension NSColor {
+  /// For colors `TerminalTheme.load` has validated. A malformed one renders black.
+  convenience init(themeHex hex: String) {
+    let color = AppTheme.components(hex: hex)
+    self.init(
+      srgbRed: color?.red ?? 0, green: color?.green ?? 0, blue: color?.blue ?? 0, alpha: 1)
   }
 }
 

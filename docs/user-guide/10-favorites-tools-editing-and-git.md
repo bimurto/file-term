@@ -116,7 +116,7 @@ With shell integration on, pane and terminal follow each other's folder only at 
 
 The View › Terminal submenu holds the rest. Insert Selected Paths in Terminal types quoted local paths without running them. Open SSH Session for Connected Host types an `ssh` command for an SFTP pane's host and folder when the shell is idle. The [command reference](commands.md#view) describes each entry.
 
-Settings › Terminal sets the shell path, login and interactive flags, integration, font, cursor and scrollback. Shell integration supports zsh, bash and fish. Other shells work without folder following. Shell changes apply to new sessions.
+Settings › Terminal sets the shell path, login and interactive flags, integration, color theme, font, cursor and scrollback. System, the default color theme, follows the app's light or dark appearance. The others are Dracula, Nord, Solarized Dark, Solarized Light and Gruvbox Dark. A color theme change applies to open terminals straight away and resets colors a running program has set. Shell integration supports zsh, bash and fish. Other shells work without folder following. Shell changes apply to new sessions.
 
 ## Git commands
 

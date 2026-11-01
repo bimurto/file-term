@@ -36,9 +36,31 @@ import Testing
     settings.terminal.fontSize = 16
     settings.terminal.cursorStyle = .bar
     settings.terminal.scrollbackLines = 5_000
+    settings.terminal.themeID = "dracula"
     #expect(AppSettings(suite: suite).terminal == settings.terminal)
     let data = try JSONEncoder().encode(settings.terminal)
     #expect(try JSONDecoder().decode(TerminalPreferences.self, from: data) == settings.terminal)
+  }
+
+  @Test func preferencesSavedBeforeColorThemesKeepTheirValues() throws {
+    let saved = Data(
+      """
+      {"shellPath":"/bin/bash","loginShell":false,"interactiveShell":true,
+       "integrationEnabled":true,"reverseSync":true,"followMode":"active","fontName":"Menlo",
+       "fontSize":16,"cursorStyle":"bar","scrollbackLines":5000}
+      """.utf8)
+    let preferences = try JSONDecoder().decode(TerminalPreferences.self, from: saved)
+    #expect(preferences.shellPath == "/bin/bash")
+    #expect(preferences.fontSize == 16)
+    #expect(preferences.themeID == nil)
+  }
+
+  @Test func theShippedThemesLoadWithoutJoiningTheAppThemes() {
+    #expect(
+      ThemeLibrary.terminalThemes.map(\.id) == [
+        "dracula", "nord", "solarized-dark", "solarized-light", "gruvbox-dark",
+      ])
+    #expect(ThemeLibrary.themes.count == 9)
   }
 
   @Test func panelDefaultsAndWindowSnapshotCompatibility() throws {

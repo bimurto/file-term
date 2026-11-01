@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import FileTermCore
 import Observation
 import SwiftTerm
 
@@ -324,6 +325,39 @@ private enum ForegroundJobShutdown {
 final class SessionTerminalView: LocalProcessTerminalView {
   weak var session: TerminalSession?
   private var outputFilter = ClipboardOSCFilter()
+  /// SwiftTerm's own selection and caret text colors, kept while a theme replaces them.
+  private var rendererDefaults: (selection: NSColor, selectedText: NSColor, caretText: NSColor?)?
+
+  /// Nil uses the system colors, which follow the app's light or dark appearance.
+  var colorTheme: TerminalTheme? {
+    didSet {
+      if oldValue == nil {
+        rendererDefaults = (
+          selectedTextBackgroundColor, selectedTextForegroundColor, caretTextColor
+        )
+      }
+      // The 256-color palette is built from the foreground and background, so set those first.
+      updateAppearance()
+      if let colorTheme {
+        selectedTextBackgroundColor = NSColor(themeHex: colorTheme.selection)
+        selectedTextForegroundColor = NSColor(themeHex: colorTheme.foreground)
+        caretTextColor = NSColor(themeHex: colorTheme.background)
+        installColors(
+          colorTheme.ansi.compactMap { hex in
+            AppTheme.components(hex: hex).map {
+              SwiftTerm.Color(
+                red8: UInt16(($0.red * 255).rounded()), green8: UInt16(($0.green * 255).rounded()),
+                blue8: UInt16(($0.blue * 255).rounded()))
+            }
+          })
+      } else if let rendererDefaults {
+        selectedTextBackgroundColor = rendererDefaults.selection
+        selectedTextForegroundColor = rendererDefaults.selectedText
+        caretTextColor = rendererDefaults.caretText
+        installColors(SwiftTerm.Color.defaultInstalledColors)
+      }
+    }
+  }
 
   override init(frame: CGRect, font: NSFont? = nil, options: TerminalOptions) {
     super.init(frame: frame, font: font, options: options)
@@ -336,6 +370,12 @@ final class SessionTerminalView: LocalProcessTerminalView {
   }
 
   private func updateAppearance() {
+    if let colorTheme {
+      nativeForegroundColor = NSColor(themeHex: colorTheme.foreground)
+      nativeBackgroundColor = NSColor(themeHex: colorTheme.background)
+      caretColor = NSColor(themeHex: colorTheme.cursor)
+      return
+    }
     effectiveAppearance.performAsCurrentDrawingAppearance {
       nativeForegroundColor = NSColor.textColor.usingColorSpace(.deviceRGB) ?? .textColor
       nativeBackgroundColor =

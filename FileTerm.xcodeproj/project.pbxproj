@@ -49,11 +49,13 @@
 		4B50336F990550E779F076CE /* BatchRenameCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 683F852FE7FFBC674221300B /* BatchRenameCoordinatorTests.swift */; };
 		4B837F4495758911733368BA /* SyncSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15266C4B6E11700326BB9AE5 /* SyncSheet.swift */; };
 		519405E20B5E742D2B7AD1F2 /* FileUtilityCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA026A229572C46FC23F25D /* FileUtilityCoordinator.swift */; };
+		52CB453F18C0804A8E2AFB89 /* solarized-dark.terminaltheme in Resources */ = {isa = PBXBuildFile; fileRef = 26C8AA448BAA248821609F1B /* solarized-dark.terminaltheme */; };
 		552AB8EE9CD83AA27D525072 /* NavigationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F39962B92332D44523EA91 /* NavigationUITests.swift */; };
 		5541AB42821FCD706D96624C /* DeviceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A16FE2A26A749FBCA98E9A0 /* DeviceModel.swift */; };
 		5674F5DE5D1AF8CEA90BFF78 /* ContextMenuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F4F791FA51410730F816A29 /* ContextMenuUITests.swift */; };
 		5A800C4DE4F9D831A74FB9F4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1308A9BE29BEEC19841DAA4B /* PrivacyInfo.xcprivacy */; };
 		5E5D772687FD58B2960E9C6F /* EditingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C2088FCB858962E698902E /* EditingSettingsView.swift */; };
+		650C9429F596045FF7DD6B23 /* gruvbox-dark.terminaltheme in Resources */ = {isa = PBXBuildFile; fileRef = 9B8963672CBBE98F69928CBF /* gruvbox-dark.terminaltheme */; };
 		662C4F9CF3F9F9610E03810E /* RemoteEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21D024166EDD68827E57C9B1 /* RemoteEditTests.swift */; };
 		68137765D6C3FD7C38496FA7 /* GitRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 957102D28FAC7B493F349964 /* GitRunnerTests.swift */; };
 		6ACB00332FDA81449303A2E8 /* TerminalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC628FED1484EB6616D870F9 /* TerminalSettingsView.swift */; };
@@ -78,6 +80,7 @@
 		99862C75872DC14F09BEA893 /* WorkspaceSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CBF3DED2BF5ED2BA7E37C1F /* WorkspaceSettingsTests.swift */; };
 		9D4F4D85C8B702B6095E4432 /* FilePreviewContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC95DBFA6B2D09F772E31575 /* FilePreviewContentView.swift */; };
 		9DD92ECB33362C291012F843 /* TerminalAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BABF00EED1917EF1D260D5B /* TerminalAppearanceTests.swift */; };
+		9F3FDF8CBE57BC806B73C56F /* dracula.terminaltheme in Resources */ = {isa = PBXBuildFile; fileRef = 43DB6A3CBA047097C1AA1EAE /* dracula.terminaltheme */; };
 		9FC70E84D85B7A25847FC0B4 /* QuickOpenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D449AF50B7F247929B7125 /* QuickOpenSheet.swift */; };
 		A2CE3AB774238CD0D7979A4A /* IntegrationsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6546CA520F51E4C22BB036DA /* IntegrationsSettingsView.swift */; };
 		AB22C03983C7F3A2C3C847E6 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FAE355FEBEAF143197974D /* OnboardingView.swift */; };
@@ -98,6 +101,7 @@
 		D242F422E17BBA8FF742231D /* sand.json in Resources */ = {isa = PBXBuildFile; fileRef = 410B5096592C683AC7CB3C20 /* sand.json */; };
 		D4A7FF4B5C491331FB0B8B08 /* FileOperationCoordinator+Delete.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FF3441EC7EFF086C6C6071 /* FileOperationCoordinator+Delete.swift */; };
 		D6737E253E9C71DDCF0DCD50 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E4E4D917C96AB62ABB605E /* AppSettings.swift */; };
+		D6F43FBE5731244DAE871FF0 /* nord.terminaltheme in Resources */ = {isa = PBXBuildFile; fileRef = D69C1F8AD17EBEDA6238048D /* nord.terminaltheme */; };
 		D9476AFB22E02908A6B8DDE2 /* dark.json in Resources */ = {isa = PBXBuildFile; fileRef = 3734DD79ABBC7CC69846F57A /* dark.json */; };
 		DCCC1B317F37CE6D17BF6218 /* CloudFileActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9275CD10708490216F04BBBB /* CloudFileActions.swift */; };
 		DD346E9D754B46CFF3AB8E95 /* ToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCCBF8A61F63EF22A408EC5B /* ToolsSettingsView.swift */; };
@@ -109,6 +113,7 @@
 		E347FEA8E2B19D821AA5C2D0 /* SpotlightSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98E91790BC2F7B34EDD9BAF /* SpotlightSearch.swift */; };
 		E45550B80E6AA1542078F35B /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 5E27CE8940694B8B8A6B0ACB /* Defaults */; };
 		E548625D89A7AC5F0CD0A0CA /* TerminalWorkspaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A79DEB4A1BB4855A9BB6CF /* TerminalWorkspaceTests.swift */; };
+		E766800BBF3558DF4E385479 /* solarized-light.terminaltheme in Resources */ = {isa = PBXBuildFile; fileRef = 64A34282D8FF07808FE69BAB /* solarized-light.terminaltheme */; };
 		E8E8EC4C90F071AC972D086C /* ConnectionForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC62E29F72B0EF3670ED8BF /* ConnectionForm.swift */; };
 		E987CC1139A0C4A9D1BA0060 /* forklift.json in Resources */ = {isa = PBXBuildFile; fileRef = D52FF1895899C689387FBE0D /* forklift.json */; };
 		ED1408351CA759E4A39BF46C /* FileOperationCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21D5125609844EF3D285FEDE /* FileOperationCoordinatorTests.swift */; };
@@ -168,6 +173,7 @@
 		21D5125609844EF3D285FEDE /* FileOperationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationCoordinatorTests.swift; sourceTree = "<group>"; };
 		252E1CD5E5C248D1EC458280 /* file-term */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "file-term"; path = .; sourceTree = SOURCE_ROOT; };
 		26623D2ABD49E2F4BECAA88A /* TerminalAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAppearance.swift; sourceTree = "<group>"; };
+		26C8AA448BAA248821609F1B /* solarized-dark.terminaltheme */ = {isa = PBXFileReference; path = "solarized-dark.terminaltheme"; sourceTree = "<group>"; };
 		27BBD3EF0F116BA68E15A6D9 /* FileOperationCoordinator+AppCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+AppCleanup.swift"; sourceTree = "<group>"; };
 		290EEAB6AB3269418C4A0B76 /* ToolRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRunnerTests.swift; sourceTree = "<group>"; };
 		29CB179E8CABEA19DAE3817B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -181,6 +187,7 @@
 		410B5096592C683AC7CB3C20 /* sand.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = sand.json; sourceTree = "<group>"; };
 		42218E795028D6A4E208570A /* ToolRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRunner.swift; sourceTree = "<group>"; };
 		428D6D3D2B07B2292ADA3A7F /* TerminalUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalUITests.swift; sourceTree = "<group>"; };
+		43DB6A3CBA047097C1AA1EAE /* dracula.terminaltheme */ = {isa = PBXFileReference; path = dracula.terminaltheme; sourceTree = "<group>"; };
 		45D98A92C51E28C5FD1E624D /* WorkspaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceUITests.swift; sourceTree = "<group>"; };
 		47A7DEA1FDC89B6C37988A93 /* MacIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacIntegrationTests.swift; sourceTree = "<group>"; };
 		4C6CBA69BBC5D272647D9C74 /* TerminalSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSettingsTests.swift; sourceTree = "<group>"; };
@@ -194,6 +201,7 @@
 		5F92341C1284086850CD0379 /* FavoritesManagerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesManagerSheet.swift; sourceTree = "<group>"; };
 		5FF9B1F7E8DB96991579FE85 /* TerminalPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalPanel.swift; sourceTree = "<group>"; };
 		63C6F240656F0514DD1D9F66 /* FavoritesImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesImportSheet.swift; sourceTree = "<group>"; };
+		64A34282D8FF07808FE69BAB /* solarized-light.terminaltheme */ = {isa = PBXFileReference; path = "solarized-light.terminaltheme"; sourceTree = "<group>"; };
 		6546CA520F51E4C22BB036DA /* IntegrationsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationsSettingsView.swift; sourceTree = "<group>"; };
 		66436A9E81A9F95AE1280D52 /* AppearanceSettingsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsViews.swift; sourceTree = "<group>"; };
 		6673A69D83102582AA752B6B /* FileTerm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FileTerm.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -226,6 +234,7 @@
 		9936DC26BDD617EEE1F745B5 /* FileMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataTests.swift; sourceTree = "<group>"; };
 		9A7D61C8DE32E2BFDB2C0FC3 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		9ABBE0A5FF7F9D17EE0DB14E /* BrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
+		9B8963672CBBE98F69928CBF /* gruvbox-dark.terminaltheme */ = {isa = PBXFileReference; path = "gruvbox-dark.terminaltheme"; sourceTree = "<group>"; };
 		9C85B5D01AFA8DC93ACF54A6 /* BrowserWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWindowController.swift; sourceTree = "<group>"; };
 		9FD263E41E833AB5F62AAF16 /* FilePreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewTests.swift; sourceTree = "<group>"; };
 		A0A9D86F4F612FA2A5B76264 /* FileOperationCoordinator+Remote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileOperationCoordinator+Remote.swift"; sourceTree = "<group>"; };
@@ -247,6 +256,7 @@
 		CDCFB06361D11DA221744D7C /* PaneTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneTabBar.swift; sourceTree = "<group>"; };
 		D36776821C02040D328423AB /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		D52FF1895899C689387FBE0D /* forklift.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = forklift.json; sourceTree = "<group>"; };
+		D69C1F8AD17EBEDA6238048D /* nord.terminaltheme */ = {isa = PBXFileReference; path = nord.terminaltheme; sourceTree = "<group>"; };
 		D8039C31BEB9E425384F2870 /* Settings */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Settings; path = .build/vendor/Settings; sourceTree = SOURCE_ROOT; };
 		D95BB1CA363DF7CCFD68C601 /* AdditionalCapabilitiesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdditionalCapabilitiesUITests.swift; sourceTree = "<group>"; };
 		DAE73132EA4B674CACEF3C8D /* AcceptanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcceptanceUITests.swift; sourceTree = "<group>"; };
@@ -296,6 +306,7 @@
 				6826444471CA6ED455BAD412 /* light.json */,
 				5C9A0EB605DFD1C03A8B5D31 /* polar-night.json */,
 				410B5096592C683AC7CB3C20 /* sand.json */,
+				FA17A20400A25CBD914DB774 /* Terminal */,
 			);
 			path = Themes;
 			sourceTree = "<group>";
@@ -493,6 +504,18 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
+		FA17A20400A25CBD914DB774 /* Terminal */ = {
+			isa = PBXGroup;
+			children = (
+				43DB6A3CBA047097C1AA1EAE /* dracula.terminaltheme */,
+				9B8963672CBBE98F69928CBF /* gruvbox-dark.terminaltheme */,
+				D69C1F8AD17EBEDA6238048D /* nord.terminaltheme */,
+				26C8AA448BAA248821609F1B /* solarized-dark.terminaltheme */,
+				64A34282D8FF07808FE69BAB /* solarized-light.terminaltheme */,
+			);
+			path = Terminal;
+			sourceTree = "<group>";
+		};
 		FD2C5834FF37BD48DDB048D2 /* FileTermTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -646,10 +669,15 @@
 				D9476AFB22E02908A6B8DDE2 /* dark.json in Resources */,
 				006D508B9DA4AC77AF069F0E /* default.json in Resources */,
 				3A3F2AEB6B8774BC8CC3F706 /* dracula.json in Resources */,
+				9F3FDF8CBE57BC806B73C56F /* dracula.terminaltheme in Resources */,
 				E987CC1139A0C4A9D1BA0060 /* forklift.json in Resources */,
+				650C9429F596045FF7DD6B23 /* gruvbox-dark.terminaltheme in Resources */,
 				3CCE476B9A2C12B5C9957E8F /* light.json in Resources */,
+				D6F43FBE5731244DAE871FF0 /* nord.terminaltheme in Resources */,
 				8896BF025818366961D47B06 /* polar-night.json in Resources */,
 				D242F422E17BBA8FF742231D /* sand.json in Resources */,
+				52CB453F18C0804A8E2AFB89 /* solarized-dark.terminaltheme in Resources */,
+				E766800BBF3558DF4E385479 /* solarized-light.terminaltheme in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

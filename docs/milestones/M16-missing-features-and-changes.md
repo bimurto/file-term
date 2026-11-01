@@ -121,3 +121,20 @@ Sync Browsing was disabled in Single Pane but didn't look it, because toolbar bu
   - Seen for Back, Forward, Sync to… and Move to Trash.
 - [x] Checked buttons keep their accent color.
   - Seen in the running app.
+
+### M16.13 Terminal color themes
+The built-in terminal only had system colors. App themes such as Dracula switched it between light and dark and never gave it their colors.
+- [x] Settings › Terminal has a Color Theme picker with System, Dracula, Nord, Solarized Dark, Solarized Light and Gruvbox Dark.
+  - Covered by a UI test and a test that the shipped files load.
+- [x] Choosing a theme recolors an open terminal, including its 16 ANSI colors, and keeps its text and shell.
+  - Covered by a unit test, and the ANSI colors were seen in UI test screenshots.
+- [x] The choice doesn't depend on the app theme, and it survives a relaunch.
+  - Covered by a UI test that uses Dracula in the Light app theme, and relaunches.
+- [x] Choosing System restores today's colors and they follow the app's light or dark appearance.
+  - Covered by a unit test and a UI test. The macOS system-wide light/dark switch wasn't toggled; the UI test changes the appearance through the app theme.
+- [ ] Selected text and the block cursor stay readable in every theme.
+  - Selected text was seen in Dracula, and the block cursor in Dracula and Solarized Light.
+  - Open: check Nord, Solarized Dark and Gruvbox Dark, and selected text in Solarized Light.
+- [x] Preferences saved before this change keep their values.
+  - Covered by a unit test.
+- Each theme is a `.terminaltheme` file in `FileTerm/Resources/Themes/Terminal`. Adding a file adds a theme, with no code change. The extension differs from `.json` because resources share the bundle root, where every `.json` file is loaded as an app theme.

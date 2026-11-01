@@ -44,7 +44,7 @@ M12.01 to M12.08 are built. M12.09 is partly built, see below.
 ## Notes
 
 - **Themes.** Each theme is a JSON file in `FileTerm/Resources/Themes`. Adding a file adds a theme, with no code change. Only Dracula and Polar Night (Nord) use published palettes. The guide lists the other names without colors, so ForkLift, Bluerange, Commander and Sand are our own choices.
-- **Themes reach** the browser window: background, sidebar, text and accent. Light or dark applies to the whole app. The terminal keeps its own colors from Settings › Terminal.
+- **Themes reach** the browser window: background, sidebar, text and accent. Light or dark applies to the whole app. The terminal takes only light or dark from the app theme, unless a color theme is chosen in Settings › Terminal (M16.13).
 - **Tags.** Clicking a tag searches the whole startup disk with Spotlight and shows a closeable result scope. Files on other volumes and folders Spotlight does not index are not listed. Removing a tag from the list leaves it on files.
 - **Drops.** Panes had no drop targets before this milestone, so M12.03 adds them. The same volume moves, another volume copies, Option always copies, and a remote pane always copies. Search results are not a drop target.
 - **Updates** read the latest GitHub release and open its download page. Nothing is downloaded or installed. There is no Sparkle dependency. Until a release is published, the check reports that none exists.

@@ -31,6 +31,8 @@ struct TerminalPreferences: Codable, Equatable {
   var fontSize: Double = 13
   var cursorStyle: TerminalCursorStyle = .block
   var scrollbackLines = 10_000
+  /// Nil uses the system colors. Optional so preferences saved before this field still decode.
+  var themeID: String?
 }
 
 enum TerminalDock: String, Codable, CaseIterable, Identifiable {

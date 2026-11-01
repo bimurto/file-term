@@ -1,7 +1,17 @@
+import FileTermCore
 import SwiftUI
 
 struct TerminalSettingsView: View {
   @Bindable var settings: AppSettings
+
+  /// A saved theme that no longer exists shows as System, which is what the terminal uses.
+  private var colorTheme: Binding<String?> {
+    Binding {
+      TerminalTheme.theme(id: settings.terminal.themeID, in: ThemeLibrary.terminalThemes)?.id
+    } set: {
+      settings.terminal.themeID = $0
+    }
+  }
 
   var body: some View {
     Form {
@@ -29,6 +39,13 @@ struct TerminalSettingsView: View {
           .font(.caption).foregroundStyle(.secondary)
       }
       Section("Appearance") {
+        Picker("Color Theme", selection: colorTheme) {
+          Text("System").tag(String?.none)
+          ForEach(ThemeLibrary.terminalThemes) { theme in
+            Text(theme.name).tag(String?.some(theme.id))
+          }
+        }
+        .accessibilityIdentifier("terminalColorTheme")
         TextField("Font name", text: $settings.terminal.fontName)
         Stepper(value: $settings.terminal.fontSize, in: 8...48, step: 1) {
           Text("Font size: \(settings.terminal.fontSize, specifier: "%.0f") pt")

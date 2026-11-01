@@ -22,6 +22,39 @@ struct AppearanceTests {
     #expect(themes[0].background == nil)
   }
 
+  @Test func terminalThemesLoadInOrderAndIncompleteFilesAreSkipped() throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    func write(_ name: String, order: Int = 1, foreground: String = "#FFFFFF", ansi: Int = 16)
+      throws -> URL
+    {
+      let theme = TerminalTheme(
+        id: name, name: name, order: order, foreground: foreground, background: "#000000",
+        cursor: "#FFFFFF", selection: "#333333", ansi: Array(repeating: "#112233", count: ansi))
+      let url = folder.appendingPathComponent("\(name).terminaltheme")
+      try JSONEncoder().encode(theme).write(to: url)
+      return url
+    }
+    let garbage = folder.appendingPathComponent("garbage.terminaltheme")
+    try Data("not a theme".utf8).write(to: garbage)
+    let urls = [
+      try write("second", order: 2), try write("first", order: 1),
+      try write("short", ansi: 15), try write("long", ansi: 17),
+      try write("badColor", foreground: "white"), garbage,
+    ]
+    #expect(TerminalTheme.load(from: urls).map(\.id) == ["first", "second"])
+  }
+
+  @Test func aMissingTerminalThemeMeansTheSystemColors() {
+    let theme = TerminalTheme(
+      id: "a", name: "A", foreground: "#FFFFFF", background: "#000000", cursor: "#FFFFFF",
+      selection: "#333333", ansi: [])
+    #expect(TerminalTheme.theme(id: "a", in: [theme]) == theme)
+    #expect(TerminalTheme.theme(id: "gone", in: [theme]) == nil)
+    #expect(TerminalTheme.theme(id: nil, in: [theme]) == nil)
+  }
+
   @Test func anUnknownThemeFallsBackToDefault() {
     let themes = [AppTheme(id: "dark", name: "Dark"), AppTheme(id: "default", name: "Default")]
     #expect(AppTheme.theme(id: "dark", in: themes).id == "dark")

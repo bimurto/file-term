@@ -6,7 +6,7 @@ Open settings with FileTerm › Settings… (⌘,). The panes are General, Trans
 
 Settings › Themes lists the built-in themes with color swatches. They include Default, which follows the system appearance, plus Dark, Light, Bluerange, Dracula, Commander, Sand and Polar Night. Click one to use it.
 
-A theme sets the browser window's background, sidebar, text and accent colors. Its light or dark choice applies to the whole app. The terminal keeps its own settings from Settings › Terminal.
+A theme sets the browser window's background, sidebar, text and accent colors. Its light or dark choice applies to the whole app. The terminal only follows its light or dark choice. To give the terminal its own colors, choose a Color Theme in Settings › Terminal.
 
 ## Tag management
 

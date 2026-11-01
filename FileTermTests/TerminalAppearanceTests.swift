@@ -1,4 +1,5 @@
 import AppKit
+import SwiftTerm
 import Testing
 
 @testable import FileTerm
@@ -74,6 +75,66 @@ import Testing
       case .bar: #expect(actual == .steadyBar)
       }
     }
+  }
+
+  @Test func aColorThemeRecolorsTheRetainedViewAndSurvivesAnAppearanceChange() {
+    let session = makeClosedSession()
+    let view = session.terminalView
+    let terminal = view.getTerminal()
+    view.feed(text: "retained terminal output")
+    var preferences = TerminalPreferences()
+    preferences.themeID = "dracula"
+
+    session.applyAppearance(preferences)
+    view.viewDidChangeEffectiveAppearance()
+
+    #expect(view.colorTheme?.id == "dracula")
+    #expect(terminal.foregroundColor == Color(red8: 0xF8, green8: 0xF8, blue8: 0xF2))
+    #expect(terminal.backgroundColor == Color(red8: 0x28, green8: 0x2A, blue8: 0x36))
+    #expect(view.selectedTextBackgroundColor == NSColor(themeHex: "#44475A"))
+    #expect(view.selectedTextForegroundColor == NSColor(themeHex: "#F8F8F2"))
+    #expect(view.caretColor == NSColor(themeHex: "#F8F8F2"))
+    #expect(view.caretTextColor == NSColor(themeHex: "#282A36"))
+    #expect(
+      terminal.getLine(row: 0)?.translateToString(trimRight: true) == "retained terminal output")
+  }
+
+  @Test func returningToSystemRestoresEveryColor() {
+    let session = makeClosedSession()
+    let view = session.terminalView
+    let foreground = view.nativeForegroundColor
+    let background = view.nativeBackgroundColor
+    let selection = view.selectedTextBackgroundColor
+    let selectedText = view.selectedTextForegroundColor
+    let caretText = view.caretTextColor
+    var preferences = TerminalPreferences()
+
+    preferences.themeID = "nord"
+    session.applyAppearance(preferences)
+    preferences.themeID = "gruvbox-dark"
+    session.applyAppearance(preferences)
+    #expect(view.selectedTextBackgroundColor != selection)
+
+    preferences.themeID = nil
+    session.applyAppearance(preferences)
+    #expect(view.colorTheme == nil)
+    #expect(view.nativeForegroundColor == foreground)
+    #expect(view.nativeBackgroundColor == background)
+    #expect(view.selectedTextBackgroundColor == selection)
+    #expect(view.selectedTextForegroundColor == selectedText)
+    #expect(view.caretTextColor == caretText)
+  }
+
+  @Test func anUnknownColorThemeUsesTheSystemColors() {
+    let session = makeClosedSession()
+    let background = session.terminalView.nativeBackgroundColor
+    var preferences = TerminalPreferences()
+    preferences.themeID = "removed-theme"
+
+    session.applyAppearance(preferences)
+
+    #expect(session.terminalView.colorTheme == nil)
+    #expect(session.terminalView.nativeBackgroundColor == background)
   }
 
   private func makeClosedSession() -> TerminalSession {
