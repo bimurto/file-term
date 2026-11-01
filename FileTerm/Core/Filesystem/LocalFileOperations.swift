@@ -268,14 +268,39 @@ public actor LocalFileOperations {
     let pairs = renames.map { (path: canonical($0.source).path, name: $0.name) }
     var transaction = Transaction()
     defer { commit(transaction) }
-    for step in RenameSequencer.steps(for: pairs) {
-      let from = URL(fileURLWithPath: step.path)
-      try await recordMove(
-        from, from.deletingLastPathComponent().appendingPathComponent(step.name), in: &transaction)
+    do {
+      for step in RenameSequencer.steps(for: pairs) {
+        let from = URL(fileURLWithPath: step.path)
+        try await recordMove(
+          from, from.deletingLastPathComponent().appendingPathComponent(step.name),
+          in: &transaction)
+      }
+    } catch {
+      try rollBackRenames(&transaction, after: error)
+      throw error
     }
     return pairs.map {
       URL(fileURLWithPath: $0.path).deletingLastPathComponent().appendingPathComponent($0.name)
     }
+  }
+
+  /// Puts back the names a failed batch changed, without checking for cancellation, because Cancel
+  /// must not leave items under temporary names. What can't be moved stays in the transaction, so
+  /// Undo can try it again.
+  private func rollBackRenames(_ transaction: inout Transaction, after failure: Error) throws {
+    while transaction.cursor > 0 {
+      let step = transaction.steps[transaction.cursor - 1]
+      do {
+        try check(step.to, step.from, signature: step.signature)
+        try renameItem(step.to, step.from)
+      } catch {
+        throw PartialTransferError(
+          "\(failure.localizedDescription) “\(step.to.lastPathComponent)” couldn't be renamed back "
+            + "to “\(step.from.lastPathComponent)”.")
+      }
+      transaction.cursor -= 1
+    }
+    transaction = Transaction()
   }
 
   #if os(macOS)
