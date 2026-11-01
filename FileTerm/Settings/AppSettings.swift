@@ -311,7 +311,7 @@ enum BrowserChrome: String, CaseIterable {
       "settingsCategory", default: SettingsCategory.general.rawValue, suite: suite)
     visiblePanels = Defaults[panelsKey]
     showHiddenKey = Defaults.Key("showHidden", default: false, suite: suite)
-    autoRefreshKey = Defaults.Key("autoRefresh", default: false, suite: suite)
+    autoRefreshKey = Defaults.Key("autoRefresh", default: true, suite: suite)
     handleArchivesKey = Defaults.Key("handleArchives", default: true, suite: suite)
     archivesAsFoldersKey = Defaults.Key("archivesAsFolders", default: false, suite: suite)
     detectAppOnDeleteKey = Defaults.Key("detectAppOnDelete", default: true, suite: suite)
