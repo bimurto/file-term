@@ -70,6 +70,26 @@ struct SyncTests {
     #expect(summary(try await t.analyze(options)) == ["delete:right:old"])
   }
 
+  @Test func unreadableSubfolderStopsTheAnalysisInsteadOfProposingDeletes() async throws {
+    let t = try Trees()
+    try t.file(t.left, "sub/a.txt")
+    try t.file(t.right, "sub/keep.txt")
+    let unreadable = t.left.appendingPathComponent("sub")
+    try FileManager.default.setAttributes(
+      [.posixPermissions: 0o000], ofItemAtPath: unreadable.path)
+    defer {
+      try? FileManager.default.setAttributes(
+        [.posixPermissions: 0o755], ofItemAtPath: unreadable.path)
+    }
+    var options = SyncOptions()
+    options.deleteOrphans = true
+    await #expect(throws: SyncError.self) { try await t.analyze(options) }
+    // Excluding the folder is the way past it: it is not entered, so nothing is left to read.
+    options.excludes = [SyncFilter(pattern: "sub")]
+    try t.file(t.right, "orphan.txt")
+    #expect(summary(try await t.analyze(options)) == ["delete:right:orphan.txt"])
+  }
+
   @Test func updatesWhenDestinationIsOlderOrSizeDiffers() async throws {
     let t = try Trees()
     let old = Date(timeIntervalSince1970: 1_000_000)

@@ -106,11 +106,14 @@ public struct SyncAction: Identifiable, Hashable, Sendable {
 public enum SyncError: Error, LocalizedError, Sendable {
   case invalidFilter(String)
   case missingProvider(String)
+  case unreadableFolder(String, String)
 
   public var errorDescription: String? {
     switch self {
     case .invalidFilter(let pattern): "“\(pattern)” is not a valid regular expression."
     case .missingProvider: "A connection used by this sync is no longer open."
+    case .unreadableFolder(let path, let reason):
+      "Couldn’t read “\(path)”: \(reason) Fix the problem or exclude this folder, then try again."
     }
   }
 }

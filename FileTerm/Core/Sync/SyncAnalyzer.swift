@@ -34,9 +34,9 @@ public enum SyncAnalyzer {
       do {
         entries = try await provider.list(folder, includeHidden: options.hidden)
       } catch {
-        // An unreadable subfolder is left out; the root itself must be readable.
-        if index == 1 { throw error }
-        continue
+        // Skipping an unreadable folder would make everything in its twin look orphaned.
+        if error is CancellationError { throw error }
+        throw SyncError.unreadableFolder(folder.path, error.localizedDescription)
       }
       for entry in entries {
         if !options.hidden && entry.isHidden { continue }

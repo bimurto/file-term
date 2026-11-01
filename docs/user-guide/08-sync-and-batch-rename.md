@@ -49,6 +49,8 @@ Sync jobs aren't added to Undo. A failure after at least one action succeeded en
 
 Matching ignores case. An excluded folder isn't entered. An invalid regular expression is reported in the dialog and blocks Synchronize.
 
+A folder that can't be read on either side stops the analysis too, because its twin's contents would otherwise look orphaned. The dialog names the folder. Exclude the folder and the analysis runs again, or fix the problem and reopen the dialog.
+
 ## Saved sync favorites
 
 In the Sync dialog, Add to Favorites asks for a name, then saves both folders and every option. No passwords are stored.

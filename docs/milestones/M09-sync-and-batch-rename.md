@@ -86,6 +86,8 @@ M09 ships in tickets, one commit each.
 - Exclusions: a glob without `/` matches an item's name; a glob with `/` matches the relative path;
   a regex is searched in the relative path. All ignore case. An excluded folder is not entered.
   An invalid regex is reported in the dialog and blocks Synchronize.
+- A folder that can't be listed on either side stops the analysis with an error naming the folder,
+  so nothing is proposed from a partial tree. Excluding the folder gets past it.
 - One-way: add what is missing (Add items), update when the target is older and/or the size
   differs, and delete orphans only when that option is on (default off, shown in red). Orphaned
   folders appear as one delete row. A file against a folder is listed as a conflict that cannot be run.
