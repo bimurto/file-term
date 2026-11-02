@@ -44,12 +44,18 @@ import SwiftUI
     window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
     window.tabbingMode = .disallowed
     window.delegate = self
-    window.contentView = NSHostingView(
+    let host = NSHostingView(
       rootView: BrowserView(
         browser: browser, settings: settings,
         registry: registry, localProvider: provider, devices: devices, terminal: terminal,
         transfers: transfers, connections: connections
       ).environment(cloudFiles))
+    window.contentView = host
+    // Measuring the minimum size on every frame makes zoom stutter. Zoom only moves between
+    // frames that already fit, so the measurement waits until the animation ends.
+    (window as? BrowserWindow)?.onAnimatedResize = { [host] animating in
+      host.sizingOptions = animating ? [] : .standardBounds
+    }
     if let frame {
       let rect = NSRectFromString(frame)
       if rect.width >= 680, rect.height >= 420,
@@ -102,6 +108,7 @@ import SwiftUI
 private final class BrowserWindow: NSWindow, @preconcurrency NSServicesMenuRequestor {
   private let registry: CommandRegistry
   private let selectedFiles: () -> [URL]
+  var onAnimatedResize: ((Bool) -> Void)?
 
   init(
     registry: CommandRegistry, selectedFiles: @escaping () -> [URL], contentRect: NSRect,
@@ -110,6 +117,13 @@ private final class BrowserWindow: NSWindow, @preconcurrency NSServicesMenuReque
     self.registry = registry
     self.selectedFiles = selectedFiles
     super.init(contentRect: contentRect, styleMask: styleMask, backing: backing, defer: flag)
+  }
+
+  override func setFrame(_ frameRect: NSRect, display flag: Bool, animate animateFlag: Bool) {
+    guard animateFlag else { return super.setFrame(frameRect, display: flag, animate: false) }
+    onAnimatedResize?(true)
+    super.setFrame(frameRect, display: flag, animate: true)
+    onAnimatedResize?(false)
   }
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
