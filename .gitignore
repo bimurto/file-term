@@ -9,3 +9,4 @@ xcuserdata/
 dev/Signing.local.xcconfig
 /.claude/
 FileTerm.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+*.profraw
