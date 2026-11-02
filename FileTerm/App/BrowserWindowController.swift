@@ -10,6 +10,7 @@ import SwiftUI
   let devices: DeviceModel
   let terminal: TerminalWorkspace
   let window: NSWindow
+  let toolbar: BrowserToolbar
   var onClose: (() -> Void)?
   var onActivate: (() -> Void)?
 
@@ -37,6 +38,10 @@ import SwiftUI
       contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
       styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false
     )
+    toolbar = BrowserToolbar(settings: settings, registry: registry) {
+      NSHostingView(
+        rootView: ToolbarSearch(browser: browser, settings: settings, localProvider: provider))
+    }
     super.init()
     window.identifier = NSUserInterfaceItemIdentifier("browserWindow")
     window.isReleasedWhenClosed = false
@@ -44,6 +49,9 @@ import SwiftUI
     window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
     window.tabbingMode = .disallowed
     window.delegate = self
+    // Before the content, so the file list's insets account for the toolbar from the start.
+    window.toolbarStyle = .unified
+    toolbar.attach(to: window)
     let host = NSHostingView(
       rootView: BrowserView(
         browser: browser, settings: settings,
@@ -72,11 +80,14 @@ import SwiftUI
     observeTitle()
   }
 
+  /// The content only extends under the title bar when it shows neither title nor toolbar.
   func applyChrome(_ settings: AppSettings) {
-    let visible = settings.isVisible(.titleBar)
-    window.titleVisibility = visible ? .visible : .hidden
-    window.titlebarAppearsTransparent = !visible
-    if visible {
+    let titleVisible = settings.isVisible(.titleBar)
+    let toolbarVisible = settings.isVisible(.toolbar)
+    window.toolbar?.isVisible = toolbarVisible
+    window.titleVisibility = titleVisible ? .visible : .hidden
+    window.titlebarAppearsTransparent = !titleVisible && !toolbarVisible
+    if titleVisible || toolbarVisible {
       window.styleMask.remove(.fullSizeContentView)
     } else {
       window.styleMask.insert(.fullSizeContentView)
@@ -99,6 +110,8 @@ import SwiftUI
     onClose?()
   }
   func windowDidBecomeKey(_ notification: Notification) { onActivate?() }
+  /// The Customize Toolbar palette is a sheet.
+  func windowDidEndSheet(_ notification: Notification) { toolbar.save() }
   func snapshot() -> WindowSnapshot {
     WindowSnapshot(
       browser: browser.snapshot(), frame: NSStringFromRect(window.frame), terminal: terminal.panel)
@@ -125,6 +138,9 @@ private final class BrowserWindow: NSWindow, @preconcurrency NSServicesMenuReque
     super.setFrame(frameRect, display: flag, animate: true)
     onAnimatedResize?(false)
   }
+
+  /// The toolbar's Hide Toolbar menu item goes through the setting, so it is remembered.
+  override func toggleToolbarShown(_ sender: Any?) { registry.execute("view.toolbar") }
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     if event.keyCode == 53,

@@ -152,6 +152,7 @@ public struct CommandContext: Sendable {
   /// Every command's state from one pass. Building the commands can read the selection, so menus
   /// must use this instead of asking per item, which freezes the app in a very large folder.
   public func states() -> [String: CommandState] {
+    _ = revision
     let current = context()
     var states: [String: CommandState] = [:]
     for command in commands where states[command.id] == nil {

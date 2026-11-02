@@ -1,6 +1,27 @@
 import FileTermCore
 import SwiftUI
 
+/// The toolbar's search item. Find focuses it.
+struct ToolbarSearch: View {
+  let browser: BrowserModel
+  @Bindable var settings: AppSettings
+  let localProvider: LocalFileSystemProvider
+  @State private var query = SearchQuery()
+  @FocusState private var focused: Bool
+
+  var body: some View {
+    FindToolbar(
+      browser: browser, settings: settings, localProvider: localProvider, query: $query,
+      focus: $focused
+    )
+    .fixedSize()
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermFind)) { notification in
+      guard notification.object as? BrowserModel === browser else { return }
+      focused = true
+    }
+  }
+}
+
 /// Toolbar search field, criteria panel and folder-scope indicator.
 struct FindToolbar: View {
   let browser: BrowserModel

@@ -39,6 +39,23 @@ import Testing
     #expect(preferences.toolbarItems == ["view.refresh", "file.share", "go.back", "go.connect"])
   }
 
+  @Test func aToolbarFromBeforeTheNativeToolbarGroupsItsButtonsAndGainsSearch() {
+    var preferences = WorkspacePreferences()
+    preferences.toolbarItems = ["go.back", "view.asList", "view.single", "view.refresh"]
+    let olderDefaults: Set<String> = [
+      "go.back", "go.forward", "go.enclosingFolder", "go.connect", "view.single", "view.vertical",
+      "view.horizontal", "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing",
+      "commands.sync", "go.toFolder", "go.favorites.manage", "file.openInTerminal", "file.trash",
+      "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
+    ]
+    preferences.addNewToolbarDefaults(offered: olderDefaults)
+    #expect(
+      preferences.toolbarItems == [
+        "go.back", "group.viewMode", "group.layout", "view.refresh", ToolbarLayout.flexibleSpace,
+        "view.showHidden", ToolbarLayout.search,
+      ])
+  }
+
   @Test func aRemovedToolbarButtonStaysRemovedAfterRelaunch() throws {
     let name = "com.fileterm.tests.\(UUID().uuidString)"
     let suite = try #require(UserDefaults(suiteName: name))
@@ -102,7 +119,7 @@ import Testing
     #expect(!settings.workspace.restoreWindows)
     settings.workspace.restoreWindows = true
     settings.workspace.startingDirectory = "/tmp"
-    settings.workspace.toolbarItems = ["file.newTab", "view.asIcons"]
+    settings.workspace.toolbarItems = ["file.newTab", "group.viewMode"]
     settings.workspace.sidebarOrder = ["recents", "tags", "devices"]
     settings.viewPreferences.defaults.mode = .columns
     let location = Location(providerID: "local", path: "/tmp")
@@ -112,7 +129,7 @@ import Testing
     let restored = AppSettings(suite: suite)
     #expect(restored.workspace.restoreWindows)
     #expect(restored.workspace.startingDirectory == "/tmp")
-    #expect(restored.workspace.toolbarItems == ["file.newTab", "view.asIcons"])
+    #expect(restored.workspace.toolbarItems == ["file.newTab", "group.viewMode"])
     #expect(restored.workspace.sidebarOrder == ["recents", "tags", "devices"])
     #expect(restored.viewPreferences.defaults.mode == .columns)
     #expect(restored.viewPreferences.folders[location]?.sortField == .size)

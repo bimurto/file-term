@@ -2,7 +2,7 @@ import FileTermCore
 import SwiftUI
 
 enum BrowserOptionsSheet: String, Identifiable {
-  case viewOptions, toolbar, sidebar, favorites, favoritesImport
+  case viewOptions, sidebar, favorites, favoritesImport
   var id: String { rawValue }
 }
 
@@ -62,73 +62,6 @@ struct ViewOptionsSheet: View {
         .keyboardShortcut(.defaultAction).disabled(scope == .folder && pane.location == nil)
       }
     }.padding(20).frame(width: 490)
-  }
-}
-
-struct ToolbarCustomizationSheet: View {
-  @Bindable var settings: AppSettings
-  let registry: CommandRegistry
-  @Environment(\.dismiss) private var dismiss
-
-  private var available: [AppCommand] {
-    registry.commands.filter {
-      $0.menuPath.count == 1 && ["File", "View", "Go", "Commands"].contains($0.menuPath[0])
-    }
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Customize Toolbar").font(.headline)
-      Text("Choose registry commands and arrange the selected items. Changes save immediately.")
-        .font(.caption)
-      List {
-        Section("Current Toolbar") {
-          ForEach(
-            settings.workspace.toolbarItems.filter { registry.command($0) != nil }, id: \.self
-          ) { id in
-            HStack {
-              Label(registry.command(id)?.title ?? id, systemImage: ToolbarSymbols.symbol(for: id))
-              Spacer()
-              Button {
-                move(id, by: -1)
-              } label: {
-                Image(systemName: "arrow.up")
-              }.help("Move earlier")
-              Button {
-                move(id, by: 1)
-              } label: {
-                Image(systemName: "arrow.down")
-              }.help("Move later")
-              Button("Remove") { settings.workspace.toolbarItems.removeAll { $0 == id } }
-            }
-          }
-        }
-        Section("Available Commands") {
-          ForEach(available.filter { !settings.workspace.toolbarItems.contains($0.id) }) {
-            command in
-            HStack {
-              Text(command.title)
-              Spacer()
-              Button("Add") { settings.workspace.toolbarItems.append(command.id) }
-            }
-          }
-        }
-      }.frame(height: 320)
-      HStack {
-        Button("Restore Default Toolbar") {
-          settings.workspace.toolbarItems = WorkspacePreferences().toolbarItems
-        }
-        Spacer()
-        Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
-      }
-    }.padding(20).frame(width: 520)
-  }
-
-  private func move(_ id: String, by step: Int) {
-    guard let index = settings.workspace.toolbarItems.firstIndex(of: id),
-      settings.workspace.toolbarItems.indices.contains(index + step)
-    else { return }
-    settings.workspace.toolbarItems.swapAt(index, index + step)
   }
 }
 

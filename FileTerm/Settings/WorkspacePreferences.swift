@@ -6,17 +6,20 @@ struct WorkspacePreferences: Codable, Equatable {
   var keepWindowsOnce = false
   var startingDirectory = FileManager.default.homeDirectoryForCurrentUser.path
   var toolbarItems = [
-    "go.back", "go.forward", "go.enclosingFolder", "go.connect", "view.single", "view.vertical",
-    "view.horizontal",
-    "view.asIcons", "view.asList", "view.asColumns", "go.syncBrowsing", "commands.sync",
-    "go.toFolder", "go.favorites.manage", "file.openInTerminal", "file.trash",
-    "view.preview", "view.activities", "view.logs", "view.terminal", "view.refresh",
+    "go.back", "go.forward", "go.enclosingFolder", "go.connect", "group.layout",
+    "group.viewMode", "go.syncBrowsing", "commands.sync", "go.toFolder", "go.favorites.manage",
+    "file.openInTerminal", "file.trash", "view.preview", "view.activities", "view.logs",
+    "view.terminal", "view.refresh", ToolbarLayout.flexibleSpace, "view.showHidden",
+    ToolbarLayout.search,
   ]
   var sidebarOrder = ["devices", "recents", "tags"]
 
   /// A toolbar saved by an older version lacks newer default buttons. Each one not yet `offered`
   /// goes after the nearest default that comes before it, so buttons the user removed stay removed.
+  /// Layout and view mode buttons saved one per command become their group first.
   mutating func addNewToolbarDefaults(offered: Set<String>) {
+    toolbarItems = ToolbarLayout.items(from: toolbarItems)
+    let offered = Set(offered.map(ToolbarLayout.itemID))
     let defaults = WorkspacePreferences().toolbarItems
     for (index, item) in defaults.enumerated()
     where !offered.contains(item) && !toolbarItems.contains(item) {
@@ -72,7 +75,7 @@ enum ToolbarSymbols {
     case "file.openInTerminal": "apple.terminal"
     case "file.trash": "trash"
     case "file.share": "square.and.arrow.up"
-    case "go.connect": "network"
+    case "go.connect": "point.topleft.down.to.point.bottomright.curvepath"
     case "view.preview": "sidebar.right"
     case "view.activities": "arrow.left.arrow.right"
     case "view.logs": "list.bullet.rectangle"
@@ -83,6 +86,18 @@ enum ToolbarSymbols {
     case "select.quick": "checkmark.circle"
     case "file.newTab": "plus.square"
     case "file.newWindow": "macwindow.badge.plus"
+    case "view.clonePane": "plus.rectangle.on.rectangle"
+    case "view.swapPanes": "arrow.left.arrow.right.square"
+    case "commands.edit": "square.and.pencil"
+    case "commands.compare": "arrow.left.and.right.square"
+    case "commands.rename": "character.cursor.ibeam"
+    case "file.getInfo": "info.circle"
+    case "commands.compress": "archivebox"
+    case "file.quickLook": "eye.circle"
+    case "commands.copyTo": "doc.on.doc"
+    case "commands.moveTo": "arrow.up.doc"
+    case "file.newFolder": "folder.badge.plus"
+    case "file.newFile": "doc.badge.plus"
     default: "command"
     }
   }

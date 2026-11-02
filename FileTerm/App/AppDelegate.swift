@@ -2089,7 +2089,6 @@ import UniformTypeIdentifiers
     }
     for (id, title, sheet) in [
       ("view.options", "Show View Options", BrowserOptionsSheet.viewOptions),
-      ("view.customizeToolbar", "Customize Toolbar…", .toolbar),
       ("view.sidebarEditor", "Show Sidebar Editor", .sidebar),
     ] {
       commands.append(
@@ -2101,6 +2100,11 @@ import UniformTypeIdentifiers
               name: .fileTermBrowserOptions, object: browser, userInfo: ["kind": sheet.rawValue])
           }))
     }
+    commands.append(
+      AppCommand(
+        id: "view.customizeToolbar", title: "Customize Toolbar…", menuPath: ["View"],
+        isEnabled: available, disabledReason: noWindow,
+        handler: { [weak self] in self?.currentWindow?.window.runToolbarCustomizationPalette(nil) }))
     commands.append(
       AppCommand(
         id: "view.saveDefaults", title: "Save View Settings as Defaults", menuPath: ["View"],

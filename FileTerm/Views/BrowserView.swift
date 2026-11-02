@@ -51,8 +51,6 @@ struct BrowserView: View {
   @State private var batchRename: BatchRenameModel?
   @State private var quickOpenShown = false
   @State private var pendingQuickOpen: QuickOpenItem?
-  @State private var searchQuery = SearchQuery()
-  @FocusState private var searchFocused: Bool
   @State private var extensionPoints = QuickOpenExtensionPoints()
   @State private var favoriteManagerRequest: FavoriteManagerRequest?
   @State private var favoriteToDelete: FavoriteItem?
@@ -62,10 +60,6 @@ struct BrowserView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      if settings.isVisible(.toolbar) {
-        toolbar
-        Divider()
-      }
       if let notice = browser.notice {
         HStack {
           Label(notice, systemImage: "info.circle").font(.callout)
@@ -175,10 +169,6 @@ struct BrowserView: View {
         }
       }
     }
-    .onReceive(NotificationCenter.default.publisher(for: .fileTermFind)) { notification in
-      guard notification.object as? BrowserModel === browser else { return }
-      searchFocused = true
-    }
     .onReceive(NotificationCenter.default.publisher(for: .fileTermBrowserOptions)) { notification in
       guard notification.object as? BrowserModel === browser,
         let kind = notification.userInfo?["kind"] as? String
@@ -193,7 +183,6 @@ struct BrowserView: View {
     .sheet(item: $optionsSheet) { sheet in
       switch sheet {
       case .viewOptions: ViewOptionsSheet(pane: browser.activePane)
-      case .toolbar: ToolbarCustomizationSheet(settings: settings, registry: registry)
       case .sidebar: SidebarEditorSheet(settings: settings)
       case .favorites:
         FavoritesManagerSheet(settings: settings, connections: connections, browser: browser)
@@ -297,80 +286,6 @@ struct BrowserView: View {
     .frame(minWidth: 220, minHeight: 130)
   }
 
-  private var toolbar: some View {
-    HStack(spacing: 6) {
-      ViewThatFits(in: .horizontal) {
-        ForEach(ToolbarLayout.foldLevels, id: \.self) { level in
-          toolbarButtons(foldLevel: level).fixedSize()
-        }
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      commandButton(
-        "view.showHidden", symbol: settings.showHidden ? "eye" : "eye.slash",
-        identifier: "showHiddenToggle")
-      FindToolbar(
-        browser: browser, settings: settings, localProvider: localProvider, query: $searchQuery,
-        focus: $searchFocused
-      ).fixedSize()
-    }.padding(.horizontal, 10).frame(height: 44)
-  }
-
-  private func toolbarButtons(foldLevel: Int) -> some View {
-    let items =
-      settings.workspace.toolbarItems.filter { registry.command($0) != nil }
-      + settings.tools.filter(\.showInToolbar).map { "tools.run.\($0.id)" }
-    let segments = ToolbarLayout.segments(for: items, foldLevel: foldLevel)
-    return HStack(spacing: 10) {
-      ForEach(segments.indices, id: \.self) { index in
-        switch segments[index] {
-        case .buttons(let ids):
-          HStack(spacing: 2) {
-            ForEach(ids, id: \.self) { commandButton($0, symbol: toolbarSymbol($0)) }
-          }
-        case .menu(let group, let ids):
-          toolbarMenu(group, ids)
-        }
-      }
-    }
-  }
-
-  private func toolbarSymbol(_ id: String) -> String {
-    id.hasPrefix("tools.run.") ? "hammer" : ToolbarSymbols.symbol(for: id)
-  }
-
-  /// Folded toolbar buttons. Layout and view mode show the current choice as their icon.
-  private func toolbarMenu(_ group: ToolbarLayout.Group, _ ids: [String]) -> some View {
-    let symbol: String
-    let title: LocalizedStringKey
-    switch group {
-    case .layout, .viewMode:
-      symbol = toolbarSymbol(ids.first(where: registry.isChecked) ?? ids[0])
-      title = group == .layout ? "Pane Layout" : "View Mode"
-    case .panels:
-      symbol = "sidebar.squares.right"
-      title = "Panels"
-    default:
-      symbol = "ellipsis.circle"
-      title = "More"
-    }
-    return Menu {
-      ForEach(ids, id: \.self) { id in
-        let reason = registry.disabledReason(for: id)
-        Toggle(
-          registry.command(id).map { registry.title(of: $0) } ?? id,
-          isOn: Binding(get: { registry.isChecked(id) }, set: { _ in registry.execute(id) })
-        )
-        .disabled(reason != nil)
-        .help(reason ?? "")
-      }
-    } label: {
-      Image(systemName: symbol).frame(width: 20, height: 20)
-    }
-    .menuStyle(.borderlessButton).fixedSize()
-    .help(title).accessibilityLabel(title)
-    .accessibilityIdentifier("toolbarGroup.\(group.rawValue)")
-  }
-
   private var quickOpenSources: [any QuickOpenSource] {
     let registry = registry
     let browser = browser
@@ -418,30 +333,6 @@ struct BrowserView: View {
       }
     }
     return [commands, folders, recents] + extensionPoints.all
-  }
-
-  private func commandButton(_ id: String, symbol: String, identifier: String? = nil) -> some View {
-    let title = registry.command(id).map { registry.title(of: $0) } ?? id
-    return Button {
-      registry.execute(id)
-    } label: {
-      Image(systemName: symbol).frame(width: 20, height: 20)
-    }
-    .buttonStyle(.borderless).padding(3)
-    .foregroundStyle(
-      registry.isChecked(id)
-        ? AnyShapeStyle(Color.accentColor)
-        : registry.disabledReason(for: id) != nil
-          ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)
-    )
-    .background(
-      registry.isChecked(id) ? Color.accentColor.opacity(0.12) : .clear,
-      in: RoundedRectangle(cornerRadius: 4)
-    )
-    .disabled(registry.disabledReason(for: id) != nil)
-    .help(registry.disabledReason(for: id) ?? title)
-    .accessibilityLabel(title).accessibilityIdentifier(identifier ?? id)
-    .accessibilityValue(registry.isChecked(id) ? "Shown" : "Hidden")
   }
 
   private var sidebar: some View {
