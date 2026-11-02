@@ -2,6 +2,7 @@ import AppKit
 import Darwin
 import FileTermCore
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import FileTerm
@@ -186,6 +187,41 @@ import Testing
     try await wait { !session.terminalView.process.running }
   }
 
+  @Test func changingTheDockKeepsTheTerminalInTheWindow() async throws {
+    let fixture = try await Fixture.make()
+    defer { fixture.cleanup() }
+    let workspace = fixture.workspace
+    workspace.toggleVisibility()
+    let session = try #require(workspace.currentSession)
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled],
+      backing: .buffered, defer: false)
+    window.contentView = NSHostingView(rootView: DockHost(workspace: workspace))
+    window.orderFront(nil)
+    try await wait { session.view.window === window }
+
+    for dock in [TerminalDock.right, .bottom, .right] {
+      workspace.panel.dock = dock
+      try await Task.sleep(for: .milliseconds(300))
+      #expect(session.view.window === window, "Docked \(dock)")
+    }
+    window.close()
+    workspace.closeAll()
+    try await wait { !session.terminalView.process.running }
+  }
+
+  /// Rebuilds the split around the panel when the dock changes, as `BrowserView` does.
+  private struct DockHost: View {
+    let workspace: TerminalWorkspace
+    var body: some View {
+      if workspace.panel.dock == .right {
+        HSplitView { Color.clear; TerminalPanel(workspace: workspace) }
+      } else {
+        VSplitView { Color.clear; TerminalPanel(workspace: workspace) }
+      }
+    }
+  }
+
   @Test func toolbarActionsExplainWhyTheyAreUnavailable() async throws {
     let fixture = try await Fixture.make()
     defer { fixture.cleanup() }
@@ -195,7 +231,6 @@ import Testing
     #expect(workspace.disabledReason(for: .find) != nil)
     #expect(workspace.disabledReason(for: .reveal) != nil)
     #expect(workspace.disabledReason(for: .openSSH) != nil)
-    #expect(workspace.disabledReason(for: .insertSelection) != nil)
 
     workspace.toggleVisibility()
     let session = try #require(workspace.currentSession)
@@ -204,9 +239,21 @@ import Testing
     #expect(workspace.disabledReason(for: .find) == nil)
     #expect(workspace.disabledReason(for: .reveal) == nil)
 
-    let pane = fixture.browser.activePane
-    pane.selection = [Location(providerID: "local", path: "/tmp")]
-    #expect(workspace.disabledReason(for: .insertSelection) == nil)
+    workspace.closeAll()
+    try await wait { !session.terminalView.process.running }
+  }
+
+  @Test func findSearchesTheScrollbackInBothDirections() async throws {
+    let fixture = try await Fixture.make()
+    defer { fixture.cleanup() }
+    let workspace = fixture.workspace
+    workspace.toggleVisibility()
+    let session = try #require(workspace.currentSession)
+    session.terminalView.feed(text: "needle one\r\nhay\r\nneedle two\r\n")
+    #expect(session.find("needle"))
+    #expect(session.find("needle", backward: true))
+    #expect(!session.find("absent"))
+    #expect(!session.find(""))
     workspace.closeAll()
     try await wait { !session.terminalView.process.running }
   }
@@ -232,12 +279,14 @@ import Testing
     let session = try #require(workspace.currentSession)
     try await wait { session.canSendDirectory && workspace.status == "Linked" }
     #expect(!workspace.canOpenSSH)
+    #expect(!workspace.showsSFTPFolder)
     workspace.openSSHSession()
     #expect(!session.isBusy)
 
     let remote = Location(providerID: "sftp.test", path: remoteFolder)
     #expect(await browser.navigate(to: remote, in: .first))
     try await wait { workspace.canOpenSSH && workspace.status == "Paused · SFTP folder" }
+    #expect(workspace.showsSFTPFolder)
     workspace.openSSHSession()
     try await wait { FileManager.default.fileExists(atPath: arguments.path) && session.isBusy }
     let received = try String(contentsOf: arguments, encoding: .utf8).split(separator: "\n")

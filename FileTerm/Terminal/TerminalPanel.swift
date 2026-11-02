@@ -3,6 +3,8 @@ import SwiftUI
 
 struct TerminalPanel: View {
   @Bindable var workspace: TerminalWorkspace
+  @State private var findText = ""
+  @FocusState private var findFocused: Bool
 
   var body: some View {
     VStack(spacing: 0) {
@@ -135,26 +137,59 @@ struct TerminalPanel: View {
       toolbarButton(.reveal, symbol: "folder", title: "Reveal Directory in Pane") {
         workspace.revealDirectory()
       }
-      Divider().frame(height: 14).padding(.horizontal, 3)
-      toolbarButton(.openSSH, symbol: "network", title: "Open SSH Session") {
-        workspace.openSSHSession()
-      }
-      toolbarButton(.insertSelection, symbol: "text.insert", title: "Insert Selected Paths") {
-        workspace.insertSelection()
+      if workspace.showsSFTPFolder {
+        Divider().frame(height: 14).padding(.horizontal, 3)
+        toolbarButton(.openSSH, symbol: "network", title: "Open SSH Session") {
+          workspace.openSSHSession()
+        }
       }
       Divider().frame(height: 14).padding(.horizontal, 3)
       toolbarButton(.clear, symbol: "eraser", title: "Clear Terminal") {
         workspace.perform(command: "terminal.clear")
       }
-      toolbarButton(.find, symbol: "magnifyingglass", title: "Find in Terminal") {
-        workspace.perform(command: "terminal.find")
-      }
       Spacer(minLength: 0)
+      findField
     }
     .padding(.horizontal, 10)
     .padding(.vertical, 4)
     .background(.bar)
     .accessibilityIdentifier("terminalToolbar")
+  }
+
+  /// Return finds the next match; Escape clears the search and returns to the shell.
+  private var findField: some View {
+    let reason = workspace.disabledReason(for: .find)
+    return HStack(spacing: 4) {
+      Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+      TextField("Find in Terminal", text: $findText)
+        .textFieldStyle(.plain).frame(width: 140).focused($findFocused)
+        .onSubmit { find(backward: false) }
+        .onExitCommand {
+          findText = ""
+          workspace.currentSession?.find("")
+          workspace.currentSession?.focus()
+        }
+        .accessibilityIdentifier("terminalFindField")
+      Button { find(backward: true) } label: { Image(systemName: "chevron.up") }
+        .buttonStyle(.borderless).help("Find Previous").accessibilityLabel("Find Previous")
+        .accessibilityIdentifier("terminalFindPrevious")
+      Button { find(backward: false) } label: { Image(systemName: "chevron.down") }
+        .buttonStyle(.borderless).help("Find Next").accessibilityLabel("Find Next")
+        .accessibilityIdentifier("terminalFindNext")
+    }
+    .padding(.horizontal, 6).padding(.vertical, 2)
+    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 5))
+    .disabled(reason != nil)
+    .help(reason ?? "Find in Terminal")
+    .onReceive(NotificationCenter.default.publisher(for: .fileTermTerminalFind)) { notification in
+      guard notification.object as? TerminalWorkspace === workspace else { return }
+      findFocused = true
+    }
+  }
+
+  private func find(backward: Bool) {
+    guard !findText.isEmpty else { return }
+    workspace.currentSession?.find(findText, backward: backward)
   }
 
   private func toolbarButton(
@@ -212,8 +247,10 @@ struct TerminalPanel: View {
 
   required init?(coder: NSCoder) { nil }
 
+  /// A changed dock rebuilds the split, so a new host takes the view while the old one is still
+  /// updated; only a new session may move the view, or the outgoing host would reclaim it.
   func attach(_ session: TerminalSession) {
-    guard self.session !== session || session.view.superview !== self else { return }
+    guard self.session !== session else { return }
     detach()
     self.session = session
     let terminal = session.view

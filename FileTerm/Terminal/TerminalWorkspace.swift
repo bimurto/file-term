@@ -10,7 +10,7 @@ struct SSHSessionCommand: Equatable {
 
 /// Actions on the terminal panel's toolbar.
 enum TerminalAction: String {
-  case link, reveal, openSSH, insertSelection, clear, find
+  case link, reveal, openSSH, clear, find
 }
 
 /// A window owns the workspace; a pane-tab identity owns each process, even while offscreen.
@@ -51,6 +51,12 @@ enum TerminalAction: String {
   /// Set by the window: the ssh command for a pane location, or nil when it has none (M08.03).
   @ObservationIgnored var sshSession: @MainActor (Location) -> SSHSessionCommand? = { _ in nil }
 
+  /// Whether the followed pane shows an SFTP folder, the only place an ssh session applies.
+  var showsSFTPFolder: Bool {
+    guard let location = currentRecord?.pane.location else { return false }
+    return sshSession(location) != nil
+  }
+
   var canOpenSSH: Bool {
     guard let record = currentRecord, let location = record.pane.location else { return false }
     return record.session.canSendDirectory && record.pane.searchScope == nil
@@ -71,10 +77,6 @@ enum TerminalAction: String {
     case .openSSH:
       return canOpenSSH
         ? nil : "Open an SFTP folder in the pane, with the shell idle and no typed input."
-    case .insertSelection:
-      let pane = browser.activePane
-      return pane.selection.isEmpty || pane.location?.providerID != "local"
-        ? "Select local items in the active pane first." : nil
     }
   }
 
@@ -256,17 +258,10 @@ enum TerminalAction: String {
     currentID = nil
   }
 
+  /// Focuses the search field on the panel's toolbar.
   private func find() {
-    guard let session = currentSession else { return }
-    let alert = NSAlert()
-    alert.messageText = "Find in Terminal"
-    alert.addButton(withTitle: "Find Next")
-    alert.addButton(withTitle: "Cancel")
-    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
-    field.placeholderString = "Search scrollback"
-    alert.accessoryView = field
-    alert.window.initialFirstResponder = field
-    if alert.runModal() == .alertFirstButtonReturn { _ = session.find(field.stringValue) }
+    guard currentSession != nil else { return }
+    NotificationCenter.default.post(name: .fileTermTerminalFind, object: self)
   }
 
   private func restorePaneFocus() {

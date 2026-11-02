@@ -911,6 +911,7 @@ extension Notification.Name {
   static let fileTermRenamePreset = Notification.Name("FileTerm.renamePreset")
   static let fileTermQuickOpen = Notification.Name("FileTerm.quickOpen")
   static let fileTermFind = Notification.Name("FileTerm.find")
+  static let fileTermTerminalFind = Notification.Name("FileTerm.terminalFind")
   static let fileTermDropFiles = Notification.Name("FileTerm.dropFiles")
   static let fileTermOpenInNewWindow = Notification.Name("FileTerm.openInNewWindow")
 }

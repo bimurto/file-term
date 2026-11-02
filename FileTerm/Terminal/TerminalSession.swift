@@ -142,12 +142,12 @@ final class TerminalSession {
   }
 
   @discardableResult
-  func find(_ text: String) -> Bool {
+  func find(_ text: String, backward: Bool = false) -> Bool {
     if text.isEmpty {
       terminalView.clearSearch()
       return false
     }
-    return terminalView.findNext(text)
+    return backward ? terminalView.findPrevious(text) : terminalView.findNext(text)
   }
 
   func close() {
