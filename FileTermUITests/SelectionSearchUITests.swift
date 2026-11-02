@@ -75,9 +75,9 @@ final class SelectionSearchUITests: XCTestCase {
     XCTAssertTrue(list.staticTexts["alpha.txt"].waitForExistence(timeout: 10))
     XCTAssertFalse(list.staticTexts[".hidden"].exists)
 
-    app.buttons["showHiddenToggle"].click()
+    app.toolbarButton("showHiddenToggle").click()
     XCTAssertTrue(list.staticTexts[".hidden"].waitForExistence(timeout: 5))
-    app.buttons["showHiddenToggle"].click()
+    app.toolbarButton("showHiddenToggle").click()
     let hiddenGone = expectation(
       for: NSPredicate(format: "exists == false"), evaluatedWith: list.staticTexts[".hidden"])
     wait(for: [hiddenGone], timeout: 5)

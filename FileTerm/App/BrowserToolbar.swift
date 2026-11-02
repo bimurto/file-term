@@ -85,6 +85,7 @@ import Observation
         }
       } else if let button = item.view as? NSButton, let state = states[id] {
         button.state = state.isChecked ? .on : .off
+        button.setAccessibilityValue(state.isChecked ? "Shown" : "Hidden")
         button.isEnabled = state.disabledReason == nil
         button.image = image(for: id)
         button.toolTip = state.disabledReason ?? item.label
@@ -175,12 +176,11 @@ import Observation
     }
     guard registry.command(id) != nil else { return nil }
     let title = title(of: id)
-    let button = NSButton(
+    let button = ToolbarButton(
       image: image(for: id) ?? NSImage(), target: self, action: #selector(run(_:)))
     button.bezelStyle = .toolbar
     button.setButtonType(.pushOnPushOff)
-    button.identifier = NSUserInterfaceItemIdentifier(
-      id == "view.showHidden" ? "showHiddenToggle" : id)
+    button.setAccessibilityIdentifier(id == "view.showHidden" ? "showHiddenToggle" : id)
     button.setAccessibilityLabel(title)
     let menuItem = NSMenuItem(title: title, action: #selector(run(_:)), keyEquivalent: "")
     menuItem.target = self
@@ -204,4 +204,9 @@ import Observation
       self?.refresh()
     }
   }
+}
+
+/// A toggle look for checked commands, announced as a button like any other toolbar command.
+private final class ToolbarButton: NSButton {
+  override func accessibilityRole() -> NSAccessibility.Role? { .button }
 }

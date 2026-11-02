@@ -45,6 +45,7 @@
 		428EEF25000989F44900FD90 /* FileOperationCoordinator+Edit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6901BA3059D5D1BE13701E23 /* FileOperationCoordinator+Edit.swift */; };
 		43018735FF004DFD4FB47F11 /* BatchRenameModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE09C1630BCF23F151106E0 /* BatchRenameModel.swift */; };
 		44AA258F04AE63E5A48B3B0F /* PathBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76573E0579F8B61E01AC01FE /* PathBar.swift */; };
+		476918C87C466DF8150E10A6 /* ToolbarSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD7EFA5635FDB4F3B6B31C0 /* ToolbarSupport.swift */; };
 		4B16384359C3D8E62F07CDF5 /* AdditionalCapabilitiesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95BB1CA363DF7CCFD68C601 /* AdditionalCapabilitiesUITests.swift */; };
 		4B50336F990550E779F076CE /* BatchRenameCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 683F852FE7FFBC674221300B /* BatchRenameCoordinatorTests.swift */; };
 		4B837F4495758911733368BA /* SyncSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15266C4B6E11700326BB9AE5 /* SyncSheet.swift */; };
@@ -267,6 +268,7 @@
 		D69C1F8AD17EBEDA6238048D /* nord.terminaltheme */ = {isa = PBXFileReference; path = nord.terminaltheme; sourceTree = "<group>"; };
 		D8039C31BEB9E425384F2870 /* Settings */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Settings; path = .build/vendor/Settings; sourceTree = SOURCE_ROOT; };
 		D95BB1CA363DF7CCFD68C601 /* AdditionalCapabilitiesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdditionalCapabilitiesUITests.swift; sourceTree = "<group>"; };
+		DAD7EFA5635FDB4F3B6B31C0 /* ToolbarSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarSupport.swift; sourceTree = "<group>"; };
 		DAE73132EA4B674CACEF3C8D /* AcceptanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcceptanceUITests.swift; sourceTree = "<group>"; };
 		DCCBF8A61F63EF22A408EC5B /* ToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolsSettingsView.swift; sourceTree = "<group>"; };
 		E2B6D81AF101F9349284282D /* FileMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataService.swift; sourceTree = "<group>"; };
@@ -456,6 +458,7 @@
 				33F39962B92332D44523EA91 /* NavigationUITests.swift */,
 				0F425FD71D3A8B189C93F33F /* SelectionSearchUITests.swift */,
 				428D6D3D2B07B2292ADA3A7F /* TerminalUITests.swift */,
+				DAD7EFA5635FDB4F3B6B31C0 /* ToolbarSupport.swift */,
 				45D98A92C51E28C5FD1E624D /* WorkspaceUITests.swift */,
 			);
 			path = FileTermUITests;
@@ -711,6 +714,7 @@
 				552AB8EE9CD83AA27D525072 /* NavigationUITests.swift in Sources */,
 				96C4635E9E5358DDFB5EF462 /* SelectionSearchUITests.swift in Sources */,
 				B5C64CE3B3C9A663923693E9 /* TerminalUITests.swift in Sources */,
+				476918C87C466DF8150E10A6 /* ToolbarSupport.swift in Sources */,
 				2AC4CAEEF8BC9C4643C14BF4 /* WorkspaceUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

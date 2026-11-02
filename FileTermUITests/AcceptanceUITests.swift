@@ -107,11 +107,11 @@ final class AcceptanceUITests: XCTestCase {
   @MainActor private func open(
     _ path: String, inSecondPaneOf fixture: AcceptanceFixture, app: XCUIApplication
   ) {
-    app.buttons["view.vertical"].click()
+    app.radioButtons["Vertical — Side by Side"].click()
     let second = fixture.pane("second", app)
     XCTAssertTrue(second.waitForExistence(timeout: 5))
     second.click()
-    app.buttons["go.toFolder"].click()
+    app.toolbarButton("go.toFolder").click()
     let field = app.textFields["goToFolderPath"]
     XCTAssertTrue(field.waitForExistence(timeout: 5))
     field.click()

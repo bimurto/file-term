@@ -113,7 +113,7 @@ final class AppearanceUITests: XCTestCase {
 
   @MainActor func testADropWithoutConfirmationMovesOnTheSameVolume() throws {
     let app = launch()
-    app.buttons["view.vertical"].firstMatch.click()
+    app.radioButtons["Vertical — Side by Side"].firstMatch.click()
     try dropSampleOnSecondPane(app)
     let moved = root.appendingPathComponent("left/Target/sample.txt")
     let predicate = NSPredicate { _, _ in FileManager.default.fileExists(atPath: moved.path) }
@@ -133,7 +133,7 @@ final class AppearanceUITests: XCTestCase {
     XCTAssertTrue(app.buttons["checkForUpdatesNow"].exists)
     screenshot(app, "general-settings")
     app.typeKey("w", modifierFlags: .command)
-    app.buttons["view.vertical"].firstMatch.click()
+    app.radioButtons["Vertical — Side by Side"].firstMatch.click()
     try dropSampleOnSecondPane(app)
     let copy = app.sheets.buttons["Copy"]
     XCTAssertTrue(copy.waitForExistence(timeout: 5))

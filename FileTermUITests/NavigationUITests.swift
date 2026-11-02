@@ -289,7 +289,7 @@ final class NavigationUITests: XCTestCase {
       app.outlines.matching(identifier: "fileList").staticTexts["Right"].waitForExistence(
         timeout: 5))
     app.buttons["go.back"].click()
-    app.buttons["go.toFolder"].click()
+    app.toolbarButton("go.toFolder").click()
     let field = app.textFields["goToFolderPath"]
     XCTAssertTrue(field.waitForExistence(timeout: 5))
     field.click()
@@ -319,16 +319,16 @@ final class NavigationUITests: XCTestCase {
     XCTAssertTrue(
       app.outlines.matching(identifier: "fileList").staticTexts["left.txt"].waitForExistence(
         timeout: 10))
-    app.buttons["view.vertical"].click()
+    app.radioButtons["Vertical — Side by Side"].click()
     XCTAssertEqual(app.outlines.matching(identifier: "fileList").count, 2)
     let tables = app.outlines.matching(identifier: "fileList")
     tables.element(boundBy: 1).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).click()
     openFolder(fixture.right.path, app: app)
     XCTAssertTrue(tables.element(boundBy: 1).staticTexts["right.txt"].waitForExistence(timeout: 5))
-    app.buttons["view.single"].click()
+    app.radioButtons["Single Pane"].click()
     XCTAssertEqual(tables.count, 1)
     XCTAssertTrue(app.outlines.matching(identifier: "fileList").staticTexts["right.txt"].exists)
-    app.buttons["view.horizontal"].click()
+    app.radioButtons["Horizontal — Stacked"].click()
     XCTAssertEqual(tables.count, 2)
     tables.element(boundBy: 0).staticTexts["left.txt"].click()
     app.buttons["go.syncBrowsing"].click()
@@ -337,11 +337,11 @@ final class NavigationUITests: XCTestCase {
       tables.element(boundBy: 0).staticTexts["left-child.txt"].waitForExistence(timeout: 5))
     XCTAssertTrue(
       tables.element(boundBy: 1).staticTexts["right-child.txt"].waitForExistence(timeout: 5))
-    app.buttons["view.single"].click()
+    app.radioButtons["Single Pane"].click()
     XCTAssertTrue(
       app.outlines.matching(identifier: "fileList").staticTexts["right-child.txt"].waitForExistence(
         timeout: 5))
-    app.buttons["view.horizontal"].click()
+    app.radioButtons["Horizontal — Stacked"].click()
     app.buttons["go.syncBrowsing"].click()
     app.buttons["go.enclosingFolder"].click()
     XCTAssertTrue(tables.element(boundBy: 0).staticTexts["left.txt"].waitForExistence(timeout: 5))
@@ -376,13 +376,10 @@ final class NavigationUITests: XCTestCase {
     let destination = window.coordinate(withNormalizedOffset: .zero).withOffset(
       CGVector(dx: 678, dy: 450))
     corner.press(forDuration: 0.1, thenDragTo: destination)
-    // At the minimum width, the pane layouts fold into a dropdown.
+    // At the minimum width the toolbar may overflow, so the layouts come from the View menu.
     for layout in ["Vertical — Side by Side", "Horizontal — Stacked"] {
-      let dropdown = app.menuButtons["toolbarGroup.layout"]
-      dropdown.click()
-      dropdown.menuItems[layout].click()
+      menu("View", command: layout, app: app)
       XCTAssertEqual(app.outlines.matching(identifier: "fileList").count, 2)
-      XCTAssertTrue(app.buttons["go.toFolder"].isHittable)
       for index in 0..<2 {
         XCTAssertGreaterThanOrEqual(
           app.outlines.matching(identifier: "fileList").element(boundBy: index).frame.width, 218)
@@ -414,16 +411,16 @@ final class NavigationUITests: XCTestCase {
     menu("View", command: "Show Path Bar", app: app)
     XCTAssertTrue(app.descendants(matching: .any)["currentPath"].exists)
     menu("View", command: "Show Toolbar", app: app)
-    XCTAssertFalse(app.buttons["go.toFolder"].exists)
+    XCTAssertFalse(app.buttons["go.back"].exists)
     menu("View", command: "Show Toolbar", app: app)
-    XCTAssertTrue(app.buttons["go.toFolder"].exists)
+    XCTAssertTrue(app.buttons["go.back"].waitForExistence(timeout: 5))
     menu("View", command: "Show Title Bar", app: app)
     XCTAssertTrue(app.windows.buttons[XCUIIdentifierCloseWindow].exists)
     menu("View", command: "Show Title Bar", app: app)
   }
 
   @MainActor private func openFolder(_ path: String, app: XCUIApplication) {
-    app.buttons["go.toFolder"].click()
+    app.toolbarButton("go.toFolder").click()
     let field = app.textFields["goToFolderPath"]
     XCTAssertTrue(field.waitForExistence(timeout: 5))
     field.click()

@@ -8,13 +8,13 @@ final class WorkspaceUITests: XCTestCase {
     let app = fixture.launch()
     defer { app.terminate() }
     XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
-    app.buttons["view.asIcons"].click()
+    app.radioButtons["as Icons"].click()
     XCTAssertTrue(app.scrollViews["iconGrid"].waitForExistence(timeout: 5))
     capture(app, name: "M02 icon grid")
     app.scrollViews["iconGrid"].staticTexts["Child"].doubleClick()
     XCTAssertTrue(app.staticTexts["inside.txt"].waitForExistence(timeout: 5))
     app.buttons["go.back"].click()
-    app.buttons["view.asColumns"].click()
+    app.radioButtons["as Columns"].click()
     XCTAssertTrue(app.descendants(matching: .any)["columnBrowser"].waitForExistence(timeout: 5))
     let column = app.descendants(matching: .any)["columnBrowser"]
     let child = column.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Child"))
@@ -24,7 +24,7 @@ final class WorkspaceUITests: XCTestCase {
     XCTAssertTrue(column.buttons["inside.txt"].waitForExistence(timeout: 5))
     capture(app, name: "M02 hierarchy columns")
     app.buttons["go.back"].click()
-    app.buttons["view.asList"].click()
+    app.radioButtons["as List"].click()
     let size = app.outlines["fileList"].buttons["Size"]
     size.click()
     XCTAssertTrue(
@@ -52,7 +52,7 @@ final class WorkspaceUITests: XCTestCase {
     let root = fixture.root.resolvingSymlinksInPath().path
     let child = root + "/Child"
     let go = { (text: String) -> XCUIElement in
-      app.buttons["go.toFolder"].click()
+      app.toolbarButton("go.toFolder").click()
       let field = app.textFields["goToFolderPath"]
       XCTAssertTrue(field.waitForExistence(timeout: 5))
       field.click()
@@ -91,7 +91,7 @@ final class WorkspaceUITests: XCTestCase {
     let app = fixture.launch()
     defer { app.terminate() }
     XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
-    app.buttons["view.asIcons"].click()
+    app.radioButtons["as Icons"].click()
     let grid = app.scrollViews["iconGrid"]
     XCTAssertTrue(grid.waitForExistence(timeout: 5))
     // Name order: Child, large.txt, small.txt. The status bar names each selection's size.
@@ -130,7 +130,7 @@ final class WorkspaceUITests: XCTestCase {
     let app = fixture.launch()
     defer { app.terminate() }
     XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
-    app.buttons["view.asIcons"].click()
+    app.radioButtons["as Icons"].click()
     let grid = app.scrollViews["iconGrid"]
     XCTAssertTrue(grid.waitForExistence(timeout: 5))
     let label = grid.staticTexts["iconSize.small.txt"]
@@ -182,7 +182,7 @@ final class WorkspaceUITests: XCTestCase {
     XCTAssertEqual(app.windows.matching(identifier: "browserWindow").count, 2)
     let front = app.windows.matching(identifier: "browserWindow").element(boundBy: 0)
     XCTAssertTrue(front.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 5))
-    front.buttons["go.toFolder"].click()
+    front.toolbarButton("go.toFolder").click()
     XCTAssertEqual(app.sheets.count, 1)
     app.buttons["Cancel"].click()
     app.menuBars.menuBarItems["Window"].click()
@@ -209,8 +209,9 @@ final class WorkspaceUITests: XCTestCase {
     defer { app.terminate() }
     XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
     menu("View", command: "Customize Toolbar…", app: app)
-    XCTAssertTrue(app.buttons["Restore Default Toolbar"].waitForExistence(timeout: 5))
-    app.buttons["Done"].click()
+    let palette = app.sheets.buttons["Done"]
+    XCTAssertTrue(palette.waitForExistence(timeout: 5))
+    palette.click()
     menu("View", command: "Show Sidebar Editor", app: app)
     XCTAssertTrue(app.staticTexts["Sidebar Editor"].waitForExistence(timeout: 5))
     app.buttons["Done"].click()
@@ -220,7 +221,7 @@ final class WorkspaceUITests: XCTestCase {
     app.typeKey("t", modifierFlags: .command)
     app.outlines["fileList"].staticTexts["Child"].doubleClick()
     XCTAssertTrue(app.outlines["fileList"].staticTexts["inside.txt"].waitForExistence(timeout: 5))
-    app.buttons["view.horizontal"].click()
+    app.radioButtons["Horizontal — Stacked"].click()
     menu("FileTerm", command: "Quit and Keep Windows", app: app)
     XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
     app.launch()
@@ -269,7 +270,7 @@ final class WorkspaceUITests: XCTestCase {
     XCTAssertTrue(restore.waitForExistence(timeout: 5))
     restore.click()
     app.typeKey("w", modifierFlags: .command)
-    app.buttons["go.toFolder"].click()
+    app.toolbarButton("go.toFolder").click()
     let path = app.textFields["goToFolderPath"]
     XCTAssertTrue(path.waitForExistence(timeout: 5))
     path.click()
@@ -278,8 +279,8 @@ final class WorkspaceUITests: XCTestCase {
     path.typeKey(.return, modifierFlags: [])
     XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 5))
     app.typeKey("t", modifierFlags: .command)
-    app.buttons["view.vertical"].click()
-    app.buttons["view.asIcons"].click()
+    app.radioButtons["Vertical — Side by Side"].click()
+    app.radioButtons["as Icons"].click()
     app.typeKey("n", modifierFlags: .command)
     XCTAssertTrue(
       app.windows.matching(identifier: "browserWindow").element(boundBy: 1).waitForExistence(

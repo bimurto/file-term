@@ -16,7 +16,7 @@ final class BrowserSmokeTests: XCTestCase {
     app.staticTexts["Child"].doubleClick()
     XCTAssertTrue(app.staticTexts["This folder is empty"].waitForExistence(timeout: 5))
     for panel in ["Preview", "Activities", "Logs"] {
-      app.buttons["view.\(panel.lowercased())"].click()
+      app.toolbarButton("view.\(panel.lowercased())").click()
       if panel == "Preview" {
         XCTAssertTrue(
           app.staticTexts["Select a local item to inspect its metadata and preview its contents."]

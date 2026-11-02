@@ -13,13 +13,13 @@ final class MetadataPreviewUITests: XCTestCase {
     defer { app.terminate() }
     let file = app.staticTexts["sample.txt"]
     XCTAssertTrue(file.waitForExistence(timeout: 10))
-    app.buttons["view.preview"].click()
+    app.toolbarButton("view.preview").click()
     app.outlines["fileList"].staticTexts["sample.txt"].click()
     let editor = app.textViews["preview.text"]
     XCTAssertTrue(editor.waitForExistence(timeout: 10))
     editor.click()
     editor.typeText(" edited")
-    app.buttons["view.preview"].click()
+    app.toolbarButton("view.preview").click()
     let recovery = app.windows["Unsaved Edits — sample.txt"]
     XCTAssertTrue(recovery.waitForExistence(timeout: 5))
     recovery.buttons["preview.save"].click()
@@ -45,7 +45,7 @@ final class MetadataPreviewUITests: XCTestCase {
     app.launch()
     defer { app.terminate() }
     XCTAssertTrue(app.staticTexts["sample.txt"].waitForExistence(timeout: 10))
-    app.buttons["view.preview"].click()
+    app.toolbarButton("view.preview").click()
     XCTAssertTrue(app.staticTexts["Preview"].waitForExistence(timeout: 5))
     let pane = app.descendants(matching: .any)["pane.first"].firstMatch
     XCTAssertGreaterThan(pane.frame.height, app.windows.firstMatch.frame.height * 0.7)

@@ -17,7 +17,7 @@ final class TerminalUITests: XCTestCase {
     }
     XCTAssertTrue(
       app.outlines["fileList"].staticTexts["terminal-fixture.txt"].waitForExistence(timeout: 15))
-    let toggle = app.buttons["view.terminal"]
+    let toggle = app.toolbarButton("view.terminal")
     XCTAssertTrue(toggle.waitForExistence(timeout: 10))
     app.menuBars.menuBarItems["View"].click()
     app.menuItems["Show Terminal"].click()
