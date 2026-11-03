@@ -2104,7 +2104,8 @@ import UniformTypeIdentifiers
       AppCommand(
         id: "view.customizeToolbar", title: "Customize Toolbar…", menuPath: ["View"],
         isEnabled: available, disabledReason: noWindow,
-        handler: { [weak self] in self?.currentWindow?.window.runToolbarCustomizationPalette(nil) }))
+        handler: { [weak self] in self?.currentWindow?.window.runToolbarCustomizationPalette(nil) })
+    )
     commands.append(
       AppCommand(
         id: "view.saveDefaults", title: "Save View Settings as Defaults", menuPath: ["View"],
