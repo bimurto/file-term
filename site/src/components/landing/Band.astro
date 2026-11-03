@@ -1,0 +1,41 @@
+---
+import { Picture } from 'astro:assets';
+import light from '../../assets/shots/theme-default.png';
+import dark from '../../assets/shots/theme-dark.png';
+import dracula from '../../assets/shots/theme-dracula.png';
+import polar from '../../assets/shots/theme-polar-night.png';
+
+const shots = [
+  { src: light, name: 'Default, in light mode' },
+  { src: dark, name: 'Dark' },
+  { src: dracula, name: 'Dracula' },
+  { src: polar, name: 'Polar Night' },
+];
+---
+<section class="band folder" id="themes" aria-labelledby="themes-title">
+  <div class="band-head">
+    <h2 class="display" id="themes-title" data-reveal>Nine themes, light and&nbsp;dark</h2>
+    <p class="lead" data-reveal style="--i:1">
+      A theme recolors the panes, the sidebar and the accent. The terminal follows light or dark, or takes one of seven color schemes, and imports iTerm2 schemes.
+    </p>
+  </div>
+  <div class="band-shots folder" data-reveal>
+    <div class="band-frame" data-crossfade>
+    {shots.map((shot, i) => (
+      <Picture
+        src={shot.src}
+        formats={['avif', 'webp']}
+        widths={[800, 1280, 1920, 2560]}
+        sizes="(max-width: 900px) 100vw, calc(100vw - 8rem)"
+        alt={`FileTerm with the ${shot.name} theme: two panes, list and column views, and the terminal showing git log`}
+        loading={i === 0 ? 'eager' : 'lazy'}
+        pictureAttributes={{ class: i === 0 ? 'is-shown' : undefined, 'data-name': shot.name }}
+      />
+    ))}
+    </div>
+  </div>
+  <p class="band-caption small">
+    <span>Theme: <span data-theme-name aria-live="off">{shots[0].name}</span></span>
+    <span>Screens captured from FileTerm 0.1.0 on macOS 26.</span>
+  </p>
+</section>

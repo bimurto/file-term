@@ -64,24 +64,6 @@ A folder of 100,000 subfolders is slower still, because folders also ask Spotlig
 
 Interface text and menus can look up translations, and the English strings are extracted. Alert text, command titles, and messages built in code are still hard-coded, so the app can't be fully translated yet.
 
-## Items still open in the milestone documents
-
-Some boxes are still unticked even though the code for the feature exists. These features are described in this guide because the code is there, but they haven't been signed off end to end.
-
-| Item | What's unticked | State in the code |
-|---|---|---|
-| Foundation | Test runner and a smoke test passing in CI | Not a user feature |
-| Icon, List and Column views | The view commands, and a view per pane | Present |
-| Sorting and grouping | Sort kept per scope, groups as sections | Present |
-| View options | The dialog shows the scope before saving | Present |
-| Toolbar customization | Items added from the command list, layout kept | Present |
-| Tabs and Pin View | Each tab keeps its location and history, pinned tab behavior | Present |
-| Window layout | OS-specific window actions hidden when unsupported | Left to macOS. Not confirmed by a test. |
-| Quit and restore | Restoring on restart, Starting Directory when off | Present |
-| Single-item rename | Several items open Batch Rename | Present |
-| Activities | A Retry button on failed jobs | Present, with the limits in [chapter 7](07-transfers-activities-and-logs.md#retry-failures) |
-| This guide and in-app help | A guide, and a help link for each command | Being finished in this milestone |
-
 ## Not driven by hand
 
 Automated tests cover the engines behind these features, but the milestone notes say the dialogs and flows weren't run by hand on a desktop, or weren't run against the real service:

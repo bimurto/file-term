@@ -2,9 +2,9 @@ import Foundation
 
 /// Where the online user guide explains the app and each of its commands.
 public enum HelpLinks {
-  private static let guide = "https://github.com/bimurto/file-term/blob/main/docs/user-guide/"
+  private static let guide = "https://fileterm.bimurto.io/docs/"
 
-  public static let home = URL(string: guide + "README.md")!
+  public static let home = URL(string: guide)!
 
   /// Commands the app generates, such as one per recent folder, share one entry in the reference.
   private static let families = [
@@ -21,7 +21,7 @@ public enum HelpLinks {
   }
 
   public static func url(forCommand id: String) -> URL? {
-    var components = URLComponents(string: guide + "commands.md")
+    var components = URLComponents(string: guide + "commands/")
     components?.fragment = anchor(forCommand: id)
     return components?.url
   }

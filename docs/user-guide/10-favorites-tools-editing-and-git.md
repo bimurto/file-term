@@ -110,7 +110,7 @@ If you quit with edits the server never received, after a failed upload or Stop 
 
 **Built-in terminal:** View › Show Terminal (`` ⌃` ``) opens a panel docked below or to the right of the panes. `` ⌃⌥` `` moves focus between pane and terminal. Each tab has its own shell session. Hiding the panel keeps sessions running. Close Terminal Sessions, closing a tab or closing the window ends them. If a shell exits, the panel says so and offers New Shell.
 
-The panel's toolbar has buttons to link or unlink the terminal, reveal its folder in a pane, open an SSH session, insert selected paths, clear the terminal and find text. A greyed-out button shows why when you hold the pointer over it.
+The panel's toolbar has buttons to link or unlink the terminal, reveal its folder in a pane and clear the terminal, and a search field with Find Previous and Find Next. When the followed pane shows an SFTP folder, a button to open an SSH session appears too. A greyed-out button shows why when you hold the pointer over it.
 
 With shell integration on, pane and terminal follow each other's folder only at an empty shell prompt. A running command or unsubmitted text pauses this.
 

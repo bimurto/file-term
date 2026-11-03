@@ -1,0 +1,34 @@
+/* The user guide wears the landing page's type and colors. */
+:root {
+  --sl-font: 'Hanken Grotesk Variable', 'Hanken Grotesk', system-ui, sans-serif;
+  --sl-font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --sl-color-accent-low: #2a0f6b;
+  --sl-color-accent: #a58ae1;
+  --sl-color-accent-high: #e7defc;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #ece9f5;
+  --sl-color-gray-2: #c9c4dc;
+  --sl-color-gray-3: #9790b3;
+  --sl-color-gray-4: #5d5679;
+  --sl-color-gray-5: #3a3456;
+  --sl-color-gray-6: #241f3a;
+  --sl-color-black: #16122a;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #e9e1fb;
+  --sl-color-accent: #5b2bc9;
+  --sl-color-accent-high: #2a0f6b;
+  --sl-color-white: #16122a;
+  --sl-color-gray-1: #241f3a;
+  --sl-color-gray-2: #3a3456;
+  --sl-color-gray-3: #5d5679;
+  --sl-color-gray-4: #8a83a6;
+  --sl-color-gray-5: #c9c4dc;
+  --sl-color-gray-6: #f2eff9;
+  --sl-color-gray-7: #f8f7fc;
+  --sl-color-black: #ffffff;
+}
+.sl-markdown-content h1, .sl-markdown-content h2, .sl-markdown-content h3, h1#_top { letter-spacing: -0.03em; font-weight: 500; }
+/* The in-app Help menu links to rows of the command reference; the row it lands on lights up. */
+.sl-markdown-content tr:has(a[id]:target) { background: var(--sl-color-accent-low); }
+.sl-markdown-content td a[id] { scroll-margin-top: calc(var(--sl-nav-height) + 1.5rem); }

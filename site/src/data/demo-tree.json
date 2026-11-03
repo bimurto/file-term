@@ -1,0 +1,93 @@
+{
+  "home": "/Users/you",
+  "tree": {
+    "Projects": {
+      "aurora-web": {
+        "src": {
+          "components": {
+            "App.tsx": ["25 bytes", "TSX File", "Oct 9, 2026 at 11:17 AM"],
+            "Breadcrumbs.tsx": ["33 bytes", "TSX File", "Oct 22, 2026 at 12:37 AM"],
+            "FileList.tsx": ["30 bytes", "TSX File", "Oct 11, 2026 at 1:00 AM"],
+            "Header.tsx": ["28 bytes", "TSX File", "Oct 20, 2026 at 10:33 AM"],
+            "Sidebar.tsx": ["29 bytes", "TSX File", "Oct 29, 2026 at 3:40 PM"]
+          },
+          "lib": {
+            "api.ts": ["21 bytes", "TS File", "Oct 17, 2026 at 3:40 PM"],
+            "cache.ts": ["23 bytes", "TS File", "Oct 12, 2026 at 9:02 AM"],
+            "format.ts": ["24 bytes", "TS File", "Oct 3, 2026 at 6:51 PM"],
+            "theme.ts": ["23 bytes", "TS File", "Oct 30, 2026 at 8:14 PM"]
+          },
+          "routes": {
+            "index.tsx": ["17 bytes", "TSX File", "Oct 1, 2026 at 10:11 AM"],
+            "settings.tsx": ["17 bytes", "TSX File", "Oct 14, 2026 at 4:26 PM"]
+          },
+          "main.tsx": ["15 bytes", "TSX File", "Oct 15, 2026 at 10:54 PM"]
+        },
+        "public": {
+          "fonts": { "Inter.woff2": ["180 KB", "Web Font", "Sep 30, 2026 at 2:12 PM"] },
+          "favicon.svg": ["412 bytes", "SVG Image", "Oct 2, 2026 at 9:40 AM"],
+          "og.png": ["90 KB", "PNG Image", "Oct 21, 2026 at 7:51 AM"]
+        },
+        "tests": {
+          "app.test.ts": ["5 bytes", "TS File", "Oct 25, 2026 at 2:36 PM"],
+          "format.test.ts": ["5 bytes", "TS File", "Oct 25, 2026 at 2:40 PM"]
+        },
+        "docs": { "architecture.md": ["8 bytes", "MD File", "Oct 20, 2026 at 8:09 PM"] },
+        "CHANGELOG.md": ["122 bytes", "MD File", "Oct 23, 2026 at 6:12 AM"],
+        "index.html": ["16 bytes", "HTML File", "Sep 26, 2026 at 9:17 PM"],
+        "LICENSE": ["4 bytes", "File", "Oct 31, 2026 at 3:12 AM"],
+        "package.json": ["56 bytes", "JSON File", "Oct 16, 2026 at 1:03 PM"],
+        "README.md": ["27 bytes", "MD File", "Oct 8, 2026 at 6:32 PM"],
+        "tsconfig.json": ["36 bytes", "JSON File", "Oct 20, 2026 at 2:25 PM"],
+        "vite.config.ts": ["18 bytes", "TS File", "Sep 26, 2026 at 4:18 AM"]
+      },
+      "Design": {
+        "Icons": {
+          "app-icon.svg": ["6 KB", "SVG Image", "Oct 4, 2026 at 5:20 PM"],
+          "toolbar.svg": ["3 KB", "SVG Image", "Oct 4, 2026 at 5:22 PM"]
+        },
+        "Mockups": {
+          "screen-1.png": ["212 KB", "PNG Image", "Oct 6, 2026 at 1:15 PM"],
+          "screen-2.png": ["198 KB", "PNG Image", "Oct 6, 2026 at 1:16 PM"],
+          "screen-3.png": ["240 KB", "PNG Image", "Oct 6, 2026 at 1:18 PM"]
+        },
+        "tokens.json": ["2 KB", "JSON File", "Oct 9, 2026 at 11:02 AM"]
+      },
+      "Photos": {
+        "Lisbon-2026": {
+          "IMG_2041.jpg": ["220 KB", "JPEG Image", "Aug 14, 2026 at 7:41 PM"],
+          "IMG_2042.jpg": ["197 KB", "JPEG Image", "Aug 14, 2026 at 7:44 PM"],
+          "IMG_2043.jpg": ["208 KB", "JPEG Image", "Aug 15, 2026 at 9:02 AM"],
+          "IMG_2044.jpg": ["190 KB", "JPEG Image", "Aug 15, 2026 at 9:10 AM"],
+          "IMG_2045.jpg": ["438 KB", "JPEG Image", "Aug 16, 2026 at 6:58 PM"]
+        },
+        "Porto-2026": {
+          "IMG_3111.jpg": ["244 KB", "JPEG Image", "Aug 18, 2026 at 12:20 PM"],
+          "IMG_3112.jpg": ["228 KB", "JPEG Image", "Aug 18, 2026 at 12:31 PM"]
+        }
+      }
+    },
+    "Documents": {
+      "Invoices": {
+        "INV-1042.pdf": ["48 KB", "PDF Document", "Oct 2, 2026 at 10:00 AM"],
+        "INV-1043.pdf": ["51 KB", "PDF Document", "Nov 1, 2026 at 10:00 AM"]
+      },
+      "budget-2026.csv": ["4 KB", "CSV Document", "Oct 28, 2026 at 5:47 PM"],
+      "Roadmap.md": ["2 KB", "MD File", "Oct 30, 2026 at 9:12 AM"]
+    },
+    "Downloads": {
+      "FileTerm.dmg": ["13 MB", "Disk Image", "Nov 3, 2026 at 9:00 AM"]
+    }
+  },
+  "git": {
+    "repo": "/Users/you/Projects/aurora-web",
+    "log": [
+      "7bdbac8 (HEAD -> main) chore: bump vite to 6.2",
+      "f99d24e feat: dark mode tokens",
+      "26b9571 fix: sidebar keeps its collapsed state",
+      "3a82db2 feat: virtualized file list",
+      "e9db845 init: scaffold aurora-web"
+    ]
+  },
+  "start": ["/Users/you/Projects/aurora-web", "/Users/you/Projects/Photos/Lisbon-2026"]
+}

@@ -10,6 +10,15 @@ mkdir .build/dmg
 cp -R .build/release/Build/Products/Release/FileTerm.app .build/dmg/
 ln -s /Applications .build/dmg/Applications
 
-hdiutil create -volname FileTerm -srcfolder .build/dmg -ov -format UDZO -quiet .build/FileTerm.dmg
+# hdiutil sometimes fails with "Resource busy" on build machines; a retry is enough.
+for attempt in 1 2 3; do
+  if hdiutil create -volname FileTerm -srcfolder .build/dmg -ov -format UDZO -quiet .build/FileTerm.dmg; then
+    break
+  fi
+  if [ "$attempt" = 3 ]; then
+    exit 1
+  fi
+  sleep 5
+done
 rm -rf .build/dmg
 printf 'Created .build/FileTerm.dmg\n'

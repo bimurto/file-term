@@ -1,0 +1,82 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+  # Builds the disk image without publishing, so changes to this workflow are tried before they merge.
+  pull_request:
+    paths: ['.github/workflows/release.yml', 'scripts/create-dmg.sh']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dmg:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use Xcode 26.6
+        run: |
+          if [ -d /Applications/Xcode_26.6.app ]; then sudo xcode-select -s /Applications/Xcode_26.6.app; fi
+          xcodebuild -version
+
+      - name: Check the tag matches the app version
+        id: version
+        run: |
+          version=$(sed -nE 's/^ *MARKETING_VERSION: "(.*)"/\1/p' project.yml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match MARKETING_VERSION $version in project.yml"
+            exit 1
+          fi
+
+      - name: Fetch pinned dependencies
+        run: bash scripts/fetch-dependencies.sh
+
+      - name: Generate Xcode project
+        run: bash scripts/generate-project.sh
+
+      - name: Build the disk image
+        run: bash scripts/create-dmg.sh
+
+      - name: Verify the disk image
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          hdiutil verify .build/FileTerm.dmg
+          mount=$(mktemp -d)
+          hdiutil attach .build/FileTerm.dmg -nobrowse -readonly -mountpoint "$mount" -quiet
+          app="$mount/FileTerm.app"
+          built=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")
+          [ "$built" = "$VERSION" ] || { echo "::error::App reports $built, expected $VERSION"; exit 1; }
+          archs=$(lipo -archs "$app/Contents/MacOS/FileTerm")
+          echo "Architectures: $archs"
+          [[ "$archs" == *arm64* && "$archs" == *x86_64* ]] || { echo "::error::Not a universal build: $archs"; exit 1; }
+          codesign --verify --deep --strict "$app"
+          hdiutil detach "$mount" -quiet
+
+      - name: Write the checksum
+        run: cd .build && shasum -a 256 FileTerm.dmg > FileTerm.dmg.sha256 && cat FileTerm.dmg.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FileTerm-${{ steps.version.outputs.version }}
+          path: |
+            .build/FileTerm.dmg
+            .build/FileTerm.dmg.sha256
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" .build/FileTerm.dmg .build/FileTerm.dmg.sha256 \
+            --verify-tag --title "FileTerm $VERSION" \
+            --notes-file .github/release-notes.md --generate-notes

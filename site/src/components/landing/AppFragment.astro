@@ -1,0 +1,67 @@
+---
+// The running app, rebuilt in HTML at its real size: two panes over a terminal that follows them.
+import { baseName, crumbs, inRepo, list, startPaths } from '../../lib/demo';
+
+const panes = startPaths.map((path, index) => ({ path, index, entries: list(path), crumbs: crumbs(path) }));
+const cwd = startPaths[0];
+---
+<div class="ft" data-ui data-app aria-label="A working copy of FileTerm. Click folders, or type cd, ls or pwd in the terminal." role="group">
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <symbol id="i-folder" viewBox="0 0 16 13"><path fill="currentColor" d="M0 2a1.5 1.5 0 0 1 1.5-1.5h4l1.6 1.8h7.4A1.5 1.5 0 0 1 16 3.8v7.7a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 11.5Z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 16 13"><path fill="currentColor" d="M3.5 0h6L13 3.5V13H3.5Z" opacity=".55"/><path fill="currentColor" d="M9.5 0v3.5H13Z"/></symbol>
+  </svg>
+  <div class="ft-bar" aria-hidden="true">
+    <span class="ft-dot"></span><span class="ft-dot"></span><span class="ft-dot"></span>
+    <span class="ft-title" data-title>FileTerm — {baseName(cwd)}</span>
+  </div>
+  <div class="ft-panes">
+    {panes.map((pane) => (
+      <section class:list={['ft-pane', { 'is-active': pane.index === 0 }]} data-pane={pane.index} aria-label={pane.index === 0 ? 'First pane' : 'Second pane'}>
+        <nav class="ft-crumbs" aria-label="Path" data-crumbs>
+          {pane.crumbs.map((crumb, i) => (
+            <>
+              {i > 0 && <span class="sep" aria-hidden="true">›</span>}
+              <button type="button" data-go={crumb.path}><svg class="ico ico-folder" aria-hidden="true"><use href="#i-folder" /></svg>{crumb.name}</button>
+            </>
+          ))}
+        </nav>
+        <div class="ft-head" aria-hidden="true"><span>Name</span><span>Size</span></div>
+        <ul class="ft-list" data-list>
+          {pane.entries.map((entry) => (
+            <li>
+              <button type="button" class="ft-row" data-name={entry.name} data-folder={entry.folder ? '' : undefined} aria-pressed={entry.folder ? undefined : 'false'} aria-label={entry.folder ? `Open folder ${entry.name}` : undefined}>
+                <svg class:list={['ico', entry.folder ? 'ico-folder' : 'ico-file']} aria-hidden="true"><use href={entry.folder ? '#i-folder' : '#i-file'} /></svg>
+                <span class="name">{entry.name}</span>
+                <span class="size">{entry.size}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div class="ft-status" aria-hidden="true"><span data-count>{pane.entries.length} items</span><span>192 GB free</span></div>
+      </section>
+    ))}
+  </div>
+  <div class="ft-term">
+    <div class="ft-term-bar">
+      <p class="ft-term-name" data-term-name>First pane · Tab 1<span>Follows the active pane</span></p>
+      <button type="button" class="ft-link" aria-pressed="true" data-link>Linked</button>
+    </div>
+    <div class="ft-screen" data-screen>
+      <samp class="ft-out" role="log" aria-live="polite" data-out>
+        <p><span class="c-ok g-arrow" aria-hidden="true"></span>  <span class="c-dir">{baseName(cwd)}</span>{inRepo(cwd) && <> <span class="c-git">git:(</span><span class="c-branch">main</span><span class="c-git">)</span></>} <span class="c-cmd">git</span> log --oneline -3</p>
+        <p><span class="c-hash">7bdbac8</span> (<span class="c-head">HEAD -&gt; main</span>) chore: bump vite to 6.2</p>
+        <p><span class="c-hash">f99d24e</span> feat: dark mode tokens</p>
+        <p><span class="c-hash">26b9571</span> fix: sidebar keeps its collapsed state</p>
+      </samp>
+      <form class="ft-prompt" data-prompt hidden>
+        <label for="ft-input" data-prompt-label><samp><span class="c-ok g-arrow" aria-hidden="true"></span>  <span class="c-dir">{baseName(cwd)}</span> <span class="c-git">git:(</span><span class="c-branch">main</span><span class="c-git">)</span> <span class="c-dirty g-dirty" aria-hidden="true"></span></samp></label>
+        <input id="ft-input" name="command" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="try: cd src" />
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { mountApp } from '../../scripts/app-fragment';
+  document.querySelectorAll<HTMLElement>('[data-app]').forEach(mountApp);
+</script>

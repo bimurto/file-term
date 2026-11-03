@@ -1,0 +1,62 @@
+---
+// Close-ups of the parts that do the daily work, each built from the app's own controls.
+---
+<section class="board" id="features" aria-labelledby="features-title">
+  <div class="tile tile-heading t-a" data-reveal>
+    <h2 class="head" id="features-title">What else it does</h2>
+  </div>
+
+  <div class="tile t-c" data-reveal style="--i:1">
+    <div class="keycaps" data-ui aria-hidden="true"><span class="key wide"><i>⌘</i><b>command</b></span><span class="key">T</span></div>
+    <div class="tile-text"><h3>Tabs in every pane</h3><p>Each tab keeps its own folder and history.</p></div>
+  </div>
+
+  <div class="tile t-d" data-reveal style="--i:2">
+    <div class="keycaps one" data-ui aria-hidden="true"><span class="key wide"><b>esc</b></span></div>
+    <div class="tile-text"><h3>Quick Open</h3><p>Press Esc and type any command, folder or favorite.</p></div>
+  </div>
+
+  <figure class="tile t-b" data-reveal style="--i:1">
+    <video muted loop playsinline preload="none" poster="/media/link-poster.jpg" width="1280" height="800" data-autoplay aria-label="Recording of FileTerm: typing cd src and cd components in the terminal moves the pane, and double-clicking docs in the pane moves the shell">
+      <source src="/media/link.webm" type="video/webm" />
+      <source src="/media/link.mp4" type="video/mp4" />
+    </video>
+    <figcaption class="tile-text"><h3>The link, recorded</h3><p>Typing cd moves the pane. Double-clicking a folder moves the shell.</p></figcaption>
+  </figure>
+
+  <div class="tile t-e" data-reveal style="--i:2">
+    <div class="transfer" data-ui aria-hidden="true">
+      <p class="tr-top"><span>Copying 3 items to NAS/Backups</span><span>62%</span></p>
+      <div class="tr-bar"><i></i></div>
+      <p class="tr-sub">1.8 GB of 2.9 GB at 46 MB/s, about 24 seconds left</p>
+    </div>
+    <div class="tile-text"><h3>One transfer queue</h3><p>Pause, reorder and verify every copy with SHA-256.</p></div>
+  </div>
+
+  <div class="tile t-f" data-reveal style="--i:1">
+    <div class="views" data-ui aria-hidden="true">
+      <span><svg viewBox="0 0 16 16"><path fill="currentColor" d="M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z"/></svg></span>
+      <span class="on"><svg viewBox="0 0 16 16"><path fill="currentColor" d="M1 2h2v2H1zM5 2h10v2H5zM1 7h2v2H1zM5 7h10v2H5zM1 12h2v2H1zM5 12h10v2H5z"/></svg></span>
+      <span><svg viewBox="0 0 16 16"><path fill="currentColor" d="M1 1h4v14H1zM6 1h4v14H6zM11 1h4v14h-4z"/></svg></span>
+    </div>
+    <div class="tile-text"><h3>Three views</h3><p>Icons, list or columns, chosen per tab.</p></div>
+  </div>
+
+  <div class="tile t-g" data-reveal style="--i:2">
+    <div class="rename" data-ui aria-hidden="true">
+      <p><s>IMG_2041.jpg</s><b>Lisbon-001.jpg</b></p>
+      <p><s>IMG_2042.jpg</s><b>Lisbon-002.jpg</b></p>
+      <p><s>IMG_2043.jpg</s><b>Lisbon-003.jpg</b></p>
+    </div>
+    <div class="tile-text"><h3>Batch rename</h3><p>Ordered rules with a live before and after.</p></div>
+  </div>
+
+  <div class="tile t-h" data-reveal style="--i:3">
+    <div class="sync" data-ui aria-hidden="true">
+      <p><input type="checkbox" checked tabindex="-1" /><span class="arrow">→</span> 12 files to copy</p>
+      <p><input type="checkbox" checked tabindex="-1" /><span class="arrow">→</span> 3 files to update</p>
+      <p><input type="checkbox" tabindex="-1" /><span class="del">×</span> 1 file to delete</p>
+    </div>
+    <div class="tile-text"><h3>Folder sync</h3><p>See every change and untick any before it runs.</p></div>
+  </div>
+</section>

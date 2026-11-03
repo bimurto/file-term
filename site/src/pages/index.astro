@@ -1,0 +1,28 @@
+---
+import Landing from '../layouts/Landing.astro';
+import Hero from '../components/landing/Hero.astro';
+import Showcase from '../components/landing/Showcase.astro';
+import Band from '../components/landing/Band.astro';
+import Board from '../components/landing/Board.astro';
+import Keys from '../components/landing/Keys.astro';
+import Wall from '../components/landing/Wall.astro';
+import Get from '../components/landing/Get.astro';
+import Faq from '../components/landing/Faq.astro';
+import Footer from '../components/landing/Footer.astro';
+---
+<Landing
+  title="FileTerm: a dual-pane file manager for macOS with a terminal that follows you"
+  description="FileTerm is a free, open-source file manager for macOS. Two panes, tabs and three views, with a built-in terminal that follows every folder you open."
+>
+  <Hero />
+  <main id="main">
+    <Showcase />
+    <Band />
+    <Board />
+    <Keys />
+    <Wall />
+    <Get />
+    <Faq />
+  </main>
+  <Footer />
+</Landing>

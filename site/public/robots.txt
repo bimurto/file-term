@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fileterm.bimurto.io/sitemap-index.xml
