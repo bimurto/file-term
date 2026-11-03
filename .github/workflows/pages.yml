@@ -1,0 +1,47 @@
+name: Website
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'docs/user-guide/**', '.github/workflows/pages.yml']
+  pull_request:
+    paths: ['site/**', 'docs/user-guide/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+  # A release made by the Release workflow puts its version and checksum on the site.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    env:
+      # Lets the build read the latest release without the anonymous rate limit.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: withastro/action@v6
+        with:
+          path: ./site
+          node-version: 24
+          build-cmd: npm test && npm run build
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
