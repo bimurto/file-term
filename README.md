@@ -8,8 +8,9 @@
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 ![SwiftUI + AppKit](https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-0A84FF)
 ![Version 0.1.0](https://img.shields.io/badge/version-0.1.0-6E56CF)
+[![MIT License](https://img.shields.io/badge/license-MIT-FF7A6B)](LICENSE)
 
-[Features](#features) · [Getting started](#getting-started) · [Keyboard shortcuts](#keyboard-shortcuts) · [User guide](docs/user-guide/README.md) · [Development](#development)
+[Website](https://fileterm.bimurto.io) · [Features](#features) · [Getting started](#getting-started) · [Keyboard shortcuts](#keyboard-shortcuts) · [User guide](docs/user-guide/README.md) · [Development](#development)
 
 <img src="docs/images/hero.png" alt="FileTerm window with two panes in list and column view, a sidebar, and the built-in terminal showing git output" width="900">
 
@@ -59,7 +60,16 @@ Not built yet: Google Drive, OneDrive, Dropbox and Rackspace connections, iCloud
 
 ## Getting started
 
-There is no prebuilt release yet. Build from source:
+### Download
+
+1. Download [FileTerm.dmg](https://github.com/bimurto/file-term/releases/latest/download/FileTerm.dmg) from the [latest release](https://github.com/bimurto/file-term/releases/latest). It runs on macOS 14 or later, on Apple silicon and Intel.
+2. Open it and drag FileTerm to Applications.
+3. Open FileTerm. It isn't notarized by Apple yet, so macOS asks once:
+   - macOS 15 and later: click **Done**, then go to System Settings › Privacy & Security and click **Open Anyway**.
+   - macOS 14: Control-click FileTerm in Applications and choose **Open**.
+   - Or run `xattr -dr com.apple.quarantine /Applications/FileTerm.app`.
+
+### Build from source
 
 Requirements: macOS 14+, Xcode 16+ (Swift 6). No Apple developer account needed.
 
@@ -84,7 +94,7 @@ First steps in the app:
 2. Press **⌃`** to open the terminal. Type `cd ..` and watch the pane follow.
 3. Press **Esc** and type a command name, for example `new tab`.
 
-The [user guide](docs/user-guide/README.md) covers every feature in 13 chapters.
+The [user guide](https://fileterm.bimurto.io/docs/) covers every feature in 13 chapters. Its source is in [docs/user-guide](docs/user-guide/README.md).
 
 ## Keyboard shortcuts
 
@@ -133,6 +143,22 @@ bash scripts/create-dmg.sh
 
 This writes `.build/FileTerm.dmg`. It isn't notarized, so Gatekeeper blocks it on other Macs.
 
+To publish a release, set `MARKETING_VERSION` in `project.yml`, then push a matching tag such as `v0.1.0`. The Release workflow builds and checks the DMG, publishes it with its SHA-256, and the website picks up the new version.
+
+### Website
+
+The site at [fileterm.bimurto.io](https://fileterm.bimurto.io) lives in `site/` (Astro). Its `/docs` pages are generated from `docs/user-guide`, so edit the guide there.
+
+```sh
+cd site
+npm install
+npm run dev     # http://localhost:4321
+npm test        # docs conversion tests
+npm run build   # also checks every link and Help anchor
+```
+
+Pushes to `main` that touch `site/` or `docs/user-guide/` deploy it to GitHub Pages.
+
 ### Tests
 
 ```sh
@@ -167,3 +193,7 @@ Work is planned in [milestones](docs/README.md). Open problems are tracked in [K
 ## Acknowledgements
 
 Built with [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm), [Defaults](https://github.com/sindresorhus/Defaults), [Settings](https://github.com/sindresorhus/Settings) and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+## License
+
+FileTerm is free and open source under the [MIT License](LICENSE). Third-party notices ship in the app (`FileTerm/Resources/ThirdPartyNotices.txt`).
