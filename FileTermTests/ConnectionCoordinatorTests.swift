@@ -4,14 +4,29 @@ import Testing
 
 @testable import FileTerm
 
-/// M14.10 for SMB, which goes through the OS mount rather than a provider. Needs the `samba` service
-/// in dev/docker-compose.yml. Skipped unless the test host gets FILETERM_LIVE=1, which xcodebuild
-/// passes on from TEST_RUNNER_FILETERM_LIVE=1.
+/// M14.10 for SMB and NFS, which go through the OS mount rather than a provider. SMB needs the
+/// `samba` service in dev/docker-compose.yml. NFS needs macOS's own nfsd, because the docker image
+/// can't load its kernel module: create /private/tmp/fileterm-nfs, add
+/// `/private/tmp/fileterm-nfs localhost` to /etc/exports and run `sudo nfsd restart`. Skipped
+/// unless the test host gets FILETERM_LIVE=1, which xcodebuild passes on from
+/// TEST_RUNNER_FILETERM_LIVE=1.
 @Suite(.enabled(if: ProcessInfo.processInfo.environment["FILETERM_LIVE"] == "1"), .serialized)
 struct MountedShareSmokeTests {
   @Test func smb() async throws {
     let share = try #require(URL(string: "smb://tester@127.0.0.1:1445/share"))
-    let mount = try await NetFSMounter().mount(share, user: "tester", password: "testpass123")
+    try await roundTrip(share, user: "tester", password: "testpass123")
+  }
+
+  @Test func nfs() async throws {
+    var profile = ConnectionProfile(kind: .nfs)
+    profile.server = "127.0.0.1"
+    profile.path = "/private/tmp/fileterm-nfs"
+    try await roundTrip(try profile.url(), user: nil, password: nil)
+  }
+
+  /// Connect, list, upload, download, rename and delete on a mounted share.
+  private func roundTrip(_ share: URL, user: String?, password: String?) async throws {
+    let mount = try await NetFSMounter().mount(share, user: user, password: password)
     defer {
       let unmount = Process()
       unmount.executableURL = URL(fileURLWithPath: "/sbin/umount")

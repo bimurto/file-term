@@ -44,14 +44,14 @@
 ### M14.10 Remote smoke tests
 - [ ] For each protocol in M08, run connect, list, upload, download, rename and delete against test servers (docker-based where possible).
   - Open: the protocols marked "not run" below have no result yet.
-  - Run with `FILETERM_LIVE=1 swift test --filter RemoteSmokeTests` and, for SMB, `TEST_RUNNER_FILETERM_LIVE=1 xcodebuild … test -only-testing:FileTermTests/MountedShareSmokeTests`.
+  - Run with `FILETERM_LIVE=1 swift test --filter RemoteSmokeTests` and, for SMB and NFS, `TEST_RUNNER_FILETERM_LIVE=1 xcodebuild … test -only-testing:FileTermTests/MountedShareSmokeTests`.
 
   | Protocol | Result | Note |
   |---|---|---|
   | SFTP, FTP, FTP-TLS, WebDAV, Amazon S3 | Passed | Against `dev/docker-compose.yml`. FTP needs its server to finish starting first. |
   | Backblaze B2 | Passed | Against the `s3` stand-in, so not Backblaze's own service. |
   | SMB | Passed | Through the real NetFS mount, on port 1445. |
-  | NFS | Not run | The `nfs` container can't load its kernel module under Colima. |
+  | NFS | Passed | Through the real NetFS mount, against macOS's own `nfsd`, because the `nfs` container can't load its kernel module under Colima. Setup is in the test's comment. |
   | WebDAV over HTTPS | Passed | Through a TLS proxy in `dev/docker-compose.yml`. The test trusts the proxy's own certificate through a test-only option, so a certificate macOS trusts by itself wasn't exercised. An untrusted certificate is refused. |
   | AFP | Not run | No test server, and macOS 26 has no AFP client. |
   | VNC | Not applicable | Screen sharing can't list or transfer files. |
