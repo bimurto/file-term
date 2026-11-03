@@ -170,12 +170,20 @@ struct TerminalPanel: View {
           workspace.currentSession?.focus()
         }
         .accessibilityIdentifier("terminalFindField")
-      Button { find(backward: true) } label: { Image(systemName: "chevron.up") }
-        .buttonStyle(.borderless).help("Find Previous").accessibilityLabel("Find Previous")
-        .accessibilityIdentifier("terminalFindPrevious")
-      Button { find(backward: false) } label: { Image(systemName: "chevron.down") }
-        .buttonStyle(.borderless).help("Find Next").accessibilityLabel("Find Next")
-        .accessibilityIdentifier("terminalFindNext")
+      Button {
+        find(backward: true)
+      } label: {
+        Image(systemName: "chevron.up")
+      }
+      .buttonStyle(.borderless).help("Find Previous").accessibilityLabel("Find Previous")
+      .accessibilityIdentifier("terminalFindPrevious")
+      Button {
+        find(backward: false)
+      } label: {
+        Image(systemName: "chevron.down")
+      }
+      .buttonStyle(.borderless).help("Find Next").accessibilityLabel("Find Next")
+      .accessibilityIdentifier("terminalFindNext")
     }
     .padding(.horizontal, 6).padding(.vertical, 2)
     .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 5))

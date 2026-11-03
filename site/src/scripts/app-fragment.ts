@@ -138,7 +138,11 @@ export function mountApp(root: HTMLElement) {
     state.linked = !state.linked;
     linkButton.setAttribute('aria-pressed', String(state.linked));
     linkButton.textContent = state.linked ? 'Linked' : 'Unlinked';
-    if (state.linked) terminalFollows(state.paths[state.active]);
+    // Relinking moves the pane to the shell's folder, as the app does.
+    if (state.linked && state.paths[state.active] !== state.cwd) {
+      state.paths[state.active] = state.cwd;
+      renderPane(state.active);
+    }
   });
 
   form.addEventListener('submit', (event) => {

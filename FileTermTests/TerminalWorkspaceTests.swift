@@ -215,9 +215,15 @@ import Testing
     let workspace: TerminalWorkspace
     var body: some View {
       if workspace.panel.dock == .right {
-        HSplitView { Color.clear; TerminalPanel(workspace: workspace) }
+        HSplitView {
+          Color.clear
+          TerminalPanel(workspace: workspace)
+        }
       } else {
-        VSplitView { Color.clear; TerminalPanel(workspace: workspace) }
+        VSplitView {
+          Color.clear
+          TerminalPanel(workspace: workspace)
+        }
       }
     }
   }
