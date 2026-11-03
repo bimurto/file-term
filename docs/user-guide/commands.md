@@ -88,6 +88,7 @@ Every menu command, grouped by top-level menu. Submenu paths are named in the de
 | <a id="view.titleBar"></a>Show Title Bar | — | Shows or hides the title bar. | [Ch 2](02-views-windows-and-tabs.md) |
 | <a id="view.toolbar"></a>Show Toolbar | — | Shows or hides the toolbar, which also holds the search field. | [Ch 2](02-views-windows-and-tabs.md) |
 | <a id="view.devices"></a>Show Devices | — | Shows or hides the sidebar's Devices section. | [Ch 1](01-navigation-and-panes.md) |
+| <a id="view.connections"></a>Show Connections | — | Shows or hides the sidebar's Connections section. | [Ch 6](06-connections-and-remote-locations.md) |
 | <a id="view.deviceInfo"></a>Show Device Info | — | Shows or hides free space and capacity under each device. | [Ch 1](01-navigation-and-panes.md) |
 | <a id="view.sidebar"></a>Show Sidebar | — | Shows or hides the sidebar. | [Ch 2](02-views-windows-and-tabs.md) |
 | <a id="view.tabBar"></a>Show Tab Bar | — | Shows or hides each pane's tab bar. | [Ch 2](02-views-windows-and-tabs.md) |

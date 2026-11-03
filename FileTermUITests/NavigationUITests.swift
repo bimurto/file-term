@@ -182,6 +182,42 @@ final class NavigationUITests: XCTestCase {
     XCTAssertTrue(hint.exists)
   }
 
+  /// Run with `TEST_RUNNER_FILETERM_LIVE=1` and the `webdav` service. Connects without saving.
+  @MainActor func testLiveOpenConnectionIsListedInTheSidebarUntilItDisconnects() throws {
+    try XCTSkipUnless(ProcessInfo.processInfo.environment["FILETERM_LIVE"] == "1")
+    let fixture = try Fixture()
+    defer { fixture.remove() }
+    let app = fixture.launch()
+    defer { app.terminate() }
+    XCTAssertTrue(app.staticTexts["left.txt"].waitForExistence(timeout: 10))
+    let header = app.descendants(matching: .any)["sidebarHeader.connections"]
+    XCTAssertFalse(header.exists)
+    fillLiveForm(app)
+    app.sheets.firstMatch.buttons["connectionConnect"].click()
+    let row = app.descendants(matching: .any)["sidebarConnection.127.0.0.1:8080"]
+    XCTAssertTrue(row.waitForExistence(timeout: 15))
+    XCTAssertTrue(header.exists)
+
+    // Context menu items share one identifier, unlike the menu bar's, so the title tells them apart.
+    let contextItem = { (title: String) in
+      app.menuItems.matching(
+        NSPredicate(format: "identifier == %@ AND title == %@", "menuAction:", title)
+      ).firstMatch
+    }
+    row.rightClick()
+    contextItem("Open in New Tab").click()
+    let tabs = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tab.first."))
+    XCTAssertTrue(
+      tabs.matching(NSPredicate(format: "label == %@", "/")).firstMatch
+        .waitForExistence(timeout: 15))
+
+    row.rightClick()
+    contextItem("Disconnect").click()
+    let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: row)
+    wait(for: [gone], timeout: 10)
+    XCTAssertFalse(header.exists)
+  }
+
   /// A recreated `sftp` container has new host keys, and FileTerm rightly refuses them if it
   /// trusted the old ones under that address. Set `TEST_RUNNER_FILETERM_SFTP_HOST` to another
   /// address of this Mac to test without removing them. `localhost` and `127.1` don't work here:

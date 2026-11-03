@@ -48,7 +48,7 @@ enum PlaceholderPanel: String, CaseIterable, Identifiable {
 
 enum BrowserChrome: String, CaseIterable {
   case pathBar, titleBar, toolbar, devices, deviceInfo, sidebar, tabBar, recentFolders, tags
-  case workspaces, iCloudDrive, favorites
+  case workspaces, iCloudDrive, favorites, connections
   var title: String {
     switch self {
     case .pathBar: "Path Bar"
@@ -63,6 +63,7 @@ enum BrowserChrome: String, CaseIterable {
     case .workspaces: "Workspaces"
     case .iCloudDrive: "iCloud Drive"
     case .favorites: "Favorites"
+    case .connections: "Connections"
     }
   }
   /// The sidebar section this chrome item shows or hides.
@@ -73,6 +74,7 @@ enum BrowserChrome: String, CaseIterable {
     case "workspaces": .workspaces
     case "iCloudDrive": .iCloudDrive
     case "favorites": .favorites
+    case "connections": .connections
     default: .recentFolders
     }
   }

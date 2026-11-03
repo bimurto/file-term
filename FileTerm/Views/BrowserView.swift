@@ -374,6 +374,28 @@ struct BrowserView: View {
             sectionHeader("Devices", section: "devices", chrome: .devices)
           }
         }
+        if section == "connections" && settings.isVisible(.connections)
+          && !connections.open.isEmpty
+        {
+          Section {
+            if isExpanded("connections") {
+              ForEach(connections.open) { connection in
+                Button {
+                  devices.selectedVolumeID = nil
+                  _ = registry.execute("go.connections.open.\(connection.id)")
+                } label: {
+                  Label(connection.profile.displayName, systemImage: "network").lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                .help("\(connection.profile.kind.title): \(connection.profile.server)")
+                .contextMenu { connectionMenu(connection) }
+                .accessibilityIdentifier("sidebarConnection.\(connection.profile.displayName)")
+              }
+            }
+          } header: {
+            sectionHeader("Connections", section: "connections", chrome: .connections)
+          }
+        }
         if section == "recents" && settings.isVisible(.recentFolders) {
           Section {
             if isExpanded("recents") {
@@ -591,6 +613,13 @@ struct BrowserView: View {
     Button("Hide from Sidebar") {
       settings.hiddenSidebarItems.insert(SidebarItemKey.volume(volume))
     }
+  }
+
+  @ViewBuilder private func connectionMenu(_ connection: OpenConnection) -> some View {
+    Button("Open in New Tab") { openInNewTab(connection.root) }
+    Button("Open in New Window") { openInNewWindow(["location": connection.root]) }
+    Divider()
+    Button("Disconnect") { _ = registry.execute("go.connections.disconnect.\(connection.id)") }
   }
 
   private func visibleFavorites(_ items: [FavoriteItem]) -> [FavoriteItem] {
