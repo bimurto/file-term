@@ -160,6 +160,24 @@ final class WorkspaceUITests: XCTestCase {
     XCTAssertEqual(tabs("second"), 2)
   }
 
+  @MainActor func testDoubleClickingEmptyTabBarOpensATabAtHome() throws {
+    let fixture = try WorkspaceFixture()
+    defer { fixture.remove() }
+    let app = fixture.launch()
+    defer { app.terminate() }
+    XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
+    let tabs = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tab.first."))
+    XCTAssertEqual(tabs.count, 1)
+    app.buttons["New Tab"].firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5))
+      .withOffset(CGVector(dx: -60, dy: 0)).doubleClick()
+    let home = URL(fileURLWithPath: String(cString: getpwuid(getuid()).pointee.pw_dir))
+    let homeTab = tabs.matching(NSPredicate(format: "label == %@", home.lastPathComponent))
+      .firstMatch
+    XCTAssertTrue(homeTab.waitForExistence(timeout: 15))
+    XCTAssertEqual(tabs.count, 2)
+    XCTAssertEqual(homeTab.value as? String, "Selected")
+  }
+
   @MainActor func testPinnedTabsMultipleWindowsAndNativeWindowMenu() throws {
     let fixture = try WorkspaceFixture()
     defer { fixture.remove() }

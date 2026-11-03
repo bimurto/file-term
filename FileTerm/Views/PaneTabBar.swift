@@ -49,7 +49,14 @@ struct PaneTabBar: View {
       }
       .buttonStyle(.plain).accessibilityLabel("New Tab").accessibilityIdentifier(
         "newTab.\(paneID.rawValue)")
-    }.padding(.horizontal, 6).frame(height: 30).accessibilityIdentifier("tabBar.\(paneID.rawValue)")
+    }.padding(.horizontal, 6).frame(height: 30).contentShape(Rectangle())
+      .onTapGesture(count: 2) {
+        // Double-clicking the empty part of the bar opens a tab at Home.
+        browser.activePaneID = paneID
+        registry.execute("file.newTab")
+        registry.execute(StandardDestination.home.commandID)
+      }
+      .accessibilityIdentifier("tabBar.\(paneID.rawValue)")
   }
 
   private func title(_ tab: PaneModel) -> String {

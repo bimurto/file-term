@@ -70,6 +70,7 @@ Sidebar sections are Devices, Recent Folders, Tags, iCloud Drive, Workspaces and
 Each pane has its own tabs, and each tab keeps its own location, history and view.
 
 - File › New Tab (⌘T) opens a tab at the same folder, with the default view settings.
+- Double-click an empty part of a pane's tab bar to open a tab at your Home folder.
 - File › Close Tab (⌘W) closes the current tab. Closing the last tab in the active pane closes the window.
 - File › Close Other Tabs leaves only the current tab.
 - Window › Previous Tab (⇧⌘[) and Next Tab (⇧⌘]) move through the active pane's tabs.
