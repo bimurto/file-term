@@ -489,6 +489,8 @@ private struct Fixture {
     try Data("right".utf8).write(to: right.appendingPathComponent("right.txt"))
     try Data().write(to: left.appendingPathComponent("Shared/left-child.txt"))
     try Data().write(to: right.appendingPathComponent("Shared/right-child.txt"))
+    // Start with no favorites so the drop hint, which these tests drag onto, is shown.
+    UserDefaults(suiteName: suite)?.set(Data("[]".utf8), forKey: "favorites")
   }
 
   @MainActor func launch() -> XCUIApplication {

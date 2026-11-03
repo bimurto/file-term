@@ -65,6 +65,11 @@ import Testing
     let fresh = UserDefaults(suiteName: "com.fileterm.tests.\(UUID())")!
     #expect(AppSettings(suite: fresh).detectAppOnDelete)
     #expect(AppSettings(suite: fresh).compareTool == .fileMerge)
+    let seeded = AppSettings(suite: fresh)
+    #expect(seeded.favorites.allItems.map(\.target) == FavoriteItem.defaults().map(\.target))
+    // The defaults keep their IDs, and removing them all is not undone by the next launch.
+    #expect(AppSettings(suite: fresh).favorites == seeded.favorites)
+    seeded.favorites = []
     #expect(AppSettings(suite: fresh).favorites.isEmpty)
     #expect(!AppSettings(suite: fresh).syncFavoritesToICloud)
     #expect(AppSettings(suite: fresh).tools.isEmpty)

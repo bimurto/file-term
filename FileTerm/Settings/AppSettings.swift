@@ -292,6 +292,11 @@ enum BrowserChrome: String, CaseIterable {
     toolsKey = Defaults.Key("userTools", default: Data(), suite: suite)
     tools = (try? JSONDecoder().decode([UserTool].self, from: Defaults[toolsKey])) ?? []
     favoritesKey = Defaults.Key("favorites", default: Data(), suite: suite)
+    if Defaults[favoritesKey].isEmpty {
+      // Saved at once so the defaults keep their IDs, which hidden sidebar items refer to.
+      let defaults = FavoriteItem.defaults().map(FavoriteNode.item)
+      Defaults[favoritesKey] = (try? JSONEncoder().encode(defaults)) ?? Data()
+    }
     favorites = (try? JSONDecoder().decode([FavoriteNode].self, from: Defaults[favoritesKey])) ?? []
     renamePresetsKey = Defaults.Key("renamePresets", default: Data(), suite: suite)
     renamePresets =

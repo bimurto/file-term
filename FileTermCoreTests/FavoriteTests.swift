@@ -64,6 +64,16 @@ struct FavoriteTests {
   @Test func iCloudDriveSitsInsideMobileDocuments() {
     #expect(FavoriteItem.iCloudDrivePath.hasSuffix("/Library/Mobile Documents/com~apple~CloudDocs"))
   }
+
+  @Test func defaultsAreHomeDownloadsDesktopAndDocuments() {
+    let defaults = FavoriteItem.defaults(home: "/Users/ada")
+    #expect(defaults.map(\.name) == ["ada", "Downloads", "Desktop", "Documents"])
+    #expect(
+      defaults.map(\.target) == [
+        .local(path: "/Users/ada"), .local(path: "/Users/ada/Downloads"),
+        .local(path: "/Users/ada/Desktop"), .local(path: "/Users/ada/Documents"),
+      ])
+  }
 }
 
 struct FavoritesSyncPayloadTests {

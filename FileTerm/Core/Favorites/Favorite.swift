@@ -21,6 +21,13 @@ public struct FavoriteItem: Codable, Hashable, Identifiable, Sendable {
   public static var iCloudDrivePath: String {
     NSHomeDirectory() + "/Library/Mobile Documents/com~apple~CloudDocs"
   }
+
+  /// What a new install starts with: the home folder, Downloads, Desktop and Documents.
+  public static func defaults(home: String = NSHomeDirectory()) -> [FavoriteItem] {
+    [home, home + "/Downloads", home + "/Desktop", home + "/Documents"].map { path in
+      FavoriteItem(name: (path as NSString).lastPathComponent, target: .local(path: path))
+    }
+  }
 }
 
 public struct FavoriteGroup: Codable, Hashable, Identifiable, Sendable {
