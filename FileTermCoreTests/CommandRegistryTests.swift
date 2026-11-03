@@ -12,7 +12,9 @@ private final class ChangeFlag: @unchecked Sendable { var value = false }
     #expect(HelpLinks.anchor(forCommand: "window.tab3") == "window.tab")
     #expect(HelpLinks.anchor(forCommand: "go.favorites.item.1.2") == "go.favorites.item")
     #expect(HelpLinks.url(forCommand: "file.newTab")?.fragment == "file.newTab")
-    #expect(HelpLinks.url(forCommand: "file.newTab")?.path.hasSuffix("/commands.md") == true)
+    #expect(
+      HelpLinks.url(forCommand: "file.newTab")?.absoluteString
+        == "https://fileterm.bimurto.io/docs/commands/#file.newTab")
   }
 
   @Test func statesBuildTheCommandsOnceAndMatchPerCommandAnswers() {
