@@ -799,10 +799,12 @@ private struct BrowserPaneView: View {
       Divider()
       statusBar
     }
-    .overlay {
-      Rectangle().strokeBorder(
-        browser.activePaneID == paneID ? Color.accentColor : Color.clear, lineWidth: 2
-      ).allowsHitTesting(false)
+    .overlay(alignment: .top) {
+      // ForkLift-style marker: a thin accent bar across the top of the active pane.
+      if browser.activePaneID == paneID {
+        Capsule().fill(Color.accentColor).frame(height: 3).padding(.horizontal, 8)
+          .allowsHitTesting(false)
+      }
     }
     .contentShape(Rectangle())
     .background(PaneActivationView { browser.activePaneID = paneID })
