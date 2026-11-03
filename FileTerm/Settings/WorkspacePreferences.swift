@@ -32,7 +32,8 @@ struct WorkspacePreferences: Codable, Equatable {
   /// `sidebarOrder` saved by an older version lacks newer sections; they go at the end.
   var sidebarSections: [String] {
     sidebarOrder
-      + ["devices", "recents", "tags", "iCloudDrive", "workspaces", "favorites"].filter {
+      + ["devices", "connections", "recents", "tags", "iCloudDrive", "workspaces", "favorites"]
+      .filter {
         !sidebarOrder.contains($0)
       }
   }

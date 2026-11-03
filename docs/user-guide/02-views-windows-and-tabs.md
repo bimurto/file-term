@@ -63,7 +63,7 @@ Click Apply to use the settings. Save View Settings as Defaults, in the dialog o
 - Click a sidebar section's header to fold or unfold it. Folded sections stay folded after a relaunch.
 - Drag the divider beside the sidebar or preview to resize it. File panes keep a minimum width.
 
-Sidebar sections are Devices, Recent Folders, Tags, iCloud Drive, Workspaces and Favorites. Network volumes and external disks show an icon beside their name. iCloud Drive appears only when that folder exists, and Workspaces only when you've saved one. Each section also has its own command in the View menu.
+Sidebar sections are Devices, Connections, Recent Folders, Tags, iCloud Drive, Workspaces and Favorites. Network volumes and external disks show an icon beside their name. Connections appears only while a connection is open, iCloud Drive only when that folder exists, and Workspaces only when you've saved one. Each section also has its own command in the View menu.
 
 ## Tabs
 

@@ -102,12 +102,12 @@ import Testing
     preferences.sidebarOrder = ["recents", "devices"]
     #expect(
       preferences.sidebarSections == [
-        "recents", "devices", "tags", "iCloudDrive", "workspaces", "favorites",
+        "recents", "devices", "connections", "tags", "iCloudDrive", "workspaces", "favorites",
       ])
     preferences.sidebarOrder = ["workspaces", "iCloudDrive", "tags", "devices", "recents"]
     #expect(
       preferences.sidebarSections == [
-        "workspaces", "iCloudDrive", "tags", "devices", "recents", "favorites",
+        "workspaces", "iCloudDrive", "tags", "devices", "recents", "connections", "favorites",
       ])
   }
 

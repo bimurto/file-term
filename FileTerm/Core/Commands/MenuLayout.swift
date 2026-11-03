@@ -48,7 +48,7 @@ public enum MenuLayout {
       [
         "view.pathBar", "view.titleBar", "view.toolbar", "view.sidebar", "view.tabBar",
         "view.devices", "view.deviceInfo", "view.recentFolders", "view.tags", "view.workspaces",
-        "view.iCloudDrive", "view.favorites",
+        "view.iCloudDrive", "view.favorites", "view.connections",
       ],
       [
         "view.customizeToolbar", "view.sidebarEditor", "view.saveDefaults",
