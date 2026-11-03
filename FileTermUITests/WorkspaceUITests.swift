@@ -168,7 +168,7 @@ final class WorkspaceUITests: XCTestCase {
     XCTAssertTrue(app.outlines["fileList"].staticTexts["small.txt"].waitForExistence(timeout: 10))
     let tabs = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tab.first."))
     XCTAssertEqual(tabs.count, 1)
-    app.buttons["New Tab"].firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5))
+    app.buttons["newTab.first"].coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5))
       .withOffset(CGVector(dx: -60, dy: 0)).doubleClick()
     let home = URL(fileURLWithPath: String(cString: getpwuid(getuid()).pointee.pw_dir))
     let homeTab = tabs.matching(NSPredicate(format: "label == %@", home.lastPathComponent))

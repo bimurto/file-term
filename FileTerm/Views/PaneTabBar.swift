@@ -56,7 +56,7 @@ struct PaneTabBar: View {
         registry.execute("file.newTab")
         registry.execute(StandardDestination.home.commandID)
       }
-      .accessibilityIdentifier("tabBar.\(paneID.rawValue)")
+      .accessibilityElement(children: .contain).accessibilityIdentifier("tabBar.\(paneID.rawValue)")
   }
 
   private func title(_ tab: PaneModel) -> String {
