@@ -1,0 +1,71 @@
+---
+// Default shortcuts, checked against docs/user-guide/commands.md.
+const groups = [
+  {
+    name: 'Getting around',
+    rows: [
+      ['Quick Open', 'Find any command, folder or favorite', 'Go', 'Esc'],
+      ['New Tab', 'Open the same folder in a new tab', 'File', '⌘T'],
+      ['Close Tab', 'Close the current tab', 'File', '⌘W'],
+      ['Previous or Next Tab', 'Move through the active pane’s tabs', 'Window', '⇧⌘[  ⇧⌘]'],
+      ['Select Tab 1 to 5', 'Jump straight to a tab', 'Window', '⌘1 – ⌘5'],
+      ['New Window', 'Open another window', 'File', '⌘N'],
+      ['Quit and Keep Windows', 'Quit and restore windows next time', 'FileTerm', '⌥⌘Q'],
+    ],
+  },
+  {
+    name: 'Terminal',
+    rows: [
+      ['Show Terminal', 'Hide it and the shells keep running', 'View', '⌃`'],
+      ['Focus Terminal or Pane', 'Move the keyboard between the two', 'View › Terminal', '⌃⌥`'],
+    ],
+  },
+  {
+    name: 'Select and find',
+    rows: [
+      ['Quick Select', 'Select by name, extension or tag', 'Edit', '⌘S'],
+      ['Find', 'Search names, tags or file contents', 'File', '⌘F'],
+      ['Select All', 'Everything in the active pane', 'Edit', '⌘A'],
+      ['Invert Selection', 'Swap selected and unselected', 'Edit', '⇧⌘I'],
+      ['Show Hidden Items', 'Dotfiles in every pane, dimmed', 'View', '⇧⌘.'],
+      ['Refresh', 'Reload the tabs in this window', 'View', '⌘R'],
+    ],
+  },
+  {
+    name: 'Files',
+    rows: [
+      ['Open', 'Open the selection', 'File', '⌘O'],
+      ['Quick Look', 'Preview without opening', 'File', '⌘Y'],
+      ['Get Info', 'Permissions, tags and the default app', 'File', '⌘I'],
+      ['New Folder', 'Create a folder and name it', 'File', '⇧⌘N'],
+      ['New Folder With Selection', 'Move the selection into a new folder', 'File', '⌃⌘N'],
+      ['Duplicate', 'Copy in place under a new name', 'Commands', '⌘D'],
+      ['Move Items Here', 'Move what you copied into this folder', 'Edit', '⌥⌘V'],
+      ['Move to Trash', 'Local items go to the Trash', 'Commands', '⌘⌫'],
+      ['Undo', 'Undo the last local file operation', 'Edit', '⌘Z'],
+    ],
+  },
+];
+let n = 0;
+---
+<section class="keys" id="keyboard" aria-labelledby="keys-title">
+  <h2 class="sr-only" id="keys-title">Keyboard shortcuts</h2>
+  <table>
+    <caption class="sr-only">Default keyboard shortcuts</caption>
+    <thead class="sr-only"><tr><th scope="col">Command</th><th scope="col">What it does</th><th scope="col">Menu</th><th scope="col">Shortcut</th></tr></thead>
+    {groups.map((group) => (
+      <tbody>
+        <tr class="group"><th colspan="4" scope="colgroup">{group.name}</th></tr>
+        {group.rows.map(([command, does, menu, keys]) => (
+          <tr data-reveal style={`--i:${(n++ % 6)}`}>
+            <th scope="row">{command}</th>
+            <td class="soft">{does}</td>
+            <td class="soft">{menu}</td>
+            <td><kbd>{keys}</kbd></td>
+          </tr>
+        ))}
+      </tbody>
+    ))}
+  </table>
+  <p class="keys-note small">Every command can take a new shortcut in Settings › Shortcuts, which warns you about clashes. The <a class="link-plain" href="/docs/commands/">command reference</a> lists all of them.</p>
+</section>

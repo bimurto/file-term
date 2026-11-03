@@ -1,0 +1,43 @@
+---
+import { Picture } from 'astro:assets';
+import terminal from '../../assets/shots/crop-terminal.png';
+import columns from '../../assets/shots/crop-columns.png';
+import quickOpen from '../../assets/shots/crop-quick-open.png';
+
+// A specimen sheet of what FileTerm talks to.
+type Cell =
+  | { word: string; cap: string; p: string; heading?: boolean }
+  | { shot: ImageMetadata; alt: string };
+const cells: Cell[] = [
+  { word: 'Works with', cap: 'Servers, shells and archives', p: 'p5', heading: true },
+  { word: 'SFTP', cap: 'Your ssh config and agent', p: 'p1' },
+  { word: 'S3', cap: 'And S3-compatible storage', p: 'p2' },
+  { shot: terminal, alt: 'The terminal panel in the Dracula theme, showing git log at an idle prompt' },
+  { word: 'SMB', cap: 'Mac and NAS shares', p: 'p4' },
+  { word: 'WebDAV', cap: 'Over HTTP or HTTPS', p: 'p3' },
+  { word: 'FTP', cap: 'Plain or over TLS', p: 'p1' },
+  { shot: quickOpen, alt: 'Quick Open filtering commands by the word sync' },
+  { word: 'B2', cap: 'Backblaze', p: 'p2' },
+  { word: 'NFS', cap: 'Unix shares', p: 'p4' },
+  { word: 'zsh', cap: 'Follows the folder', p: 'p3' },
+  { word: 'bash', cap: 'Follows the folder', p: 'p1' },
+  { word: 'fish', cap: 'Follows the folder', p: 'p2' },
+  { shot: columns, alt: 'Column view in a pane, with Photos and Lisbon-2026 open' },
+  { word: 'zip', cap: 'Browse it like a folder', p: 'p4' },
+  { word: '7z', cap: 'And rar, to extract', p: 'p5' },
+];
+---
+<section class="wall" id="formats" aria-labelledby="formats-title">
+  {cells.map((cell, i) => 'word' in cell ? (
+    <div class={`cell ${cell.p}`} style={`--i:${i % 4}`} data-reveal>
+      {cell.heading
+        ? <h2 class="word" id="formats-title">Works<br />with</h2>
+        : <p class="word" aria-hidden="true">{cell.word}</p>}
+      <p class="cap">{cell.heading ? cell.cap : <><span class="sr-only">{cell.word}: </span>{cell.cap}</>}</p>
+    </div>
+  ) : (
+    <div class="cell shot folder" style={`--i:${i % 4}`} data-reveal>
+      <Picture src={cell.shot} formats={['avif', 'webp']} widths={[400, 700, 1000]} sizes="(max-width: 900px) 50vw, 25vw" alt={cell.alt} loading="lazy" />
+    </div>
+  ))}
+</section>

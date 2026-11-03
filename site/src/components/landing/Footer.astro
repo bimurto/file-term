@@ -1,0 +1,49 @@
+---
+import { getRelease, releasesUrl, repoUrl } from '../../lib/release';
+
+const release = await getRelease();
+---
+<footer class="footer">
+  <!-- The app icon's folder and prompt, built from flat shapes at full width. -->
+  <svg class="mark" viewBox="0 0 1200 300" preserveAspectRatio="xMinYMax meet" role="img" aria-label="FileTerm">
+    <path fill="#a58ae1" d="M0 0h452l40 40H1200v260H0Z" />
+    <path fill="#ffffff" d="M0 64h1200v236H0Z" />
+    <path fill="none" stroke="#5b2bc9" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" d="M88 120l72 62-72 62" />
+    <path fill="#5b2bc9" d="M196 227h150v34H196Z" />
+    <text x="1160" y="252" text-anchor="end" fill="#2a0f6b" font-family="Hanken Grotesk Variable, Hanken Grotesk, sans-serif" font-weight="500" font-size="150" letter-spacing="-7">FileTerm</text>
+  </svg>
+  <div class="footer-links">
+    <nav aria-labelledby="f-get">
+      <h2 id="f-get">Get it</h2>
+      <ul>
+        <li><a class="link" href={release ? release.url : '#get'}>{release ? 'Download for Mac' : 'Build from source'}</a></li>
+        <li><a class="link" href={releasesUrl}>Releases</a></li>
+        <li><a class="link" href="#first-launch">First launch</a></li>
+      </ul>
+    </nav>
+    <nav aria-labelledby="f-learn">
+      <h2 id="f-learn">Learn</h2>
+      <ul>
+        <li><a class="link" href="/docs/">User guide</a></li>
+        <li><a class="link" href="/docs/commands/">Command reference</a></li>
+        <li><a class="link" href="/docs/limits-and-known-gaps/">Limits and known gaps</a></li>
+      </ul>
+    </nav>
+    <nav aria-labelledby="f-project">
+      <h2 id="f-project">Project</h2>
+      <ul>
+        <li><a class="link" href={repoUrl}>Source code</a></li>
+        <li><a class="link" href={`${repoUrl}/issues`}>Report a bug</a></li>
+        <li><a class="link" href={`${repoUrl}/blob/main/LICENSE`}>MIT License</a></li>
+      </ul>
+    </nav>
+    <div class="footer-about">
+      <p>FileTerm is made by Shawrup Kumer Suter as a free tool for people who live in Finder and a terminal at the same time.</p>
+      <p>Built with SwiftUI, AppKit and SwiftTerm.</p>
+    </div>
+  </div>
+  <div class="footer-end">
+    <p>© 2026 Shawrup Kumer Suter. Released under the MIT License.</p>
+    <a class="button on-ink" href={release ? release.url : '#get'}>{release ? 'Download' : 'Get FileTerm'}</a>
+  </div>
+</footer>

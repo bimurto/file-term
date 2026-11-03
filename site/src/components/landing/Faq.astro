@@ -1,0 +1,52 @@
+---
+import { repoUrl } from '../../lib/release';
+---
+<section class="faq" id="questions" aria-labelledby="questions-title">
+  <div class="faq-head">
+    <h2 class="display" id="questions-title" data-reveal>Questions</h2>
+  </div>
+  <div class="faq-list">
+    <details name="faq" id="first-launch" data-reveal>
+      <summary>macOS says it can’t check FileTerm. How do I open it?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer">
+        <p>FileTerm isn’t notarized by Apple yet, so macOS asks the first time. On macOS 15 Sequoia and later:</p>
+        <ol>
+          <li>Open FileTerm once and click Done when the warning appears.</li>
+          <li>Open System Settings › Privacy &amp; Security.</li>
+          <li>Scroll down, click Open Anyway next to FileTerm, and confirm with your password.</li>
+        </ol>
+        <p>On macOS 14 Sonoma, Control-click FileTerm in Applications and choose Open. Or, from a terminal:</p>
+        <pre><code>xattr -dr com.apple.quarantine /Applications/FileTerm.app</code></pre>
+        <p>Each update is signed again, so macOS may also ask once more for access to Desktop, Documents and Downloads.</p>
+      </div>
+    </details>
+    <details name="faq" data-reveal style="--i:1">
+      <summary>Is it really free?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer"><p>Yes. FileTerm is open source under the MIT License. There’s no account, no trial and nothing to buy. The code is on <a class="link-plain" href={repoUrl}>GitHub</a>.</p></div>
+    </details>
+    <details name="faq" data-reveal style="--i:2">
+      <summary>Which Macs does it run on?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer"><p>Any Mac with macOS 14 Sonoma or later. The app is a universal build, so it runs natively on Apple silicon and on Intel.</p></div>
+    </details>
+    <details name="faq" data-reveal style="--i:3">
+      <summary>Does it collect any data?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer"><p>No. There’s no analytics and no crash reporter, and the log stays in memory until you quit. FileTerm only goes online when you connect to a server, or when you check for updates, which reads the latest release from GitHub. Automatic checks are off unless you turn them on.</p></div>
+    </details>
+    <details name="faq" data-reveal style="--i:4">
+      <summary>Which shells follow the folder?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer"><p>zsh, bash and fish. FileTerm loads a small integration script for each session and doesn’t edit your startup files. Other shells work in the terminal, just without following.</p></div>
+    </details>
+    <details name="faq" data-reveal style="--i:5">
+      <summary>Can I keep my own terminal app?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer"><p>Yes. File › Open in Terminal opens the current folder in Terminal, iTerm, Ghostty or Warp, whichever you pick in Settings. You can hide the built-in terminal and never see it.</p></div>
+    </details>
+    <details name="faq" data-reveal style="--i:6">
+      <summary>What isn’t built yet?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer"><p>Google Drive, OneDrive, Dropbox and Rackspace connections, syncing favorites through iCloud, resuming a transfer after a restart, previews of remote files, and languages other than English. The <a class="link-plain" href="/docs/limits-and-known-gaps/">limits page</a> lists everything.</p></div>
+    </details>
+    <details name="faq" data-reveal style="--i:7">
+      <summary>Where do I report a bug or ask for a feature?<span class="plus" aria-hidden="true"></span></summary>
+      <div class="faq-answer"><p>Open an issue on <a class="link-plain" href={`${repoUrl}/issues`}>GitHub</a>. Include your macOS version and the steps that cause it.</p></div>
+    </details>
+  </div>
+</section>

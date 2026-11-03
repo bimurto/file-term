@@ -1,0 +1,62 @@
+---
+import { getRelease, releasesUrl, repoUrl } from '../../lib/release';
+
+const release = await getRelease();
+const folder = '~/Developer/file-term';
+const commands = (dir: string) => [
+  `git clone ${repoUrl}.git ${dir}`,
+  `cd ${dir}`,
+  'bash scripts/fetch-dependencies.sh',
+  'bash scripts/generate-project.sh',
+  'open FileTerm.xcodeproj',
+].join('\n');
+---
+<section class="get" id="get" aria-labelledby="get-title">
+  <div class="get-text">
+    <h2 class="display" id="get-title" data-reveal>Open your first folder</h2>
+    <p class="lead" data-reveal style="--i:1">
+      {release
+        ? `Drag FileTerm to Applications and open it. The first launch needs one extra step, described below.`
+        : 'The first release is being prepared. Until then, build it from source with Xcode in a few minutes.'}
+    </p>
+  </div>
+  <div class="get-sheet sheet" data-ui data-sheet data-reveal style="--i:2">
+    <div class="sheet-bar" aria-hidden="true"><span class="ft-dot"></span><span class="ft-dot"></span><span class="ft-dot"></span><strong>Get FileTerm</strong></div>
+    <div class="sheet-body">
+      <div class="seg" role="tablist" aria-label="How to get FileTerm">
+        <button type="button" role="tab" id="tab-dmg" aria-controls="panel-dmg" aria-selected={release ? 'true' : 'false'} tabindex={release ? 0 : -1} data-tab="dmg">Download</button>
+        <button type="button" role="tab" id="tab-src" aria-controls="panel-src" aria-selected={release ? 'false' : 'true'} tabindex={release ? -1 : 0} data-tab="src">Build from source</button>
+      </div>
+
+      <div role="tabpanel" id="panel-dmg" aria-labelledby="tab-dmg" hidden={!release} data-panel="dmg">
+        {release ? (
+          <div style="display:grid;gap:14px">
+            <dl>
+              <dt>Version</dt><dd>{release.version}, released {release.date}</dd>
+              {release.sizeMB && <><dt>Size</dt><dd>{release.sizeMB} MB disk image, Apple silicon and Intel</dd></>}
+              <dt>Needs</dt><dd>macOS 14 Sonoma or later</dd>
+              {release.sha256 && <><dt>SHA-256</dt><dd><code>{release.sha256}</code></dd></>}
+            </dl>
+            <a class="primary" href={release.url}>Download for Mac</a>
+            <p class="sheet-note">Not notarized yet, so macOS asks once. <a href="#first-launch">How to open it</a>. <a href={release.notesUrl}>Release notes</a>.</p>
+          </div>
+        ) : (
+          <div style="display:grid;gap:14px">
+            <p class="sheet-note">No release has been published yet. The download will appear here, and on the <a href={releasesUrl}>releases page</a>.</p>
+          </div>
+        )}
+      </div>
+
+      <div role="tabpanel" id="panel-src" aria-labelledby="tab-src" hidden={!!release} data-panel="src">
+        <div style="display:grid;gap:14px">
+          <label class="field-label">Clone into
+            <input value={folder} spellcheck="false" autocomplete="off" data-clone-dir />
+          </label>
+          <pre data-commands>{commands(folder)}</pre>
+          <button type="button" class="primary" data-copy>Copy commands</button>
+          <p class="sheet-note">Needs Xcode 16 or later. Then choose FileTerm › My Mac and press ⌘R. <a href={`${repoUrl}#getting-started`}>Details in the README</a>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

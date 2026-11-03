@@ -1,0 +1,41 @@
+---
+import { Image } from 'astro:assets';
+import icon from '../../assets/icon.png';
+import AppFragment from './AppFragment.astro';
+import { getRelease, repoUrl } from '../../lib/release';
+
+const release = await getRelease();
+---
+<header class="hero">
+  <div class="hero-card folder" data-rise style="--i:0">
+    <a class="wordmark" href="/" aria-label="FileTerm home">
+      <Image src={icon} width={72} height={72} alt="" loading="eager" />
+      <span>FileTerm</span>
+    </a>
+    <div class="hero-body">
+      <h1 class="display" data-rise style="--i:1">Two panes and a shell</h1>
+      <p class="lead" data-rise style="--i:2">
+        A free, open-source file manager for macOS whose terminal follows every folder you open.
+      </p>
+      <div class="hero-action" data-rise style="--i:3">
+        {release
+          ? <a class="button" href={release.url}>Download for Mac</a>
+          : <a class="button" href="#get">Build from source</a>}
+        <p class="small">
+          {release
+            ? `Version ${release.version}${release.sizeMB ? `, a ${release.sizeMB} MB disk image` : ''}. Needs macOS 14 or later on Apple silicon or Intel.`
+            : 'Free under the MIT License. Needs macOS 14 or later on Apple silicon or Intel.'}
+        </p>
+      </div>
+    </div>
+    <nav class="hero-links" aria-label="Site">
+      <a class="link-plain" href="/docs/">User guide</a>
+      <a class="link-plain" href={repoUrl}>Source on GitHub</a>
+      <a class="link-plain" href="#questions">Questions</a>
+    </nav>
+  </div>
+  <div class="hero-stage" data-rise style="--i:2">
+    <AppFragment />
+    <p class="stage-hint small">This copy of FileTerm works. Click a folder, or type cd in its terminal.</p>
+  </div>
+</header>
