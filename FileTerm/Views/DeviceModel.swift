@@ -38,7 +38,10 @@ actor NativeVolumeService: VolumeService {
       else { return nil }
       return MountedVolume(
         url: url, name: values.volumeName ?? url.lastPathComponent,
-        isEjectable: values.volumeIsEjectable == true, isInternal: values.volumeIsInternal == true,
+        // Shares and external disks often report not ejectable, but they unmount like Finder's.
+        isEjectable: values.volumeIsEjectable == true || values.volumeIsLocal == false
+          || (url.path != "/" && values.volumeIsInternal == false),
+        isInternal: values.volumeIsInternal == true,
         isLocal: values.volumeIsLocal != false,
         capacity: values.volumeTotalCapacity.map(Int64.init),
         available: values.volumeAvailableCapacity.map(Int64.init))
