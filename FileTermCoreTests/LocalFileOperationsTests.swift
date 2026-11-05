@@ -57,6 +57,38 @@ struct LocalFileOperationsTests {
       #expect(!FileManager.default.fileExists(atPath: source.path))
       try await engine.undo()
     }
+
+    // An unreadable file can only be trashed and restored if its contents are never read.
+    @Test func trashDoesNotReadFileContents() async throws {
+      let root = try sandbox()
+      defer { try? FileManager.default.removeItem(at: root) }
+      let folder = root.appendingPathComponent("trash-unreadable-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      let locked = folder.appendingPathComponent("locked.bin")
+      try Data("secret".utf8).write(to: locked)
+      try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
+      let engine = LocalFileOperations()
+      _ = try await engine.trash(sources: [folder])
+      #expect(!FileManager.default.fileExists(atPath: folder.path))
+      #expect(await engine.historyState().canUndo)
+      try await engine.undo()
+      #expect(FileManager.default.fileExists(atPath: locked.path))
+      try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: locked.path)
+    }
+
+    @Test func trashUndoRefusesAFileChangedInTheTrash() async throws {
+      let root = try sandbox()
+      defer { try? FileManager.default.removeItem(at: root) }
+      let source = root.appendingPathComponent("trash-changed-\(UUID().uuidString).txt")
+      try Data("before".utf8).write(to: source)
+      let engine = LocalFileOperations()
+      let trashed = try #require(try await engine.trash(sources: [source]).first)
+      defer { try? FileManager.default.removeItem(at: trashed) }
+      try Data("after, longer".utf8).write(to: trashed)
+      #expect(await !engine.historyState().canUndo)
+      await #expect(throws: (any Error).self) { try await engine.undo() }
+      #expect(!FileManager.default.fileExists(atPath: source.path))
+    }
   #endif
 
   #if os(macOS)
