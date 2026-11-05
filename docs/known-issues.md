@@ -21,7 +21,7 @@ Problems in the app as it stands on 2026-11-01. Missing features and untested pr
 |---|---|---|
 | Moves from APFS to exFAT or FAT should always fail | From the code | The copy check includes modification time and permissions, which those volumes don't keep, so it reports changed contents. Checksum copies fail the same way. M04.06 is checked. |
 | Inline rename can't change only the case | From the code | Renaming `a.txt` to `A.txt` on case-insensitive APFS throws `destinationExists`. Only `renameBatch` handles this. |
-| Sockets and FIFOs block folder operations | From the code | The folder signature throws on them, so Trash, Rename and Move refuse the folder. Trash also hashes everything first, with no way to cancel. |
+| Sockets and FIFOs block folder operations | From the code | The folder signature throws on them, so Trash, Rename and Move refuse the folder. |
 
 ## Remote locations and sync
 

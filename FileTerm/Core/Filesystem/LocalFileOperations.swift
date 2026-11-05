@@ -94,6 +94,8 @@ public actor LocalFileOperations {
     let signature: Signature
     /// Undo sends a copy to the Trash, and `from` then records where it landed.
     var isCopy = false
+    /// Trash steps fingerprint metadata, not contents, so their checks must do the same.
+    var metadataOnly = false
   }
   private struct Transaction {
     var steps: [Step] = []
@@ -103,6 +105,8 @@ public actor LocalFileOperations {
     case file(Data, Date?, UInt?)
     case directory([String: Signature])
     case link(String)
+    /// Size, modification date, permissions and file number: a rename keeps all four.
+    case metadata(UInt64?, Date?, UInt?, UInt64?)
   }
   private struct TransferContext {
     var transaction = Transaction()
@@ -315,9 +319,11 @@ public actor LocalFileOperations {
       for source in sources {
         try local(source)
         let source = canonical(source)
-        let fingerprint = try signature(source)
+        // Reading every byte here made Trash take as long as a full copy.
+        let fingerprint = try signature(source, contents: false)
         let destination = try Self.moveToTrash(source)
-        transaction.steps.append(Step(from: source, to: destination, signature: fingerprint))
+        transaction.steps.append(
+          Step(from: source, to: destination, signature: fingerprint, metadataOnly: true))
         transaction.cursor += 1
         results.append(destination)
       }
@@ -349,7 +355,8 @@ public actor LocalFileOperations {
           try check(step.to, step.from, signature: step.signature)
           transaction.steps[index].from = try trashItem(step.to)
         } else {
-          try await guardedMove(step.to, step.from, signature: step.signature)
+          try await guardedMove(
+            step.to, step.from, signature: step.signature, metadataOnly: step.metadataOnly)
         }
         transaction.cursor -= 1
       }
@@ -367,7 +374,8 @@ public actor LocalFileOperations {
     do {
       while transaction.cursor < transaction.steps.count {
         let step = transaction.steps[transaction.cursor]
-        try await guardedMove(step.from, step.to, signature: step.signature)
+        try await guardedMove(
+          step.from, step.to, signature: step.signature, metadataOnly: step.metadataOnly)
         transaction.cursor += 1
       }
       undoStack.append(transaction)
@@ -404,7 +412,9 @@ public actor LocalFileOperations {
     guard transaction.steps.indices.contains(index) else { return "No remaining steps." }
     let step = transaction.steps[index]
     do {
-      try check(undo ? step.to : step.from, undo ? step.from : step.to, signature: step.signature)
+      try check(
+        undo ? step.to : step.from, undo ? step.from : step.to, signature: step.signature,
+        metadataOnly: step.metadataOnly)
       return nil
     } catch { return "Files have changed or are inaccessible: \(error)" }
   }
@@ -715,9 +725,11 @@ public actor LocalFileOperations {
     transaction.cursor += 1
   }
 
-  private func guardedMove(_ source: URL, _ destination: URL, signature: Signature) async throws {
+  private func guardedMove(
+    _ source: URL, _ destination: URL, signature: Signature, metadataOnly: Bool = false
+  ) async throws {
     try await checkpoint()
-    try check(source, destination, signature: signature)
+    try check(source, destination, signature: signature, metadataOnly: metadataOnly)
     do { try renameItem(source, destination) } catch {
       guard isCrossDevice(error) else { throw error }
       let staged = try storageURL(onVolumeOf: destination)
@@ -754,9 +766,13 @@ public actor LocalFileOperations {
     }
   }
 
-  private func check(_ source: URL, _ destination: URL, signature expected: Signature) throws {
+  private func check(
+    _ source: URL, _ destination: URL, signature expected: Signature, metadataOnly: Bool = false
+  ) throws {
     try absent(destination)
-    guard try signature(source) == expected else { throw LocalFileOperationError.changedContents }
+    guard try signature(source, contents: !metadataOnly) == expected else {
+      throw LocalFileOperationError.changedContents
+    }
   }
 
   private func cooperativeSignature(_ url: URL) async throws -> Signature {
@@ -786,7 +802,7 @@ public actor LocalFileOperations {
       (attributes[.posixPermissions] as? NSNumber)?.uintValue)
   }
 
-  private func signature(_ url: URL) throws -> Signature {
+  private func signature(_ url: URL, contents: Bool = true) throws -> Signature {
     let attributes = try fm.attributesOfItem(atPath: url.path)
     let type = attributes[.type] as? FileAttributeType
     if type == .typeSymbolicLink {
@@ -795,11 +811,17 @@ public actor LocalFileOperations {
     if type == .typeDirectory {
       var children: [String: Signature] = [:]
       for child in try fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) {
-        children[child.lastPathComponent] = try signature(child)
+        children[child.lastPathComponent] = try signature(child, contents: contents)
       }
       return .directory(children)
     }
     guard type == .typeRegular else { throw CocoaError(.fileReadUnsupportedScheme) }
+    if !contents {
+      return .metadata(
+        (attributes[.size] as? NSNumber)?.uint64Value, attributes[.modificationDate] as? Date,
+        (attributes[.posixPermissions] as? NSNumber)?.uintValue,
+        (attributes[.systemFileNumber] as? NSNumber)?.uint64Value)
+    }
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     var hasher = SHA256()
