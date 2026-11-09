@@ -630,10 +630,14 @@ struct BrowserView: View {
   /// badge of an ejectable volume ejects it.
   @ViewBuilder private func volumeBadge(_ volume: MountedVolume) -> some View {
     if volume.isEjectable {
-      Button { Task { await devices.eject(volume) } } label: { volumeBadgeImage(volume) }
-        .buttonStyle(.plain).disabled(devices.isEjecting)
-        .help("Eject “\(volume.name)”").accessibilityLabel("Eject \(volume.name)")
-        .accessibilityIdentifier("sidebarEject.\(volume.name)")
+      Button {
+        Task { await devices.eject(volume) }
+      } label: {
+        volumeBadgeImage(volume)
+      }
+      .buttonStyle(.plain).disabled(devices.isEjecting)
+      .help("Eject “\(volume.name)”").accessibilityLabel("Eject \(volume.name)")
+      .accessibilityIdentifier("sidebarEject.\(volume.name)")
     } else {
       volumeBadgeImage(volume)
     }
