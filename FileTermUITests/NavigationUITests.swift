@@ -442,17 +442,17 @@ final class NavigationUITests: XCTestCase {
     XCTAssertTrue(
       (app.staticTexts["selectedSize"].value as? String ?? app.staticTexts["selectedSize"].label)
         .contains("4 bytes"))
-    menu("View", command: "Show Path Bar", app: app)
+    menu("View", submenu: "Show", command: "Path Bar", app: app)
     XCTAssertFalse(app.descendants(matching: .any)["currentPath"].exists)
-    menu("View", command: "Show Path Bar", app: app)
+    menu("View", submenu: "Show", command: "Path Bar", app: app)
     XCTAssertTrue(app.descendants(matching: .any)["currentPath"].exists)
-    menu("View", command: "Show Toolbar", app: app)
+    menu("View", submenu: "Show", command: "Toolbar", app: app)
     XCTAssertFalse(app.buttons["go.back"].exists)
-    menu("View", command: "Show Toolbar", app: app)
+    menu("View", submenu: "Show", command: "Toolbar", app: app)
     XCTAssertTrue(app.buttons["go.back"].waitForExistence(timeout: 5))
-    menu("View", command: "Show Title Bar", app: app)
+    menu("View", submenu: "Show", command: "Title Bar", app: app)
     XCTAssertTrue(app.windows.buttons[XCUIIdentifierCloseWindow].exists)
-    menu("View", command: "Show Title Bar", app: app)
+    menu("View", submenu: "Show", command: "Title Bar", app: app)
   }
 
   @MainActor private func openFolder(_ path: String, app: XCUIApplication) {
@@ -465,9 +465,16 @@ final class NavigationUITests: XCTestCase {
     field.typeKey(.return, modifierFlags: [])
   }
 
-  @MainActor private func menu(_ title: String, command: String, app: XCUIApplication) {
+  @MainActor private func menu(
+    _ title: String, submenu: String? = nil, command: String, app: XCUIApplication
+  ) {
     app.menuBars.menuBarItems[title].click()
-    app.menuItems[command].click()
+    if let submenu {
+      app.menuItems[submenu].hover()
+      app.menuItems[submenu].menuItems[command].click()
+    } else {
+      app.menuItems[command].click()
+    }
   }
 }
 

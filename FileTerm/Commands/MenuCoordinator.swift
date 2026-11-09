@@ -148,8 +148,11 @@ import FileTermCore
         continue
       }
       let shortcut = registry.effectiveShortcut(for: command.id)
+      var title = registry.title(of: command)
+      // View › Show › Path Bar, not View › Show › Show Path Bar.
+      if path == ["View", "Show"], title.hasPrefix("Show ") { title.removeFirst(5) }
       let item = NSMenuItem(
-        title: NSLocalizedString(registry.title(of: command), comment: "Menu command"),
+        title: NSLocalizedString(title, comment: "Menu command"),
         action: #selector(execute(_:)), keyEquivalent: shortcut?.key ?? "")
       item.target = self
       item.representedObject = command.id

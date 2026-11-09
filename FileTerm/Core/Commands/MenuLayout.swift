@@ -45,11 +45,7 @@ public enum MenuLayout {
       ],
       ["view.asIcons", "view.asList", "view.asColumns"],
       ["Sort by", "Group by", "view.options"],
-      [
-        "view.pathBar", "view.titleBar", "view.toolbar", "view.sidebar", "view.tabBar",
-        "view.devices", "view.deviceInfo", "view.recentFolders", "view.tags", "view.workspaces",
-        "view.iCloudDrive", "view.favorites", "view.connections",
-      ],
+      ["Show"],
       [
         "view.customizeToolbar", "view.sidebarEditor", "view.saveDefaults",
         "view.restoreDefaults",
@@ -57,6 +53,13 @@ public enum MenuLayout {
       ["view.showHidden", "view.refresh", "view.autoRefresh"],
       ["view.terminal", "Terminal"],
       ["Text Encoding"],
+    ],
+    ["View", "Show"]: [
+      ["view.pathBar", "view.titleBar", "view.toolbar", "view.sidebar", "view.tabBar"],
+      [
+        "view.devices", "view.deviceInfo", "view.recentFolders", "view.tags", "view.workspaces",
+        "view.iCloudDrive", "view.favorites", "view.connections",
+      ],
     ],
     ["View", "Terminal"]: [
       ["terminal.focus"],

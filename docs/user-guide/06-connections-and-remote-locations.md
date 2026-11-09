@@ -116,6 +116,6 @@ Go › Connections lists:
 - Edit Saved Connection, a submenu that opens the form. The form has a Delete button there.
 - Disconnect, a submenu of open connections.
 
-The sidebar's Connections section also lists open connections. It appears when the first one opens and goes away when the last one closes. Click a connection to reveal it in a pane. Right-click it to open it in a new tab or window, or to disconnect it. View › Show Connections shows or hides the section.
+The sidebar's Connections section also lists open connections. It appears when the first one opens and goes away when the last one closes. Click a connection to reveal it in a pane. Right-click it to open it in a new tab or window, or to disconnect it. View › Show › Connections shows or hides the section.
 
 Connections don't reconnect after you quit and reopen FileTerm.

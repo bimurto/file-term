@@ -55,7 +55,7 @@ Click Apply to use the settings. Save View Settings as Defaults, in the dialog o
 
 ## Toolbar and sidebar
 
-- View › Show Toolbar, Show Sidebar, Show Tab Bar, Show Path Bar and Show Title Bar each show or hide that part of the window. These choices are remembered.
+- View › Show › Toolbar, Sidebar, Tab Bar, Path Bar and Title Bar each show or hide that part of the window. These choices are remembered.
 - View › Customize Toolbar… adds, removes and reorders toolbar commands. It offers top-level commands from the File, View, Go and Commands menus, and Restore Default Toolbar resets the list.
 - View › Show Sidebar Editor turns sidebar sections on or off and changes their order.
 - When the window gets narrower, similar toolbar buttons fold into dropdowns: pane layout and view mode first, then panels, then everything but navigation under More.
