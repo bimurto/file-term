@@ -25,7 +25,7 @@ If a folder can't be opened, the pane keeps its current folder, listing and sele
 
 ## Path and status bars
 
-The path bar sits above the file list. Click any parent folder in it to go there. In a remote pane it shows the path as text. Turn it on or off with View › Show Path Bar.
+The path bar sits above the file list. Click any parent folder in it to go there. In a remote pane it shows the path as text. Turn it on or off with View › Show › Path Bar.
 
 The status bar sits below the file list and shows:
 
@@ -59,8 +59,8 @@ Go › Connections lists open and saved connections. See [chapter 6](06-connecti
 
 The sidebar's Devices section lists mounted volumes. Click one to open it in the active pane. The list updates when a volume mounts, unmounts or is renamed.
 
-- View › Show Devices shows or hides the section.
-- View › Show Device Info adds free space and capacity under each name. It's off by default.
+- View › Show › Devices shows or hides the section.
+- View › Show › Device Info adds free space and capacity under each name. It's off by default.
 - File › Eject ejects the volume selected in the sidebar. It needs the sidebar and Devices section to be visible and an ejectable volume to be selected. Failures appear in an alert.
 
 If a volume unmounts while a tab shows it, that tab returns to Home.

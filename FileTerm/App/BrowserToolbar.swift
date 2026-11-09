@@ -58,7 +58,10 @@ import Observation
     let saved = ToolbarLayout.items(from: settings.workspace.toolbarItems).filter { id in
       if id.hasPrefix("tools.run.") { return tools.contains(id) }
       return commands.contains(id) || ToolbarLayout.Group(itemID: id) != nil
-        || [ToolbarLayout.search, ToolbarLayout.space, ToolbarLayout.flexibleSpace].contains(id)
+        || [
+          ToolbarLayout.search, ToolbarLayout.groupBy, ToolbarLayout.space,
+          ToolbarLayout.flexibleSpace,
+        ].contains(id)
     }
     return saved + tools.filter { !saved.contains($0) }
   }
@@ -78,7 +81,14 @@ import Observation
     let states = registry.states()
     for item in toolbar.items {
       let id = item.itemIdentifier.rawValue
-      if let group = item as? NSToolbarItemGroup, let kind = ToolbarLayout.Group(itemID: id) {
+      if let pullDown = item as? NSMenuToolbarItem {
+        for menuItem in pullDown.menu.items {
+          guard let command = menuItem.representedObject as? String else { continue }
+          menuItem.state = states[command]?.isChecked == true ? .on : .off
+          menuItem.isEnabled = states[command]?.disabledReason == nil
+        }
+      } else if let group = item as? NSToolbarItemGroup, let kind = ToolbarLayout.Group(itemID: id)
+      {
         group.selectedIndex = kind.commands.firstIndex { states[$0]?.isChecked == true } ?? -1
         for (subitem, command) in zip(group.subitems, kind.commands) {
           subitem.isEnabled = states[command]?.disabledReason == nil
@@ -145,7 +155,8 @@ import Observation
   func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
     let commands = Self.paletteCommands.filter { registry.command($0) != nil }
     let ids =
-      ToolbarLayout.Group.allCases.map(\.itemID) + [ToolbarLayout.search] + commands + toolItems
+      ToolbarLayout.Group.allCases.map(\.itemID) + [ToolbarLayout.groupBy, ToolbarLayout.search]
+      + commands + toolItems
       + [ToolbarLayout.space, ToolbarLayout.flexibleSpace]
     return ids.map { NSToolbarItem.Identifier($0) }
   }
@@ -163,12 +174,35 @@ import Observation
       item.visibilityPriority = .high
       return item
     }
+    if id == ToolbarLayout.groupBy {
+      let menu = NSMenu()
+      menu.autoenablesItems = false
+      for field in FileGroupField.allCases {
+        let command = "view.group." + field.rawValue
+        let menuItem = NSMenuItem(
+          title: title(of: command), action: #selector(run(_:)), keyEquivalent: "")
+        menuItem.target = self
+        menuItem.representedObject = command
+        menu.addItem(menuItem)
+        if field == .none { menu.addItem(.separator()) }
+      }
+      let item = NSMenuToolbarItem(itemIdentifier: identifier)
+      item.menu = menu
+      item.image = NSImage(
+        systemSymbolName: "square.grid.3x1.below.line.grid.1x2",
+        accessibilityDescription: "Group by")
+      item.label = "Group by"
+      item.paletteLabel = "Group by"
+      item.toolTip = "Group by"
+      return item
+    }
     if let group = ToolbarLayout.Group(itemID: id) {
       let item = NSToolbarItemGroup(
         itemIdentifier: identifier, images: group.commands.compactMap(image(for:)),
         selectionMode: .selectOne, labels: group.commands.map(title(of:)), target: self,
         action: #selector(select(_:)))
-      item.controlRepresentation = .expanded
+      // Three buttons while there is room, one pop-up when the window is too narrow.
+      item.controlRepresentation = .automatic
       item.label = group.title
       item.paletteLabel = group.title
       item.toolTip = group.title

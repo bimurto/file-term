@@ -710,7 +710,7 @@ import UniformTypeIdentifiers
     for chrome in BrowserChrome.allCases {
       commands.append(
         AppCommand(
-          id: chrome.commandID, title: "Show \(chrome.title)", menuPath: ["View"],
+          id: chrome.commandID, title: "Show \(chrome.title)", menuPath: ["View", "Show"],
           isEnabled: { $0.hasBrowserWindow },
           disabledReason: { _ in "Open the browser window first." },
           isChecked: { [weak self] _ in self?.settings.isVisible(chrome) == true },
