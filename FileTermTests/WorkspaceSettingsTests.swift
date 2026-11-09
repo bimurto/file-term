@@ -51,7 +51,8 @@ import Testing
     preferences.addNewToolbarDefaults(offered: olderDefaults)
     #expect(
       preferences.toolbarItems == [
-        "go.back", "group.viewMode", "group.layout", "view.refresh", ToolbarLayout.flexibleSpace,
+        "go.back", "group.viewMode", ToolbarLayout.groupBy, "group.layout", "view.refresh",
+        ToolbarLayout.flexibleSpace,
         "view.showHidden", ToolbarLayout.search,
       ])
   }

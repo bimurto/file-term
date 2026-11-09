@@ -25,6 +25,8 @@ public enum ToolbarLayout {
   }
 
   public static let search = "search"
+  /// A pull-down of the View › Group by commands.
+  public static let groupBy = "groupBy"
   /// The raw values of AppKit's space items, so saved lists can hold them.
   public static let space = "NSToolbarSpaceItem"
   public static let flexibleSpace = "NSToolbarFlexibleSpaceItem"

@@ -7,7 +7,8 @@ struct WorkspacePreferences: Codable, Equatable {
   var startingDirectory = FileManager.default.homeDirectoryForCurrentUser.path
   var toolbarItems = [
     "go.back", "go.forward", "go.enclosingFolder", "go.connect", "group.layout",
-    "group.viewMode", "go.syncBrowsing", "commands.sync", "go.toFolder", "go.favorites.manage",
+    "group.viewMode", ToolbarLayout.groupBy, "go.syncBrowsing", "commands.sync", "go.toFolder",
+    "go.favorites.manage",
     "file.openInTerminal", "file.trash", "view.preview", "view.activities", "view.logs",
     "view.terminal", "view.refresh", ToolbarLayout.flexibleSpace, "view.showHidden",
     ToolbarLayout.search,
