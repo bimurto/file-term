@@ -168,7 +168,8 @@ import Observation
         itemIdentifier: identifier, images: group.commands.compactMap(image(for:)),
         selectionMode: .selectOne, labels: group.commands.map(title(of:)), target: self,
         action: #selector(select(_:)))
-      item.controlRepresentation = .expanded
+      // Three buttons while there is room, one pop-up when the window is too narrow.
+      item.controlRepresentation = .automatic
       item.label = group.title
       item.paletteLabel = group.title
       item.toolTip = group.title
